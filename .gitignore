@@ -1,0 +1,32 @@
+# Python cache and virtual environments
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Local configuration
+.env
+.env.*
+!.env.example
+
+# Runtime and logs
+var/
+*.log
+
+# Generated data artifacts
+data/normalized/
+data/structured/
+data/chunks/
+data/index/
+data/manifests/
+
+# Local model or tool caches
+.cache/
+hf_cache/
+
+# Test and editor noise
+.pytest_cache/
+.DS_Store
+.vscode/
+.idea/
+

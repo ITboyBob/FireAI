@@ -1,0 +1,3940 @@
+[
+    {
+        "entity_1": {
+            "name": "各级政府",
+            "type": "政府机构"
+        },
+        "relation": "应当负责",
+        "entity_2": {
+            "name": "消防工作",
+            "type": "工作类型"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "政府主要负责人",
+            "type": "责任主体"
+        },
+        "relation": "应当担任",
+        "entity_2": {
+            "name": "第一责任人",
+            "type": "责任主体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "分管负责人",
+            "type": "责任主体"
+        },
+        "relation": "应当担任",
+        "entity_2": {
+            "name": "主要责任人",
+            "type": "责任主体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "班子其他成员",
+            "type": "责任主体"
+        },
+        "relation": "应当负责",
+        "entity_2": {
+            "name": "分管范围内的消防工作",
+            "type": "工作类型"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "县级以上公安机关",
+            "type": "政府机构"
+        },
+        "relation": "监督管理",
+        "entity_2": {
+            "name": "消防工作",
+            "type": "工作类型"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "本级公安消防部门",
+            "type": "政府机构"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "监督管理",
+            "type": "安全管理行为"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "辖区公安派出所",
+            "type": "政府机构"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "监督管理",
+            "type": "安全管理行为"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "县级以上政府其他有关部门",
+            "type": "政府机构"
+        },
+        "relation": "应当负责",
+        "entity_2": {
+            "name": "消防安全工作",
+            "type": "工作类型"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "机关",
+            "type": "社会团体"
+        },
+        "relation": "应当担任",
+        "entity_2": {
+            "name": "消防安全的责任主体",
+            "type": "责任主体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "团体",
+            "type": "社会团体"
+        },
+        "relation": "应当担任",
+        "entity_2": {
+            "name": "消防安全的责任主体",
+            "type": "责任主体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "企业",
+            "type": "社会团体"
+        },
+        "relation": "应当担任",
+        "entity_2": {
+            "name": "消防安全的责任主体",
+            "type": "责任主体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "事业单位",
+            "type": "社会团体"
+        },
+        "relation": "应当担任",
+        "entity_2": {
+            "name": "消防安全的责任主体",
+            "type": "责任主体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "法定代表人",
+            "type": "责任主体"
+        },
+        "relation": "应当担任",
+        "entity_2": {
+            "name": "消防安全责任人",
+            "type": "责任主体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "主要负责人",
+            "type": "责任主体"
+        },
+        "relation": "应当担任",
+        "entity_2": {
+            "name": "消防安全责任人",
+            "type": "责任主体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "实际控制人",
+            "type": "责任主体"
+        },
+        "relation": "应当担任",
+        "entity_2": {
+            "name": "消防安全责任人",
+            "type": "责任主体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "消防安全责任人",
+            "type": "责任主体"
+        },
+        "relation": "应当负责",
+        "entity_2": {
+            "name": "消防安全工作",
+            "type": "工作类型"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "机关、团体、企业、事业单位",
+            "type": "社会团体"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "消防安全责任制",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "机关、团体、企业、事业单位",
+            "type": "社会团体"
+        },
+        "relation": "应当确定",
+        "entity_2": {
+            "name": "消防安全责任人",
+            "type": "责任主体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "县级以上政府",
+            "type": "政府机构"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "消防安全责任制",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "县级以上政府",
+            "type": "政府机构"
+        },
+        "relation": "配备建设",
+        "entity_2": {
+            "name": "消防安全委员会",
+            "type": "社会团体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "消防工作",
+            "type": "工作类型"
+        },
+        "relation": "应当纳入",
+        "entity_2": {
+            "name": "国民经济和社会发展总体规划",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "消防规划",
+            "type": "消防规范"
+        },
+        "relation": "应当纳入",
+        "entity_2": {
+            "name": "城乡规划",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "县级以上政府",
+            "type": "政府机构"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "消防规划",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "消防业务经费",
+            "type": "经费支出"
+        },
+        "relation": "应当纳入",
+        "entity_2": {
+            "name": "本级财政预算",
+            "type": "经费支出"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "县级以上政府",
+            "type": "政府机构"
+        },
+        "relation": "应当确定",
+        "entity_2": {
+            "name": "地方政府规章",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "县级以上政府",
+            "type": "政府机构"
+        },
+        "relation": "应当确定",
+        "entity_2": {
+            "name": "规范性文件",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "县级以上政府",
+            "type": "政府机构"
+        },
+        "relation": "应当确定",
+        "entity_2": {
+            "name": "技术标准",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "县级以上政府",
+            "type": "政府机构"
+        },
+        "relation": "支持鼓励",
+        "entity_2": {
+            "name": "消防科学研究",
+            "type": "技术创新活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "县级以上政府",
+            "type": "政府机构"
+        },
+        "relation": "支持鼓励",
+        "entity_2": {
+            "name": "技术创新",
+            "type": "技术创新活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "县级以上政府",
+            "type": "政府机构"
+        },
+        "relation": "支持鼓励",
+        "entity_2": {
+            "name": "先进消防和应急救援技术、设备",
+            "type": "消防设施"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "县级以上政府",
+            "type": "政府机构"
+        },
+        "relation": "开展宣传",
+        "entity_2": {
+            "name": "经常性消防宣传教育工作",
+            "type": "宣传教育活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "县级以上政府",
+            "type": "政府机构"
+        },
+        "relation": "支持鼓励",
+        "entity_2": {
+            "name": "消防公益事业",
+            "type": "宣传教育活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "县级以上政府",
+            "type": "政府机构"
+        },
+        "relation": "配备建设",
+        "entity_2": {
+            "name": "常态化火灾隐患排查整治机制",
+            "type": "消防系统建设"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "县级以上政府",
+            "type": "政府机构"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "消防安全检查",
+            "type": "安全管理活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "县级以上政府",
+            "type": "政府机构"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "重大火灾隐患整治工作",
+            "type": "安全管理活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "县级以上政府",
+            "type": "政府机构"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "区域性火灾隐患整治工作",
+            "type": "安全管理活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "县级以上政府",
+            "type": "政府机构"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "重大火灾隐患挂牌督办制度",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "县级以上政府",
+            "type": "政府机构"
+        },
+        "relation": "应当确定",
+        "entity_2": {
+            "name": "区域性火灾隐患整治工作规划",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "县级以上政府",
+            "type": "政府机构"
+        },
+        "relation": "配备建设",
+        "entity_2": {
+            "name": "公安消防队",
+            "type": "消防系统建设"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "县级以上政府",
+            "type": "政府机构"
+        },
+        "relation": "配备建设",
+        "entity_2": {
+            "name": "专职消防队",
+            "type": "消防系统建设"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "县级以上政府",
+            "type": "政府机构"
+        },
+        "relation": "配备建设",
+        "entity_2": {
+            "name": "消防装备",
+            "type": "消防设施"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "县级以上政府",
+            "type": "政府机构"
+        },
+        "relation": "应当确保",
+        "entity_2": {
+            "name": "政府专职消防队员工资",
+            "type": "福利保障"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "县级以上政府",
+            "type": "政府机构"
+        },
+        "relation": "应当确保",
+        "entity_2": {
+            "name": "社会保险",
+            "type": "福利保障"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "县级以上政府",
+            "type": "政府机构"
+        },
+        "relation": "应当确保",
+        "entity_2": {
+            "name": "相关福利待遇",
+            "type": "福利保障"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "县级以上政府",
+            "type": "政府机构"
+        },
+        "relation": "领导",
+        "entity_2": {
+            "name": "火灾扑救",
+            "type": "应急处置活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "县级以上政府",
+            "type": "政府机构"
+        },
+        "relation": "领导",
+        "entity_2": {
+            "name": "应急救援工作",
+            "type": "应急处置活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "县级以上政府",
+            "type": "政府机构"
+        },
+        "relation": "应当确定",
+        "entity_2": {
+            "name": "灭火救援应急预案",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "县级以上政府",
+            "type": "政府机构"
+        },
+        "relation": "配备建设",
+        "entity_2": {
+            "name": "灭火救援社会联动机制",
+            "type": "消防系统建设"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "县级以上政府",
+            "type": "政府机构"
+        },
+        "relation": "配备建设",
+        "entity_2": {
+            "name": "应急反应处置机制",
+            "type": "消防系统建设"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "县级以上政府",
+            "type": "政府机构"
+        },
+        "relation": "应当确保",
+        "entity_2": {
+            "name": "火灾扑救和应急救援工作",
+            "type": "应急处置活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "市、县级政府",
+            "type": "政府机构"
+        },
+        "relation": "应当确定",
+        "entity_2": {
+            "name": "城乡消防规划",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "市、县级政府",
+            "type": "政府机构"
+        },
+        "relation": "应当确保",
+        "entity_2": {
+            "name": "公共消防设施",
+            "type": "消防设施"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "市、县级政府",
+            "type": "政府机构"
+        },
+        "relation": "应当确保",
+        "entity_2": {
+            "name": "消防装备",
+            "type": "消防设施"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "市、县级政府",
+            "type": "政府机构"
+        },
+        "relation": "配备建设",
+        "entity_2": {
+            "name": "市政消防供水设施",
+            "type": "消防设施"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "市、县级政府",
+            "type": "政府机构"
+        },
+        "relation": "应当确定",
+        "entity_2": {
+            "name": "市政消防水源管理办法",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "市、县级政府",
+            "type": "政府机构"
+        },
+        "relation": "应当确保",
+        "entity_2": {
+            "name": "资金",
+            "type": "经费支出"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "市、县级政府",
+            "type": "政府机构"
+        },
+        "relation": "配备建设",
+        "entity_2": {
+            "name": "消防站",
+            "type": "消防设施"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "市、县级政府",
+            "type": "政府机构"
+        },
+        "relation": "配备建设",
+        "entity_2": {
+            "name": "消防供水设施",
+            "type": "消防设施"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "市、县级政府",
+            "type": "政府机构"
+        },
+        "relation": "配备建设",
+        "entity_2": {
+            "name": "消防通信设施",
+            "type": "消防设施"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "消防公共服务事项",
+            "type": "工作类型"
+        },
+        "relation": "应当纳入",
+        "entity_2": {
+            "name": "政府民生工程",
+            "type": "工作类型"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "市、县级政府",
+            "type": "政府机构"
+        },
+        "relation": "配备建设",
+        "entity_2": {
+            "name": "简易喷淋装置",
+            "type": "消防设施"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "市、县级政府",
+            "type": "政府机构"
+        },
+        "relation": "配备建设",
+        "entity_2": {
+            "name": "独立式感烟火灾探测报警器",
+            "type": "消防设施"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "市、县级政府",
+            "type": "政府机构"
+        },
+        "relation": "开展宣传",
+        "entity_2": {
+            "name": "消防宣传教育培训",
+            "type": "宣传教育活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "市、县级政府",
+            "type": "政府机构"
+        },
+        "relation": "配备建设",
+        "entity_2": {
+            "name": "公益性消防科普教育基地",
+            "type": "消防设施"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "市、县级政府",
+            "type": "政府机构"
+        },
+        "relation": "开展宣传",
+        "entity_2": {
+            "name": "消防科普教育活动",
+            "type": "宣传教育活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "市、县级政府",
+            "type": "政府机构"
+        },
+        "relation": "配备建设",
+        "entity_2": {
+            "name": "小型普通消防站",
+            "type": "消防设施"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "市、县级政府",
+            "type": "政府机构"
+        },
+        "relation": "应当消除",
+        "entity_2": {
+            "name": "安全隐患",
+            "type": "安全隐患"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "市、县级政府",
+            "type": "政府机构"
+        },
+        "relation": "配备建设",
+        "entity_2": {
+            "name": "智慧消防",
+            "type": "消防系统建设"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "智慧消防",
+            "type": "消防系统建设"
+        },
+        "relation": "应当纳入",
+        "entity_2": {
+            "name": "智慧城市建设总体规划",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "市、县级政府",
+            "type": "政府机构"
+        },
+        "relation": "配备建设",
+        "entity_2": {
+            "name": "城市物联网消防远程监控系统",
+            "type": "消防设施"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "市、县级政府",
+            "type": "政府机构"
+        },
+        "relation": "配备建设",
+        "entity_2": {
+            "name": "高层住宅智能消防预警系统",
+            "type": "消防设施"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "市、县级政府",
+            "type": "政府机构"
+        },
+        "relation": "配备建设",
+        "entity_2": {
+            "name": "社会消防安全管理系统",
+            "type": "消防系统建设"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "市、县级政府",
+            "type": "政府机构"
+        },
+        "relation": "领导",
+        "entity_2": {
+            "name": "气代煤、电代煤工程消防安全工作",
+            "type": "工作类型"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "市、县级政府",
+            "type": "政府机构"
+        },
+        "relation": "应当确定",
+        "entity_2": {
+            "name": "主管部门",
+            "type": "政府机构"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "市、县级政府",
+            "type": "政府机构"
+        },
+        "relation": "配备建设",
+        "entity_2": {
+            "name": "用气、用电应急救援体系",
+            "type": "消防系统建设"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "市、县级政府",
+            "type": "政府机构"
+        },
+        "relation": "配备建设",
+        "entity_2": {
+            "name": "联动处置机制",
+            "type": "消防系统建设"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "乡镇政府",
+            "type": "政府机构"
+        },
+        "relation": "配备建设",
+        "entity_2": {
+            "name": "消防安全组织",
+            "type": "社会团体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "街道办事处",
+            "type": "政府机构"
+        },
+        "relation": "配备建设",
+        "entity_2": {
+            "name": "消防安全组织",
+            "type": "社会团体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "乡镇政府",
+            "type": "政府机构"
+        },
+        "relation": "应当确定",
+        "entity_2": {
+            "name": "专人",
+            "type": "责任主体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "街道办事处",
+            "type": "政府机构"
+        },
+        "relation": "应当确定",
+        "entity_2": {
+            "name": "专人",
+            "type": "责任主体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "专人",
+            "type": "责任主体"
+        },
+        "relation": "应当负责",
+        "entity_2": {
+            "name": "消防工作",
+            "type": "工作类型"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "乡镇政府",
+            "type": "政府机构"
+        },
+        "relation": "应当确定",
+        "entity_2": {
+            "name": "消防安全制度",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "街道办事处",
+            "type": "政府机构"
+        },
+        "relation": "应当确定",
+        "entity_2": {
+            "name": "消防安全制度",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "乡镇政府",
+            "type": "政府机构"
+        },
+        "relation": "应当确保",
+        "entity_2": {
+            "name": "公共消防设施建设资金",
+            "type": "经费支出"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "乡镇政府",
+            "type": "政府机构"
+        },
+        "relation": "应当确保",
+        "entity_2": {
+            "name": "业务经费支出",
+            "type": "经费支出"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "街道办事处",
+            "type": "政府机构"
+        },
+        "relation": "应当确保",
+        "entity_2": {
+            "name": "消防工作经费",
+            "type": "经费支出"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "乡镇政府",
+            "type": "政府机构"
+        },
+        "relation": "应当确定",
+        "entity_2": {
+            "name": "乡镇消防规划",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "街道办事处",
+            "type": "政府机构"
+        },
+        "relation": "应当确定",
+        "entity_2": {
+            "name": "乡镇消防规划",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "乡镇政府",
+            "type": "政府机构"
+        },
+        "relation": "配备建设",
+        "entity_2": {
+            "name": "专职消防队",
+            "type": "消防系统建设"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "乡镇政府",
+            "type": "政府机构"
+        },
+        "relation": "配备建设",
+        "entity_2": {
+            "name": "志愿消防队",
+            "type": "消防系统建设"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "街道办事处",
+            "type": "政府机构"
+        },
+        "relation": "配备建设",
+        "entity_2": {
+            "name": "专职消防队",
+            "type": "消防系统建设"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "街道办事处",
+            "type": "政府机构"
+        },
+        "relation": "配备建设",
+        "entity_2": {
+            "name": "志愿消防队",
+            "type": "消防系统建设"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "乡镇政府",
+            "type": "政府机构"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "消防安全“网格化”管理",
+            "type": "安全管理活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "街道办事处",
+            "type": "政府机构"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "消防安全“网格化”管理",
+            "type": "安全管理活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "乡镇政府",
+            "type": "政府机构"
+        },
+        "relation": "开展宣传",
+        "entity_2": {
+            "name": "消防宣传",
+            "type": "宣传教育活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "街道办事处",
+            "type": "政府机构"
+        },
+        "relation": "开展宣传",
+        "entity_2": {
+            "name": "消防宣传",
+            "type": "宣传教育活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "乡镇政府",
+            "type": "政府机构"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "应急疏散演练",
+            "type": "宣传教育活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "街道办事处",
+            "type": "政府机构"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "应急疏散演练",
+            "type": "宣传教育活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "乡镇政府",
+            "type": "政府机构"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "消防安全整治",
+            "type": "安全管理活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "街道办事处",
+            "type": "政府机构"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "消防安全整治",
+            "type": "安全管理活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "乡镇政府",
+            "type": "政府机构"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "消防安全检查",
+            "type": "安全管理活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "街道办事处",
+            "type": "政府机构"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "消防安全检查",
+            "type": "安全管理活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "乡镇政府",
+            "type": "政府机构"
+        },
+        "relation": "领导",
+        "entity_2": {
+            "name": "村民委员会",
+            "type": "社会团体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "乡镇政府",
+            "type": "政府机构"
+        },
+        "relation": "领导",
+        "entity_2": {
+            "name": "居民委员会",
+            "type": "社会团体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "街道办事处",
+            "type": "政府机构"
+        },
+        "relation": "领导",
+        "entity_2": {
+            "name": "村民委员会",
+            "type": "社会团体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "街道办事处",
+            "type": "政府机构"
+        },
+        "relation": "领导",
+        "entity_2": {
+            "name": "居民委员会",
+            "type": "社会团体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "村民委员会",
+            "type": "社会团体"
+        },
+        "relation": "应当确定",
+        "entity_2": {
+            "name": "消防安全管理人",
+            "type": "责任主体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "居民委员会",
+            "type": "社会团体"
+        },
+        "relation": "应当确定",
+        "entity_2": {
+            "name": "消防安全管理人",
+            "type": "责任主体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "村民委员会",
+            "type": "社会团体"
+        },
+        "relation": "应当确定",
+        "entity_2": {
+            "name": "防火安全公约",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "居民委员会",
+            "type": "社会团体"
+        },
+        "relation": "应当确定",
+        "entity_2": {
+            "name": "防火安全公约",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "村民委员会",
+            "type": "社会团体"
+        },
+        "relation": "配备建设",
+        "entity_2": {
+            "name": "志愿消防队",
+            "type": "消防系统建设"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "村民委员会",
+            "type": "社会团体"
+        },
+        "relation": "配备建设",
+        "entity_2": {
+            "name": "微型消防站",
+            "type": "消防设施"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "居民委员会",
+            "type": "社会团体"
+        },
+        "relation": "配备建设",
+        "entity_2": {
+            "name": "志愿消防队",
+            "type": "消防系统建设"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "居民委员会",
+            "type": "社会团体"
+        },
+        "relation": "配备建设",
+        "entity_2": {
+            "name": "微型消防站",
+            "type": "消防设施"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "村民委员会",
+            "type": "社会团体"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "防火安全检查",
+            "type": "安全管理活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "居民委员会",
+            "type": "社会团体"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "防火安全检查",
+            "type": "安全管理活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "村民委员会",
+            "type": "社会团体"
+        },
+        "relation": "开展宣传",
+        "entity_2": {
+            "name": "消防宣传教育",
+            "type": "宣传教育活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "居民委员会",
+            "type": "社会团体"
+        },
+        "relation": "开展宣传",
+        "entity_2": {
+            "name": "消防宣传教育",
+            "type": "宣传教育活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "村民委员会",
+            "type": "社会团体"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "应急疏散演练",
+            "type": "宣传教育活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "居民委员会",
+            "type": "社会团体"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "应急疏散演练",
+            "type": "宣传教育活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "乡镇政府",
+            "type": "政府机构"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "初起火灾扑救",
+            "type": "应急处置活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "街道办事处",
+            "type": "政府机构"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "初起火灾扑救",
+            "type": "应急处置活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "乡镇政府",
+            "type": "政府机构"
+        },
+        "relation": "应当协助",
+        "entity_2": {
+            "name": "公安消防部门",
+            "type": "政府机构"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "街道办事处",
+            "type": "政府机构"
+        },
+        "relation": "应当协助",
+        "entity_2": {
+            "name": "公安消防部门",
+            "type": "政府机构"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "消防安全布局",
+            "type": "消防规范"
+        },
+        "relation": "应当纳入",
+        "entity_2": {
+            "name": "村庄建设规划",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "消防通道",
+            "type": "消防设施"
+        },
+        "relation": "应当纳入",
+        "entity_2": {
+            "name": "村庄建设规划",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "消防水源",
+            "type": "消防设施"
+        },
+        "relation": "应当纳入",
+        "entity_2": {
+            "name": "村庄建设规划",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "公共消防设施",
+            "type": "消防设施"
+        },
+        "relation": "应当纳入",
+        "entity_2": {
+            "name": "村公共基础设施建设范围",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "村民委员会",
+            "type": "社会团体"
+        },
+        "relation": "应当确定",
+        "entity_2": {
+            "name": "消防安全登记、救助制度",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "居民委员会",
+            "type": "社会团体"
+        },
+        "relation": "应当确定",
+        "entity_2": {
+            "name": "消防安全登记、救助制度",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "管理机构",
+            "type": "政府机构"
+        },
+        "relation": "应当负责",
+        "entity_2": {
+            "name": "管理区域内的消防工作",
+            "type": "工作类型"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "各级政府主要负责人",
+            "type": "责任主体"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "消防法律、法规",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "各级政府主要负责人",
+            "type": "责任主体"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "方针政策",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "各级政府主要负责人",
+            "type": "责任主体"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "上级决策部署",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "各级政府主要负责人",
+            "type": "责任主体"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "消防工作",
+            "type": "工作类型"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "各级政府主要负责人",
+            "type": "责任主体"
+        },
+        "relation": "应当消除",
+        "entity_2": {
+            "name": "重大消防安全问题",
+            "type": "安全隐患"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "各级政府分管消防工作负责人",
+            "type": "责任主体"
+        },
+        "relation": "应当协助",
+        "entity_2": {
+            "name": "主要负责人",
+            "type": "责任主体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "各级政府分管消防工作负责人",
+            "type": "责任主体"
+        },
+        "relation": "应当协助",
+        "entity_2": {
+            "name": "本行政区域内的消防工作",
+            "type": "工作类型"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "各级政府分管消防工作负责人",
+            "type": "责任主体"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "年度消防工作考核",
+            "type": "安全管理活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "班子其他成员",
+            "type": "责任主体"
+        },
+        "relation": "应当负责",
+        "entity_2": {
+            "name": "分管领域的消防工作",
+            "type": "工作类型"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "班子其他成员",
+            "type": "责任主体"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "工作督查",
+            "type": "安全管理活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "班子其他成员",
+            "type": "责任主体"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "消防安全标准化管理",
+            "type": "安全管理活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "班子其他成员",
+            "type": "责任主体"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "火灾隐患排查整治",
+            "type": "安全管理活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "各级消防安全委员会",
+            "type": "社会团体"
+        },
+        "relation": "应当协助",
+        "entity_2": {
+            "name": "本地消防工作",
+            "type": "工作类型"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "各级消防安全委员会",
+            "type": "社会团体"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "消防安全委员会会议",
+            "type": "安全管理活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "各级消防安全委员会",
+            "type": "社会团体"
+        },
+        "relation": "分析研判",
+        "entity_2": {
+            "name": "消防安全形势",
+            "type": "安全管理活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "各级消防安全委员会",
+            "type": "社会团体"
+        },
+        "relation": "应当协助",
+        "entity_2": {
+            "name": "消防工作",
+            "type": "工作类型"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "各级消防安全委员会",
+            "type": "社会团体"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "消防安全检查",
+            "type": "安全管理活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "各级消防安全委员会",
+            "type": "社会团体"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "专项治理",
+            "type": "安全管理活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "各级消防安全委员会",
+            "type": "社会团体"
+        },
+        "relation": "开展宣传",
+        "entity_2": {
+            "name": "社会化消防宣传教育",
+            "type": "宣传教育活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "各级消防安全委员会",
+            "type": "社会团体"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "考核",
+            "type": "安全管理活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "各级消防安全委员会",
+            "type": "社会团体"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "同级政府交办的其他消防工作任务",
+            "type": "工作类型"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "消防安全内容",
+            "type": "消防规范"
+        },
+        "relation": "应当纳入",
+        "entity_2": {
+            "name": "行业安全生产法规政策",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "消防安全内容",
+            "type": "消防规范"
+        },
+        "relation": "应当纳入",
+        "entity_2": {
+            "name": "规划计划",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "消防安全内容",
+            "type": "消防规范"
+        },
+        "relation": "应当纳入",
+        "entity_2": {
+            "name": "应急预案",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "县级以上政府工作部门",
+            "type": "政府机构"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "行业消防安全标准化管理",
+            "type": "安全管理活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "县级以上政府工作部门",
+            "type": "政府机构"
+        },
+        "relation": "领导",
+        "entity_2": {
+            "name": "本行业、本系统相关单位",
+            "type": "社会团体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "本行业、本系统相关单位",
+            "type": "社会团体"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "消防安全责任制",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "本行业、本系统相关单位",
+            "type": "社会团体"
+        },
+        "relation": "应当确定",
+        "entity_2": {
+            "name": "消防安全管理制度",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "本行业、本系统相关单位",
+            "type": "社会团体"
+        },
+        "relation": "应当确定",
+        "entity_2": {
+            "name": "消防安全管理人员",
+            "type": "责任主体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "本行业、本系统相关单位",
+            "type": "社会团体"
+        },
+        "relation": "应当确保",
+        "entity_2": {
+            "name": "消防工作经费",
+            "type": "经费支出"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "县级以上政府工作部门",
+            "type": "政府机构"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "针对性消防安全检查治理",
+            "type": "安全管理活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "县级以上政府工作部门",
+            "type": "政府机构"
+        },
+        "relation": "应当消除",
+        "entity_2": {
+            "name": "火灾隐患",
+            "type": "安全隐患"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "县级以上政府工作部门",
+            "type": "政府机构"
+        },
+        "relation": "开展宣传",
+        "entity_2": {
+            "name": "经常性消防安全宣传教育培训",
+            "type": "宣传教育活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "县级以上政府工作部门",
+            "type": "政府机构"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "应急演练",
+            "type": "宣传教育活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "行政审批部门",
+            "type": "政府机构"
+        },
+        "relation": "审批处理",
+        "entity_2": {
+            "name": "审批事项中涉及消防安全的法定条件",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "行政审批部门",
+            "type": "政府机构"
+        },
+        "relation": "禁止",
+        "entity_2": {
+            "name": "核发相关许可证照",
+            "type": "安全管理活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "行政审批部门",
+            "type": "政府机构"
+        },
+        "relation": "审批处理",
+        "entity_2": {
+            "name": "不再具备消防安全条件的单位",
+            "type": "社会团体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "发展改革部门",
+            "type": "政府机构"
+        },
+        "relation": "应当确定",
+        "entity_2": {
+            "name": "国民经济和社会发展中长期规划",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "消防工作",
+            "type": "工作类型"
+        },
+        "relation": "应当纳入",
+        "entity_2": {
+            "name": "国民经济和社会发展中长期规划",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "发展改革部门",
+            "type": "政府机构"
+        },
+        "relation": "领导",
+        "entity_2": {
+            "name": "消防规划编制工作",
+            "type": "安全管理活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "公共消防设施建设",
+            "type": "消防系统建设"
+        },
+        "relation": "应当纳入",
+        "entity_2": {
+            "name": "地方固定资产投资计划",
+            "type": "经费支出"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "发展改革部门",
+            "type": "政府机构"
+        },
+        "relation": "审批处理",
+        "entity_2": {
+            "name": "相关项目",
+            "type": "消防系统建设"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "教育部门",
+            "type": "政府机构"
+        },
+        "relation": "领导",
+        "entity_2": {
+            "name": "学校",
+            "type": "社会团体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "教育部门",
+            "type": "政府机构"
+        },
+        "relation": "领导",
+        "entity_2": {
+            "name": "幼儿园",
+            "type": "社会团体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "教育部门",
+            "type": "政府机构"
+        },
+        "relation": "领导",
+        "entity_2": {
+            "name": "民办教育机构",
+            "type": "社会团体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "学校",
+            "type": "社会团体"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "行业消防安全管理",
+            "type": "安全管理活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "教育部门",
+            "type": "政府机构"
+        },
+        "relation": "领导",
+        "entity_2": {
+            "name": "消防安全教育宣传工作",
+            "type": "宣传教育活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "消防安全教育",
+            "type": "宣传教育活动"
+        },
+        "relation": "应当纳入",
+        "entity_2": {
+            "name": "教育培训规划",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "消防科技进步",
+            "type": "技术创新活动"
+        },
+        "relation": "应当纳入",
+        "entity_2": {
+            "name": "科技发展规划",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "消防科技进步",
+            "type": "技术创新活动"
+        },
+        "relation": "应当纳入",
+        "entity_2": {
+            "name": "科技计划",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "科技部门",
+            "type": "政府机构"
+        },
+        "relation": "领导",
+        "entity_2": {
+            "name": "消防安全重大科技攻关",
+            "type": "技术创新活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "科技部门",
+            "type": "政府机构"
+        },
+        "relation": "领导",
+        "entity_2": {
+            "name": "基础研究",
+            "type": "技术创新活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "科技部门",
+            "type": "政府机构"
+        },
+        "relation": "领导",
+        "entity_2": {
+            "name": "应用研究",
+            "type": "技术创新活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "科技部门",
+            "type": "政府机构"
+        },
+        "relation": "支持鼓励",
+        "entity_2": {
+            "name": "消防科研成果转化应用",
+            "type": "技术创新活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "消防知识",
+            "type": "消防知识"
+        },
+        "relation": "应当纳入",
+        "entity_2": {
+            "name": "科普教育内容",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "工业和信息化部门",
+            "type": "政府机构"
+        },
+        "relation": "领导",
+        "entity_2": {
+            "name": "民用爆炸物品生产、销售的消防安全管理",
+            "type": "安全管理活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "工业和信息化部门",
+            "type": "政府机构"
+        },
+        "relation": "应当负责",
+        "entity_2": {
+            "name": "危险化学品的生产、储存的行业规划和布局",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "消防产业",
+            "type": "工作类型"
+        },
+        "relation": "应当纳入",
+        "entity_2": {
+            "name": "应急产业",
+            "type": "工作类型"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "民政部门",
+            "type": "政府机构"
+        },
+        "relation": "领导",
+        "entity_2": {
+            "name": "社会福利机构",
+            "type": "社会团体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "社会福利机构",
+            "type": "社会团体"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "行业消防安全管理",
+            "type": "安全管理活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "司法行政部门",
+            "type": "政府机构"
+        },
+        "relation": "监督管理",
+        "entity_2": {
+            "name": "监狱系统",
+            "type": "政府机构"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "监狱系统",
+            "type": "政府机构"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "消防安全管理",
+            "type": "安全管理活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "消防法律、法规",
+            "type": "消防规范"
+        },
+        "relation": "应当纳入",
+        "entity_2": {
+            "name": "普法教育",
+            "type": "宣传教育活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "财政部门",
+            "type": "政府机构"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "消防资金预算管理",
+            "type": "经费支出"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "人力资源社会保障部门",
+            "type": "政府机构"
+        },
+        "relation": "监督管理",
+        "entity_2": {
+            "name": "职业培训机构",
+            "type": "社会团体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "职业培训机构",
+            "type": "社会团体"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "行业消防安全管理",
+            "type": "安全管理活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "人力资源社会保障部门",
+            "type": "政府机构"
+        },
+        "relation": "应当确保",
+        "entity_2": {
+            "name": "工伤保险工作",
+            "type": "福利保障"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "消防法律、法规",
+            "type": "消防规范"
+        },
+        "relation": "应当纳入",
+        "entity_2": {
+            "name": "公务员培训",
+            "type": "宣传教育活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "消防知识",
+            "type": "消防知识"
+        },
+        "relation": "应当纳入",
+        "entity_2": {
+            "name": "职业培训内容",
+            "type": "宣传教育活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "城乡规划管理部门",
+            "type": "政府机构"
+        },
+        "relation": "应当协助",
+        "entity_2": {
+            "name": "制定消防专项规划",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "城乡规划管理部门",
+            "type": "政府机构"
+        },
+        "relation": "应当确定",
+        "entity_2": {
+            "name": "消防站规划用地",
+            "type": "消防设施"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "住房城乡建设部门",
+            "type": "政府机构"
+        },
+        "relation": "领导",
+        "entity_2": {
+            "name": "建设工程责任单位",
+            "type": "社会团体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "建设工程责任单位",
+            "type": "社会团体"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "安全管理",
+            "type": "安全管理活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "住房城乡建设部门",
+            "type": "政府机构"
+        },
+        "relation": "应当确定",
+        "entity_2": {
+            "name": "消防安全因素",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "商务部门",
+            "type": "政府机构"
+        },
+        "relation": "领导",
+        "entity_2": {
+            "name": "商贸企业",
+            "type": "社会团体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "商贸企业",
+            "type": "社会团体"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "消防安全防范措施",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "文化部门",
+            "type": "政府机构"
+        },
+        "relation": "应当负责",
+        "entity_2": {
+            "name": "文化单位的消防安全管理",
+            "type": "安全管理活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "文化部门",
+            "type": "政府机构"
+        },
+        "relation": "监督管理",
+        "entity_2": {
+            "name": "文化娱乐场所",
+            "type": "社会团体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "卫生计生部门",
+            "type": "政府机构"
+        },
+        "relation": "应当负责",
+        "entity_2": {
+            "name": "医疗卫生机构",
+            "type": "社会团体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "医疗卫生机构",
+            "type": "社会团体"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "行业消防安全管理",
+            "type": "安全管理活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "国有资产监管部门",
+            "type": "政府机构"
+        },
+        "relation": "应当协助",
+        "entity_2": {
+            "name": "所监管企业",
+            "type": "社会团体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "所监管企业",
+            "type": "社会团体"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "消防安全主体责任",
+            "type": "责任主体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "工商行政管理部门",
+            "type": "政府机构"
+        },
+        "relation": "监督管理",
+        "entity_2": {
+            "name": "流通领域消防产品质量",
+            "type": "消防设施状态"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "工商行政管理部门",
+            "type": "政府机构"
+        },
+        "relation": "审批处理",
+        "entity_2": {
+            "name": "流通领域消防产品质量违法行为",
+            "type": "违法行为"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "质量技术监督部门",
+            "type": "政府机构"
+        },
+        "relation": "领导",
+        "entity_2": {
+            "name": "特种设备生产单位",
+            "type": "社会团体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "特种设备生产单位",
+            "type": "社会团体"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "生产过程中的消防安全管理",
+            "type": "安全管理活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "质量技术监督部门",
+            "type": "政府机构"
+        },
+        "relation": "应当确定",
+        "entity_2": {
+            "name": "消防安全因素",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "质量技术监督部门",
+            "type": "政府机构"
+        },
+        "relation": "支持鼓励",
+        "entity_2": {
+            "name": "消防新技术",
+            "type": "技术创新活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "质量技术监督部门",
+            "type": "政府机构"
+        },
+        "relation": "监督管理",
+        "entity_2": {
+            "name": "生产领域消防产品质量",
+            "type": "消防设施状态"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "质量技术监督部门",
+            "type": "政府机构"
+        },
+        "relation": "审批处理",
+        "entity_2": {
+            "name": "生产领域消防产品质量违法行为",
+            "type": "违法行为"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "质量技术监督部门",
+            "type": "政府机构"
+        },
+        "relation": "应当协助",
+        "entity_2": {
+            "name": "消防安全相关标准制修订工作",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "质量技术监督部门",
+            "type": "政府机构"
+        },
+        "relation": "监督管理",
+        "entity_2": {
+            "name": "强制性认证消防产品认证活动",
+            "type": "安全管理活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "消防安全工作",
+            "type": "工作类型"
+        },
+        "relation": "应当纳入",
+        "entity_2": {
+            "name": "安全生产考评内容",
+            "type": "安全管理活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "消防法律、法规",
+            "type": "消防规范"
+        },
+        "relation": "应当纳入",
+        "entity_2": {
+            "name": "各类安全宣传教育培训内容",
+            "type": "宣传教育活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "消防知识",
+            "type": "消防知识"
+        },
+        "relation": "应当纳入",
+        "entity_2": {
+            "name": "各类安全宣传教育培训内容",
+            "type": "宣传教育活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "新闻出版广电部门",
+            "type": "政府机构"
+        },
+        "relation": "领导",
+        "entity_2": {
+            "name": "印刷业机构",
+            "type": "社会团体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "新闻出版广电部门",
+            "type": "政府机构"
+        },
+        "relation": "领导",
+        "entity_2": {
+            "name": "新闻出版广播影视机构",
+            "type": "社会团体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "新闻出版广电部门",
+            "type": "政府机构"
+        },
+        "relation": "领导",
+        "entity_2": {
+            "name": "新闻媒体",
+            "type": "社会团体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "新闻媒体",
+            "type": "社会团体"
+        },
+        "relation": "开展宣传",
+        "entity_2": {
+            "name": "消防宣传教育",
+            "type": "宣传教育活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "体育部门",
+            "type": "政府机构"
+        },
+        "relation": "应当负责",
+        "entity_2": {
+            "name": "体育类场馆的行业消防安全管理",
+            "type": "安全管理活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "体育部门",
+            "type": "政府机构"
+        },
+        "relation": "监督管理",
+        "entity_2": {
+            "name": "重要体育赛事和活动",
+            "type": "宣传教育活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "粮食部门",
+            "type": "政府机构"
+        },
+        "relation": "应当负责",
+        "entity_2": {
+            "name": "地方储备粮储存环节的行业消防安全管理",
+            "type": "安全管理活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "旅游发展部门",
+            "type": "政府机构"
+        },
+        "relation": "应当负责",
+        "entity_2": {
+            "name": "旅行社的行业消防安全管理",
+            "type": "安全管理活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "旅游发展部门",
+            "type": "政府机构"
+        },
+        "relation": "领导",
+        "entity_2": {
+            "name": "星级饭店",
+            "type": "社会团体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "人防部门",
+            "type": "政府机构"
+        },
+        "relation": "应当负责",
+        "entity_2": {
+            "name": "城市公用人防工程的消防安全管理",
+            "type": "安全管理活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "人防部门",
+            "type": "政府机构"
+        },
+        "relation": "监督管理",
+        "entity_2": {
+            "name": "公用以外的人防工程消防安全管理",
+            "type": "安全管理活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "文物部门",
+            "type": "政府机构"
+        },
+        "relation": "应当负责",
+        "entity_2": {
+            "name": "文物保护单位的行业消防安全管理",
+            "type": "安全管理活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "房地产管理部门",
+            "type": "政府机构"
+        },
+        "relation": "领导",
+        "entity_2": {
+            "name": "物业服务企业",
+            "type": "社会团体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "物业服务企业",
+            "type": "社会团体"
+        },
+        "relation": "维修保养",
+        "entity_2": {
+            "name": "住宅小区共用消防设施",
+            "type": "消防设施"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "房地产管理部门",
+            "type": "政府机构"
+        },
+        "relation": "领导",
+        "entity_2": {
+            "name": "业主",
+            "type": "人民群众"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "业主",
+            "type": "人民群众"
+        },
+        "relation": "配备建设",
+        "entity_2": {
+            "name": "住宅小区共用消防设施",
+            "type": "消防设施"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "宗教事务部门",
+            "type": "政府机构"
+        },
+        "relation": "领导",
+        "entity_2": {
+            "name": "宗教场所",
+            "type": "社会团体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "宗教场所",
+            "type": "社会团体"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "消防安全管理",
+            "type": "安全管理活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "银行、证券、保险监督管理部门",
+            "type": "政府机构"
+        },
+        "relation": "领导",
+        "entity_2": {
+            "name": "银行业金融机构",
+            "type": "社会团体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "银行业金融机构",
+            "type": "社会团体"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "行业消防安全管理",
+            "type": "安全管理活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "电力管理部门",
+            "type": "政府机构"
+        },
+        "relation": "监督管理",
+        "entity_2": {
+            "name": "电力行业各企业",
+            "type": "社会团体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "电力管理部门",
+            "type": "政府机构"
+        },
+        "relation": "领导",
+        "entity_2": {
+            "name": "电网企业",
+            "type": "社会团体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "电网企业",
+            "type": "社会团体"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "消防安全检查",
+            "type": "安全管理活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "电网企业",
+            "type": "社会团体"
+        },
+        "relation": "开展宣传",
+        "entity_2": {
+            "name": "安全用电知识教育宣传",
+            "type": "宣传教育活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "电网企业",
+            "type": "社会团体"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "先进的火灾防范技术措施",
+            "type": "技术创新活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "电力管理部门",
+            "type": "政府机构"
+        },
+        "relation": "领导",
+        "entity_2": {
+            "name": "用户",
+            "type": "人民群众"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "用户",
+            "type": "人民群众"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "规范用电",
+            "type": "安全管理活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "燃气管理部门",
+            "type": "政府机构"
+        },
+        "relation": "领导",
+        "entity_2": {
+            "name": "燃气经营企业",
+            "type": "社会团体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "燃气经营企业",
+            "type": "社会团体"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "消防安全管理",
+            "type": "安全管理活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "燃气管理部门",
+            "type": "政府机构"
+        },
+        "relation": "领导",
+        "entity_2": {
+            "name": "燃气用户",
+            "type": "人民群众"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "燃气用户",
+            "type": "人民群众"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "安全使用燃气",
+            "type": "安全管理活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "通信管理部门",
+            "type": "政府机构"
+        },
+        "relation": "领导",
+        "entity_2": {
+            "name": "通信业消防安全管理",
+            "type": "安全管理活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "互联网信息管理等部门",
+            "type": "政府机构"
+        },
+        "relation": "领导",
+        "entity_2": {
+            "name": "网站、移动互联网媒体",
+            "type": "社会团体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "网站、移动互联网媒体",
+            "type": "社会团体"
+        },
+        "relation": "开展宣传",
+        "entity_2": {
+            "name": "公益性消防安全宣传",
+            "type": "宣传教育活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "气象、水利、地震部门",
+            "type": "政府机构"
+        },
+        "relation": "汇报工作",
+        "entity_2": {
+            "name": "重大灾害事故预警信息",
+            "type": "消防文件"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "消防水源",
+            "type": "消防设施"
+        },
+        "relation": "应当纳入",
+        "entity_2": {
+            "name": "相关基础设施建设工程",
+            "type": "消防系统建设"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "消防车通道",
+            "type": "消防设施"
+        },
+        "relation": "应当纳入",
+        "entity_2": {
+            "name": "相关基础设施建设工程",
+            "type": "消防系统建设"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "市政工程、城市供水等行政主管部门和单位",
+            "type": "政府机构"
+        },
+        "relation": "应当负责",
+        "entity_2": {
+            "name": "公共消防设施的维护管理",
+            "type": "安全管理活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "市政工程、城市供水等行政主管部门和单位",
+            "type": "政府机构"
+        },
+        "relation": "维修保养",
+        "entity_2": {
+            "name": "公共消防设施",
+            "type": "消防设施"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "森林、草原和铁路、交通运输、民航主管部门",
+            "type": "政府机构"
+        },
+        "relation": "监督管理",
+        "entity_2": {
+            "name": "本系统消防安全工作",
+            "type": "工作类型"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "主管单位",
+            "type": "责任主体"
+        },
+        "relation": "监督管理",
+        "entity_2": {
+            "name": "军事设施的消防工作",
+            "type": "工作类型"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "石化、轻工等行业组织",
+            "type": "社会团体"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "行业消防安全自律管理",
+            "type": "安全管理活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "石化、轻工等行业组织",
+            "type": "社会团体"
+        },
+        "relation": "领导",
+        "entity_2": {
+            "name": "行业单位",
+            "type": "社会团体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "行业单位",
+            "type": "社会团体"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "消防安全主体责任",
+            "type": "责任主体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "公安机关",
+            "type": "政府机构"
+        },
+        "relation": "监督管理",
+        "entity_2": {
+            "name": "本行政区域内的消防工作",
+            "type": "工作类型"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "公安机关",
+            "type": "政府机构"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "消防调查研究",
+            "type": "安全管理行为"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "公安机关",
+            "type": "政府机构"
+        },
+        "relation": "分析研判",
+        "entity_2": {
+            "name": "消防安全形势",
+            "type": "安全管理行为"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "公安机关",
+            "type": "政府机构"
+        },
+        "relation": "汇报工作",
+        "entity_2": {
+            "name": "改进消防工作的意见和建议",
+            "type": "消防文件"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "公安机关",
+            "type": "政府机构"
+        },
+        "relation": "领导",
+        "entity_2": {
+            "name": "机关、团体、企业、事业等单位",
+            "type": "社会团体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "机关、团体、企业、事业等单位",
+            "type": "社会团体"
+        },
+        "relation": "履行义务",
+        "entity_2": {
+            "name": "消防安全工作职责",
+            "type": "工作类型"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "公安机关",
+            "type": "政府机构"
+        },
+        "relation": "监督管理",
+        "entity_2": {
+            "name": "个体工商户",
+            "type": "社会团体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "公安机关",
+            "type": "政府机构"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "消防监督检查",
+            "type": "安全管理行为"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "公安机关",
+            "type": "政府机构"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "针对性消防安全专项治理",
+            "type": "安全管理行为"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "公安机关",
+            "type": "政府机构"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "消防行政处罚",
+            "type": "安全管理行为"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "公安机关",
+            "type": "政府机构"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "行政强制措施",
+            "type": "安全管理行为"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "公安机关",
+            "type": "政府机构"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "火灾现场扑救",
+            "type": "应急处置活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "公安机关",
+            "type": "政府机构"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "应急救援工作",
+            "type": "应急处置活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "公安机关",
+            "type": "政府机构"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "火灾事故调查处理工作",
+            "type": "应急处置活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "公安机关",
+            "type": "政府机构"
+        },
+        "relation": "审批处理",
+        "entity_2": {
+            "name": "失火罪和消防责任事故罪案件",
+            "type": "违法行为"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "公安机关",
+            "type": "政府机构"
+        },
+        "relation": "开展宣传",
+        "entity_2": {
+            "name": "消防法律知识宣传教育培训",
+            "type": "宣传教育活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "公安机关",
+            "type": "政府机构"
+        },
+        "relation": "开展宣传",
+        "entity_2": {
+            "name": "应急疏散演练",
+            "type": "宣传教育活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "公安机关",
+            "type": "政府机构"
+        },
+        "relation": "应当确定",
+        "entity_2": {
+            "name": "消防安全重点单位",
+            "type": "社会团体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "公安派出所",
+            "type": "政府机构"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "日常消防监督检查",
+            "type": "安全管理行为"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "日常消防监督检查",
+            "type": "安全管理行为"
+        },
+        "relation": "作用于",
+        "entity_2": {
+            "name": "物业服务企业",
+            "type": "社会团体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "日常消防监督检查",
+            "type": "安全管理行为"
+        },
+        "relation": "作用于",
+        "entity_2": {
+            "name": "村（居）民委员会",
+            "type": "社会团体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "机关、团体、企业、事业等单位",
+            "type": "社会团体"
+        },
+        "relation": "履行义务",
+        "entity_2": {
+            "name": "消防安全主体责任",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "机关、团体、企业、事业等单位",
+            "type": "社会团体"
+        },
+        "relation": "应当确定",
+        "entity_2": {
+            "name": "消防安全责任人",
+            "type": "责任主体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "机关、团体、企业、事业等单位",
+            "type": "社会团体"
+        },
+        "relation": "应当确定",
+        "entity_2": {
+            "name": "消防安全制度",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "机关、团体、企业、事业等单位",
+            "type": "社会团体"
+        },
+        "relation": "应当确定",
+        "entity_2": {
+            "name": "消防安全操作规程",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "机关、团体、企业、事业等单位",
+            "type": "社会团体"
+        },
+        "relation": "应当确定",
+        "entity_2": {
+            "name": "灭火和应急疏散预案",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "机关、团体、企业、事业等单位",
+            "type": "社会团体"
+        },
+        "relation": "开展宣传",
+        "entity_2": {
+            "name": "灭火和应急疏散演练",
+            "type": "宣传教育活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "机关、团体、企业、事业等单位",
+            "type": "社会团体"
+        },
+        "relation": "应当确保",
+        "entity_2": {
+            "name": "消防工作所需资金",
+            "type": "经费支出"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "机关、团体、企业、事业等单位",
+            "type": "社会团体"
+        },
+        "relation": "配备建设",
+        "entity_2": {
+            "name": "消防设施、器材",
+            "type": "消防设施"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "机关、团体、企业、事业等单位",
+            "type": "社会团体"
+        },
+        "relation": "配备建设",
+        "entity_2": {
+            "name": "消防安全标志",
+            "type": "消防设施"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "机关、团体、企业、事业等单位",
+            "type": "社会团体"
+        },
+        "relation": "维修保养",
+        "entity_2": {
+            "name": "建筑消防设施",
+            "type": "消防设施"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "机关、团体、企业、事业等单位",
+            "type": "社会团体"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "24小时值班制度",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "机关、团体、企业、事业等单位",
+            "type": "社会团体"
+        },
+        "relation": "应当确保",
+        "entity_2": {
+            "name": "疏散通道畅通",
+            "type": "消防设施状态"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "机关、团体、企业、事业等单位",
+            "type": "社会团体"
+        },
+        "relation": "应当确保",
+        "entity_2": {
+            "name": "安全出口畅通",
+            "type": "消防设施状态"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "机关、团体、企业、事业等单位",
+            "type": "社会团体"
+        },
+        "relation": "应当确保",
+        "entity_2": {
+            "name": "消防车通道畅通",
+            "type": "消防设施状态"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "人员密集场所",
+            "type": "地点"
+        },
+        "relation": "禁止",
+        "entity_2": {
+            "name": "设置影响逃生和灭火救援的障碍物",
+            "type": "违法行为"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "机关、团体、企业、事业等单位",
+            "type": "社会团体"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "防火检查、巡查",
+            "type": "安全管理行为"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "机关、团体、企业、事业等单位",
+            "type": "社会团体"
+        },
+        "relation": "配备建设",
+        "entity_2": {
+            "name": "专职或志愿消防队",
+            "type": "消防系统建设"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "机关、团体、企业、事业等单位",
+            "type": "社会团体"
+        },
+        "relation": "配备建设",
+        "entity_2": {
+            "name": "微型消防站",
+            "type": "消防系统建设"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "机关、团体、企业、事业等单位",
+            "type": "社会团体"
+        },
+        "relation": "应当保护",
+        "entity_2": {
+            "name": "火灾现场",
+            "type": "应急处置活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "机关、团体、企业、事业等单位",
+            "type": "社会团体"
+        },
+        "relation": "应当协助",
+        "entity_2": {
+            "name": "火灾调查",
+            "type": "应急处置活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "消防安全重点单位",
+            "type": "社会团体"
+        },
+        "relation": "应当确定",
+        "entity_2": {
+            "name": "承担消防安全管理工作的机构",
+            "type": "社会团体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "消防安全重点单位",
+            "type": "社会团体"
+        },
+        "relation": "应当确定",
+        "entity_2": {
+            "name": "消防安全管理人",
+            "type": "责任主体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "消防安全管理人",
+            "type": "责任主体"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "消防培训",
+            "type": "宣传教育活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "消防安全重点单位",
+            "type": "社会团体"
+        },
+        "relation": "应当确定",
+        "entity_2": {
+            "name": "消防档案",
+            "type": "消防文件"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "消防安全重点单位",
+            "type": "社会团体"
+        },
+        "relation": "应当确定",
+        "entity_2": {
+            "name": "消防安全重点部位",
+            "type": "地点"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "消防安全重点单位",
+            "type": "社会团体"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "每日防火巡查",
+            "type": "安全管理行为"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "消防安全重点单位",
+            "type": "社会团体"
+        },
+        "relation": "应当确定",
+        "entity_2": {
+            "name": "巡查记录",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "消防安全重点单位",
+            "type": "社会团体"
+        },
+        "relation": "开展宣传",
+        "entity_2": {
+            "name": "岗前消防安全培训",
+            "type": "宣传教育活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "消防安全重点单位",
+            "type": "社会团体"
+        },
+        "relation": "开展宣传",
+        "entity_2": {
+            "name": "灭火和应急疏散演练",
+            "type": "宣传教育活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "消防安全重点单位",
+            "type": "社会团体"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "物防、技防措施",
+            "type": "消防系统建设"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "火灾高危单位",
+            "type": "社会团体"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "消防安全工作例会",
+            "type": "安全管理行为"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "自动消防设施操作人员",
+            "type": "责任主体"
+        },
+        "relation": "应当具备",
+        "entity_2": {
+            "name": "建（构）筑物消防员资格证书",
+            "type": "消防文件"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "大型易燃易爆危险品企业",
+            "type": "社会团体"
+        },
+        "relation": "配备建设",
+        "entity_2": {
+            "name": "专职消防队",
+            "type": "消防系统建设"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "火灾高危单位",
+            "type": "社会团体"
+        },
+        "relation": "配备建设",
+        "entity_2": {
+            "name": "应急逃生设施设备",
+            "type": "消防设施"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "火灾高危单位",
+            "type": "社会团体"
+        },
+        "relation": "应当确定",
+        "entity_2": {
+            "name": "消防安全专业评估制度",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "火灾高危单位",
+            "type": "社会团体"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "火灾公众责任保险",
+            "type": "安全管理行为"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "同一建筑物由两个以上单位",
+            "type": "社会团体"
+        },
+        "relation": "应当确定",
+        "entity_2": {
+            "name": "消防安全责任",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "同一建筑物由两个以上单位",
+            "type": "社会团体"
+        },
+        "relation": "应当确定",
+        "entity_2": {
+            "name": "责任人",
+            "type": "责任主体"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "责任人",
+            "type": "责任主体"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "统一管理",
+            "type": "安全管理行为"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "物业服务企业",
+            "type": "社会团体"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "消防安全防范服务",
+            "type": "宣传教育活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "物业服务企业",
+            "type": "社会团体"
+        },
+        "relation": "维修保养",
+        "entity_2": {
+            "name": "共用消防设施",
+            "type": "消防设施"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "物业服务企业",
+            "type": "社会团体"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "防火检查巡查",
+            "type": "安全管理行为"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "物业服务企业",
+            "type": "社会团体"
+        },
+        "relation": "开展宣传",
+        "entity_2": {
+            "name": "消防宣传教育",
+            "type": "宣传教育活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "消防技术服务机构",
+            "type": "社会团体"
+        },
+        "relation": "应当具备",
+        "entity_2": {
+            "name": "资质、资格",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "建设单位",
+            "type": "社会团体"
+        },
+        "relation": "应当符合",
+        "entity_2": {
+            "name": "消防法律、法规",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "设计单位",
+            "type": "社会团体"
+        },
+        "relation": "应当符合",
+        "entity_2": {
+            "name": "消防法律、法规",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "施工单位",
+            "type": "社会团体"
+        },
+        "relation": "应当符合",
+        "entity_2": {
+            "name": "消防法律、法规",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "监理单位",
+            "type": "社会团体"
+        },
+        "relation": "应当符合",
+        "entity_2": {
+            "name": "消防法律、法规",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "建设单位",
+            "type": "社会团体"
+        },
+        "relation": "应当负责",
+        "entity_2": {
+            "name": "消防设计、施工质量",
+            "type": "消防安全状态"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "设计单位",
+            "type": "社会团体"
+        },
+        "relation": "应当负责",
+        "entity_2": {
+            "name": "消防设计、施工质量",
+            "type": "消防安全状态"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "施工单位",
+            "type": "社会团体"
+        },
+        "relation": "应当负责",
+        "entity_2": {
+            "name": "消防设计、施工质量",
+            "type": "消防安全状态"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "监理单位",
+            "type": "社会团体"
+        },
+        "relation": "应当负责",
+        "entity_2": {
+            "name": "消防设计、施工质量",
+            "type": "消防安全状态"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "省政府",
+            "type": "政府机构"
+        },
+        "relation": "监督管理",
+        "entity_2": {
+            "name": "各市政府",
+            "type": "政府机构"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "省政府",
+            "type": "政府机构"
+        },
+        "relation": "监督管理",
+        "entity_2": {
+            "name": "雄安新区管委会",
+            "type": "政府机构"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "省政府",
+            "type": "政府机构"
+        },
+        "relation": "应当实施",
+        "entity_2": {
+            "name": "年度消防工作考核",
+            "type": "安全管理行为"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "各级政府",
+            "type": "政府机构"
+        },
+        "relation": "应当确定",
+        "entity_2": {
+            "name": "消防工作考核评价体系",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "消防工作",
+            "type": "工作类型"
+        },
+        "relation": "应当纳入",
+        "entity_2": {
+            "name": "政府目标责任考核",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "消防工作",
+            "type": "工作类型"
+        },
+        "relation": "应当纳入",
+        "entity_2": {
+            "name": "社会治安综合治理",
+            "type": "安全管理行为"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "各有关部门",
+            "type": "政府机构"
+        },
+        "relation": "应当确定",
+        "entity_2": {
+            "name": "社会单位消防安全信用记录",
+            "type": "消防文件"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "行业协会",
+            "type": "社会团体"
+        },
+        "relation": "应当确定",
+        "entity_2": {
+            "name": "社会单位消防安全信用记录",
+            "type": "消防文件"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "社会单位消防安全信用记录",
+            "type": "消防文件"
+        },
+        "relation": "应当纳入",
+        "entity_2": {
+            "name": "社会诚信体系",
+            "type": "消防规范"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "公安机关及其工作人员",
+            "type": "政府机构"
+        },
+        "relation": "禁止",
+        "entity_2": {
+            "name": "收取费用",
+            "type": "违法行为"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "公安机关及其工作人员",
+            "type": "政府机构"
+        },
+        "relation": "禁止",
+        "entity_2": {
+            "name": "谋取利益",
+            "type": "违法行为"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "公安机关及其工作人员",
+            "type": "政府机构"
+        },
+        "relation": "禁止",
+        "entity_2": {
+            "name": "指定消防产品的品牌",
+            "type": "违法行为"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "事故发生地县级政府",
+            "type": "政府机构"
+        },
+        "relation": "应当负责",
+        "entity_2": {
+            "name": "一般火灾事故调查处理",
+            "type": "应急处置活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "事故发生地市级政府",
+            "type": "政府机构"
+        },
+        "relation": "应当负责",
+        "entity_2": {
+            "name": "较大火灾事故调查处理",
+            "type": "应急处置活动"
+        }
+    },
+    {
+        "entity_1": {
+            "name": "省政府",
+            "type": "政府机构"
+        },
+        "relation": "应当负责",
+        "entity_2": {
+            "name": "重大火灾事故调查处理",
+            "type": "应急处置活动"
+        }
+    }
+]
