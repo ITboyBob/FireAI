@@ -10,16 +10,13 @@
 
 ## 当前状态
 
-- `Task 1` 已完成项目骨架、基础配置和 `/health` 健康接口。
-- `Task 1` 的测试曾在 `base` 环境通过。
-- 经复核，`fire` conda 环境目前缺少 `fastapi`、`pydantic_settings`、`httpx`、`jinja2`、`openai`、`pytest`。
-- 因此，当前代码状态为：**功能骨架已落地，但尚未在要求的 `fire` 环境中完成合规验证。**
+项目已完成 `Task 1` 的代码骨架，但尚未在要求的 `fire` conda 环境完成合规验证。详细执行状态见 [docs/status.md](docs/status.md)。
 
 ## 环境规则
 
 - 所有包安装必须在 conda 环境 `fire` 中执行
 - 所有代码执行必须在 conda 环境 `fire` 中执行
-- 每次执行完代码后，都必须同步更新文档状态
+- 每次执行完代码后，都必须同步更新 [docs/status.md](docs/status.md)
 
 ## 规划结构
 
@@ -32,5 +29,7 @@
 
 ## 相关文档
 
+- [文档索引](docs/README.md)
+- [项目状态](docs/status.md)
 - [设计文档](docs/plans/2026-03-28-fire-law-rag-design.md)
 - [实施计划](docs/plans/2026-03-28-fire-law-rag-implementation.md)

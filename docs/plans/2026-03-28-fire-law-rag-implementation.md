@@ -8,15 +8,7 @@
 
 **技术栈：** Python 3.13、FastAPI、Pydantic Settings、pytest、SQLite FTS5、通过向量存储接口封装的 FAISS、本地句向量模型适配器、OpenAI 兼容 Python 客户端、Jinja2 模板、原生 HTML/CSS/JS。
 
----
-
-## 当前执行状态
-
-- `Task 1` 已完成代码骨架编写。
-- `Task 1` 的测试曾在 `base` 环境中执行并通过。
-- 经复核，`fire` conda 环境当前缺少 `fastapi`、`pydantic_settings`、`httpx`、`jinja2`、`openai`、`pytest`。
-- 因此，`Task 1` **尚未在 `fire` 环境中完成合规验证**。
-- 后续所有包安装、测试、脚本执行、服务启动，都必须通过 `fire` 环境执行。
+**文档定位：** 本文档只记录任务、步骤和验收方式；执行进展统一记录在 [项目状态](../status.md)。
 
 ## 计划说明
 
@@ -24,7 +16,7 @@
 - 严格遵守 TDD：先写失败测试，确认失败，再写最小实现，确认通过。
 - 本仓库禁止代理擅自执行 git commit。若用户需要 checkpoint，由用户自行决定如何提交。
 - 所有代码执行命令默认使用 `conda run -n fire ...`。若命令未带环境前缀，视为文档缺陷，需要修正。
-- 每次完成代码执行后，必须同步更新文档中的“当前执行状态”。
+- 每次完成代码执行后，必须同步更新 [项目状态](../status.md)。
 
 ### 任务 1：初始化项目骨架与本地配置
 
@@ -41,11 +33,6 @@
 - 新建：`app/api/health.py`
 - 新建：`tests/unit/core/test_settings.py`
 - 新建：`tests/integration/api/test_health_api.py`
-
-**当前状态：**
-- 代码已经落地。
-- 曾在 `base` 环境执行测试通过。
-- 由于 `fire` 环境尚未安装依赖，本任务需要在依赖补齐后重新于 `fire` 环境复验一次，才能视为完全闭环。
 
 **步骤 1：编写失败测试**
 
