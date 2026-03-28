@@ -15,9 +15,57 @@
 - 已基于 `法律文本/` 真实语料生成 `data/normalized/*.txt`，当前 6 份原始法规均标准化成功。
 - `Task 3` 的 Unicode 行终止符缺陷已修复，全部标准化产物已重新生成。
 - 当前 3 份 `.doc` 与 3 份 `.docx` 输入均已再次验证通过，产物中确认不存在 `U+2028/U+2029/\r` 残留。
-- 当前主要阻塞点是：当前无新的技术阻塞；等待 `code-reviewer` 审查结论，若无新问题可进入 `Task 4`。
+- 已修正实施计划中 `Task 4` 将 `title` 与 `document_id` 混用的缺陷，并补上“修订决定前言 + 真正法规标题”的验收要求。
+- `Task 4` 已完成结构解析实现，`data/structured/*.json` 已在真实语料上生成。
+- 当前 6 份标准化文本均已解析为结构化 JSON，其中“历史修改说明污染 `title` / 首条 / 正文”的主风险已通过最新前后对照审计。
+- 已针对“历史修改说明污染 `title` / `promulgated_on` / 第一条正文”的真实边界补做回归，当前关键样本已纠正。
+- 最新 `Task 4` 终审中，`jiguan_tuanti_qiye_shiye_danwei_xiaofang_anquan_guanli_guiding` 的带空格日期提取也已修复。
+- 当前主要阻塞点是：当前无新的技术阻塞；`Task 4` 的结构解析输出已通过最新终审。
 
 ## 最新记录
+
+### 2026-03-28 Task 4 终审通过
+
+- 执行内容：在 `fire` conda 环境执行 `python -m pytest tests/unit/services/test_corpus_ingestor.py tests/unit/services/test_normalizer.py tests/unit/services/test_structure_parser.py -q`，并重新对 6 份 `data/normalized/*.txt` 与 `data/structured/*.json` 做逐份终审，重点核对历史修改前言是否污染 `title`、`promulgated_on/effective_on`、首条条号、`chapter_title/heading_path` 和首条正文。
+- 执行环境：`fire`
+- 验证结果：通过，测试结果为 `16 passed in 0.04s`。终审脚本显示：
+  - `hebei_xiaofang_anquan_zerenzhi_shishi_banfa` 的前言伪条号仍存在于标准化文本前言区，但结构化输出已正确选取真实标题、真实 `第一条`、`promulgated_on=2009年10月29日`，且前言文本未漏入首条正文。
+  - `jiguan_tuanti_qiye_shiye_danwei_xiaofang_anquan_guanli_guiding` 已正确提取 `promulgated_on=2001年11月14日`、`effective_on=2002年5月1日`。
+  - 其余 4 份文档未发现标题、首条、正文或元数据被历史前言污染的残留问题。
+- 当前阻塞点：当前无新的技术阻塞；若继续执行计划，可进入 `Task 5`。
+
+### 2026-03-28 Task 4 最新前后对照审计
+
+- 执行内容：在 `fire` conda 环境重新对 `data/normalized/*.txt` 与 `data/structured/*.json` 做逐份对照审计，重点检查历史修改前言是否污染 `title`、`promulgated_on/effective_on`、首条条号、`chapter_title/heading_path` 和首条正文。
+- 执行环境：`fire`
+- 验证结果：重点风险已明显收敛。`hebei_xiaofang_anquan_zerenzhi_shishi_banfa` 现已正确解析为标题 `河北省消防安全责任制实施办法`、首条 `第一条`、`promulgated_on=2009年10月29日`，且前言中的伪条号 `第五条/第六条` 未漏进 article text。其余文档也未发现“前言污染标题/首条/正文”的残留问题。当前剩余问题集中在 `jiguan_tuanti_qiye_shiye_danwei_xiaofang_anquan_guanli_guiding`：标准化文本第 2 行含 `2001 年 11 月 14 日` / `2002 年 5 月 1 日`，但结构化 JSON 仍为 `promulgated_on=null`、`effective_on=null`。
+- 当前阻塞点：若要批准当前 `Task 4` 输出，仍需修正日期提取正则，使其兼容带空格的中文日期写法。
+
+### 2026-03-28 Task 4 历史修改前言污染边界修正
+
+- 执行内容：在真实结构化结果中发现 `hebei_xiaofang_anquan_zerenzhi_shishi_banfa` 的 `promulgated_on` 被“修改决定前言”污染后，补充更贴近真实样本的测试，修正 `structure_parser` 的标题搜索边界与公布日期提取优先级，再次在 `fire` conda 环境执行 `python -m pytest tests/unit/services/test_corpus_ingestor.py tests/unit/services/test_normalizer.py tests/unit/services/test_structure_parser.py -q`，并重生成全部 `data/structured/*.json`。
+- 执行环境：`fire`
+- 验证结果：通过。服务层回归结果仍为 `15 passed in 0.03s`；真实语料重生成结果显示：
+  - `hebei_xiaofang_anquan_zerenzhi_shishi_banfa` -> `title=河北省消防安全责任制实施办法`，`promulgated_on=2009年10月29日`，`effective_on=2009年12月1日`，条文范围 `第一条` 到 `第二十四条`
+  - 其余 5 份结构化结果的标题与首末条范围保持稳定，无新增退化
+- 当前阻塞点：本地修复与复核已完成，等待 `@Poincare` 对“历史修改说明是否仍扰乱结构解析结果”做最终审查。
+
+### 2026-03-28 Task 4 真实语料结构化执行完成
+
+- 执行内容：在新增 `app/services/structure_parser.py`、`tests/unit/services/test_structure_parser.py` 和结构片段夹具后，于 `fire` conda 环境执行 `python -m pytest tests/unit/services/test_corpus_ingestor.py tests/unit/services/test_normalizer.py tests/unit/services/test_structure_parser.py -q`，随后将 `data/normalized/*.txt` 全量解析并落盘到 `data/structured/*.json`。
+- 执行环境：`fire`
+- 验证结果：通过。服务层回归结果为 `15 passed in 0.04s`；真实语料结构化结果为 `documents=6`，6 份法规全部生成 JSON。关键样本已本地复核：
+  - `xiaofangfa_2019` -> 标题 `中华人民共和国消防法`，条文范围 `第一条` 到 `第七十四条`
+  - `hebei_xiaofang_anquan_zerenzhi_shishi_banfa` -> 标题 `河北省消防安全责任制实施办法`，条文范围 `第一条` 到 `第二十四条`
+  - `hebei_xiaofang_tiaoli` -> 标题 `河北省消防条例`，条文范围 `第一条` 到 `第六十三条`
+- 当前阻塞点：实现与本地复核已完成，等待 `@Poincare` 对 `normalized -> structured` 前后结果做最终对比审查。
+
+### 2026-03-28 Task 4 红测成立
+
+- 执行内容：先修正实施计划中 `Task 4` 关于 `title/document_id` 语义和真实前言结构覆盖不足的问题，然后在 `fire` conda 环境执行 `python -m pytest tests/unit/services/test_structure_parser.py -q`。
+- 执行环境：`fire`
+- 验证结果：按预期失败，报 `ModuleNotFoundError: No module named 'app.services.structure_parser'`。说明当前已进入 `Task 4` 的纯测试阶段，TDD 红测成立。
+- 当前阻塞点：需要新增 `app/services/structure_parser.py`，实现 `ParsedDocument` / `ParsedArticle`、标题与元数据提取、条文结构解析，以及 `data/structured/<document_id>.json` 落盘。
 
 ### 2026-03-28 Task 3 Unicode 行终止符真实语料复核通过
 

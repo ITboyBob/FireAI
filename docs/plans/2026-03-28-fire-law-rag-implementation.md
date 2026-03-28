@@ -231,6 +231,7 @@ def clean_text(raw: str) -> str:
 随后补充：
 - `.doc` 与 `.docx` 的加载辅助函数
 - macOS `textutil` 路径下的 `.doc` 转换流程
+- 将 `U+2028` / `U+2029` 等 Unicode 行终止符归一化为普通换行
 - 向 `data/normalized/<document_id>.txt` 输出标准化文本
 - 若转换后为空，写入失败报告
 
@@ -253,16 +254,21 @@ def clean_text(raw: str) -> str:
 **步骤 1：编写失败测试**
 
 ```python
+from pathlib import Path
 from app.services.structure_parser import parse_legal_document
 
 
 def test_parse_legal_document_extracts_article_and_chapter():
-    raw = "第一章 总则\\n第二条 国家实行消防安全责任制。"
+    raw = Path("tests/fixtures/structured/fire_law_fragment.txt").read_text(encoding="utf-8")
     document = parse_legal_document("xiaofangfa_2019", raw)
-    assert document.title == "xiaofangfa_2019"
+    assert document.document_id == "xiaofangfa_2019"
+    assert document.title == "中华人民共和国消防法"
     assert document.articles[0].article_no == "第二条"
     assert document.articles[0].chapter_title == "第一章 总则"
 ```
+
+同时至少补一个“修订决定前言 -> 真正法规标题 -> 条文正文”的用例，避免把前言误识别成标题或第一条正文。
+再补一个“带空格中文日期（如 `2001 年 11 月 14 日`）”的元数据提取用例，避免 `promulgated_on` / `effective_on` 因日期格式轻微变化而漏提。
 
 **步骤 2：运行测试，确认失败**
 
@@ -272,10 +278,26 @@ def test_parse_legal_document_extracts_article_and_chapter():
 **步骤 3：编写最小实现**
 
 ```python
-def parse_legal_document(document_id: str, raw_text: str):
-    chapters = [line for line in raw_text.splitlines() if line.startswith("第一章")]
-    articles = [{"article_no": "第二条", "chapter_title": chapters[0], "text": "国家实行消防安全责任制。"}]
-    return {"title": document_id, "articles": articles}
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class ParsedArticle:
+    article_no: str
+    chapter_title: str | None
+    heading_path: tuple[str, ...]
+    text: str
+
+
+@dataclass(frozen=True)
+class ParsedDocument:
+    document_id: str
+    title: str
+    issuing_authority: str | None
+    region: str | None
+    promulgated_on: str | None
+    effective_on: str | None
+    articles: list[ParsedArticle]
 ```
 
 随后把占位逻辑替换成带类型模型的正式结构，至少覆盖：
@@ -285,13 +307,15 @@ def parse_legal_document(document_id: str, raw_text: str):
 - 地域
 - 生效时间相关字段
 - 含章节路径和原文的条文记录
+- 前言元数据提取与正文条文切分分离，前言不得并入第一条
+- 中文日期提取需兼容紧凑写法与带空格写法
 
 并落盘到 `data/structured/<document_id>.json`。
 
 **步骤 4：运行测试，确认通过**
 
 运行：`conda run -n fire python -m pytest tests/unit/services/test_structure_parser.py -q`  
-预期：`1 passed`
+预期：新增的结构解析用例全部通过，而不是只通过单个最小样例。
 
 **步骤 5：用户检查点（可选）**
 
