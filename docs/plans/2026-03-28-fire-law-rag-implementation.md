@@ -6,7 +6,7 @@
 
 **架构：** 系统拆分为离线建库链路和在线查询链路。离线步骤负责标准化法律文本、解析结构、按条切块，并在 `data/` 下构建关键词与向量索引；在线步骤负责规范化查询、读取已建索引、检索证据并生成带引文约束的回答。
 
-**技术栈：** Python 3.13、FastAPI、Pydantic Settings、pytest、SQLite FTS5、通过向量存储接口封装的 FAISS、本地句向量模型适配器、OpenAI 兼容 Python 客户端、Jinja2 模板、原生 HTML/CSS/JS。
+**技术栈：** Python 3.14、FastAPI、Pydantic Settings、pytest、SQLite FTS5、通过向量存储接口封装的 FAISS、本地句向量模型适配器、OpenAI 兼容 Python 客户端、Jinja2 模板、原生 HTML/CSS/JS。
 
 **文档定位：** 本文档只记录任务、步骤和验收方式；执行进展统一记录在 [项目状态](../status.md)。
 

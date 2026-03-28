@@ -29,7 +29,7 @@
 
 ## 相关文档
 
-- [文档索引](docs/README.md)
+- [文档索引](docs/文档索引.md)
 - [项目状态](docs/status.md)
 - [设计文档](docs/plans/2026-03-28-fire-law-rag-design.md)
 - [实施计划](docs/plans/2026-03-28-fire-law-rag-implementation.md)
