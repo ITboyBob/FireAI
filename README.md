@@ -10,7 +10,7 @@
 
 ## 当前状态
 
-项目已完成 `Task 1` 的代码骨架，但尚未在要求的 `fire` conda 环境完成合规验证。详细执行状态见 [docs/status.md](docs/status.md)。
+项目已完成 `Task 1`、`Task 2` 和 `Task 3`，并已在真实语料上生成首批标准化文本。详细执行状态见 [docs/status.md](docs/status.md)。
 
 ## 环境规则
 
@@ -26,6 +26,12 @@
 - `data/`：可重建生成物
 - `tests/`：单元测试与集成测试
 - `docs/plans/`：设计文档与实施计划
+
+## 标准化约定
+
+- 原始 `.doc` / `.docx` 文档通过 macOS 自带 `textutil` 转成 UTF-8 纯文本
+- 标准化后的文本写入 `data/normalized/<document_id>.txt`
+- 若转换成功但清洗后为空，则写入 `data/normalized/<document_id>.error.txt`
 
 ## 相关文档
 

@@ -11,9 +11,62 @@
 - `Task 1` 已在要求的 `fire` conda 环境完成合规验证。
 - `Task 2` 已按 TDD 落地语料发现与输入清单，并通过回归测试。
 - 已将 `task2-manifest-py314` worktree 中的已验证改动折回当前 `main` 工作树。
-- 当前主要阻塞点是：当前批次实现与验证已闭环，等待用户审查并决定是否继续后续任务。
+- `Task 3` 已按 TDD 完成文档标准化实现，并在 `fire` 环境通过服务层回归测试。
+- 已基于 `法律文本/` 真实语料生成 `data/normalized/*.txt`，当前 6 份原始法规均标准化成功。
+- `Task 3` 的 Unicode 行终止符缺陷已修复，全部标准化产物已重新生成。
+- 当前 3 份 `.doc` 与 3 份 `.docx` 输入均已再次验证通过，产物中确认不存在 `U+2028/U+2029/\r` 残留。
+- 当前主要阻塞点是：当前无新的技术阻塞；等待 `code-reviewer` 审查结论，若无新问题可进入 `Task 4`。
 
 ## 最新记录
+
+### 2026-03-28 Task 3 Unicode 行终止符真实语料复核通过
+
+- 执行内容：在 `fire` conda 环境调用当前 `CorpusIngestor + Normalizer` 实现，重新生成全部 `data/normalized/*.txt` 产物，并按文件类型统计 `.doc/.docx` 成功数，同时检查标准化文本中是否仍含 `U+2028/U+2029/\r`。
+- 执行环境：`fire`
+- 验证结果：通过，结果为 `documents=6 file_types={'docx': 3, 'doc': 3}`、`successes=6 failures=0 success_by_type={'docx': 3, 'doc': 3}`、`anomalies=[]`。说明当前 `.doc` 与 `.docx` 两类真实输入都能成功标准化，且产物已无异常行终止符残留。
+- 当前阻塞点：代码实现与真实语料复核已完成，等待 `code-reviewer` 给出最终审查意见。
+
+### 2026-03-28 Task 3 Unicode 行终止符绿测通过
+
+- 执行内容：在 `app/services/normalizer.py` 中补充 `U+2028/U+2029` 到普通换行的归一化，并将分行逻辑收紧为 `splitlines()` 后，于 `fire` conda 环境执行 `python -m pytest tests/unit/services/test_corpus_ingestor.py tests/unit/services/test_normalizer.py -q`。
+- 执行环境：`fire`
+- 验证结果：通过，结果为 `12 passed in 0.02s`。说明 `.doc/.docx` 的现有加载路径与新增 Unicode 行终止符修复可同时成立。
+- 当前阻塞点：仍需重生成真实语料产物，并确认 `data/normalized/` 中不再残留异常行终止符。
+
+### 2026-03-28 Task 3 Unicode 行终止符红测成立
+
+- 执行内容：在 `tests/unit/services/test_normalizer.py` 新增 `U+2028/U+2029` Unicode 行终止符用例后，于 `fire` conda 环境执行 `python -m pytest tests/unit/services/test_normalizer.py -q`。
+- 执行环境：`fire`
+- 验证结果：按预期失败，结果为 `1 failed, 7 passed in 0.04s`。失败断言表明 `clean_text()` 仍保留了 `U+2028/U+2029`，没有把它们标准化成普通换行。
+- 当前阻塞点：需要在 `app/services/normalizer.py` 中补充 `U+2028/U+2029` 的换行归一化逻辑，然后重跑测试并重生成 `data/normalized/`。
+
+### 2026-03-28 Task 3 真实语料标准化执行完成
+
+- 执行内容：在 `fire` conda 环境调用当前 `CorpusIngestor + Normalizer` 实现，对 `法律文本/` 下 6 份 `.doc/.docx` 法规执行标准化，输出到 `data/normalized/`，并对 `xiaofangfa_2019` 自动对比 `textutil` 原始提取文本和标准化文本。
+- 执行环境：`fire`
+- 验证结果：通过，`6` 份文档全部生成标准化文本，无失败报告。对比结果显示 `xiaofangfa_2019` 从 `198` 行标准化为 `197` 行，共有 `86` 处行级变化，主要是三类清洗：章节标题空白压缩（如 `第一章　总  则` -> `第一章 总则`）、条号与正文之间的空白统一（如 `第一条　...` -> `第一条 ...`），以及多余空行折叠。
+- 当前阻塞点：当前无新的技术阻塞；下一步可进入 `Task 4`，开始解析章节与条文结构。
+
+### 2026-03-28 Task 3 绿测通过
+
+- 执行内容：修正 `clean_text()` 的空白折叠逻辑与标准化期望夹具读取方式后，在 `fire` conda 环境执行 `python -m pytest tests/unit/services/test_corpus_ingestor.py tests/unit/services/test_normalizer.py -q`。
+- 执行环境：`fire`
+- 验证结果：通过，结果为 `11 passed in 0.02s`。说明 `Task 2 + Task 3` 的服务层能力已形成回归闭环。
+- 当前阻塞点：仍需用真实语料执行一次标准化，确认 `data/normalized/` 产物与清洗结果符合预期。
+
+### 2026-03-28 Task 3 首次绿测失败
+
+- 执行内容：新增 `app/services/normalizer.py` 并在 `fire` conda 环境执行 `python -m pytest tests/unit/services/test_normalizer.py -q`，验证文档清洗、`textutil` 转换与标准化落盘。
+- 执行环境：`fire`
+- 验证结果：失败，结果为 `3 failed, 4 passed in 0.03s`。失败集中在两类问题：`clean_text()` 仍保留了多余空行，以及 `expected_fire_law.txt` 带有尾随换行，导致与标准化输出不一致。
+- 当前阻塞点：需要修正空白折叠逻辑与标准化期望夹具，然后重新执行 `Task 3` 单测。
+
+### 2026-03-28 Task 3 红测成立
+
+- 执行内容：新增 `tests/unit/services/test_normalizer.py` 与 `tests/fixtures/normalized/expected_fire_law.txt`，覆盖清洗规则、`textutil` 调用边界、标准化落盘与失败报告后，在 `fire` conda 环境执行 `python -m pytest tests/unit/services/test_normalizer.py -q`。
+- 执行环境：`fire`
+- 验证结果：按预期失败，报 `ModuleNotFoundError: No module named 'app.services.normalizer'`。说明 `Task 3` 仍处于纯测试阶段，TDD 红测成立。
+- 当前阻塞点：需要新增 `app/services/normalizer.py`，实现 `clean_text()`、Office 文档加载、标准化文件输出，以及空结果失败报告。
 
 ### 2026-03-28 已将隔离 worktree 折回 main
 
