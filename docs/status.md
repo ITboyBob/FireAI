@@ -15,14 +15,119 @@
 - 已基于 `法律文本/` 真实语料生成 `data/normalized/*.txt`，当前 6 份原始法规均标准化成功。
 - `Task 3` 的 Unicode 行终止符缺陷已修复，全部标准化产物已重新生成。
 - 当前 3 份 `.doc` 与 3 份 `.docx` 输入均已再次验证通过，产物中确认不存在 `U+2028/U+2029/\r` 残留。
+- 已定位 `xiaofangfa_2019` 中 `HYPERLINK` 残留的根因：问题不在切块，而在 `.doc` 经 `textutil` 导出后的标准化阶段；当前 `clean_text()` 只会删除整行 `HYPERLINK` 噪声，无法清理条文内嵌的 Word 超链接字段码。
 - 已修正实施计划中 `Task 4` 将 `title` 与 `document_id` 混用的缺陷，并补上“修订决定前言 + 真正法规标题”的验收要求。
 - `Task 4` 已完成结构解析实现，`data/structured/*.json` 已在真实语料上生成。
 - 当前 6 份标准化文本均已解析为结构化 JSON，其中“历史修改说明污染 `title` / 首条 / 正文”的主风险已通过最新前后对照审计。
 - 已针对“历史修改说明污染 `title` / `promulgated_on` / 第一条正文”的真实边界补做回归，当前关键样本已纠正。
 - 最新 `Task 4` 终审中，`jiguan_tuanti_qiye_shiye_danwei_xiaofang_anquan_guanli_guiding` 的带空格日期提取也已修复。
-- 当前主要阻塞点是：当前无新的技术阻塞；`Task 4` 的结构解析输出已通过最新终审。
+- `Task 5` 已完成最小实现并通过单测，当前切块逻辑已覆盖路径保留、按段拆分、无章节标题路径构造和 JSONL 落盘。
+- `Task 5` 的服务层回归已通过，当前 `Task 2` 到 `Task 5` 的离线链路在测试层保持一致。
+- 已基于 6 份真实 `data/structured/*.json` 生成 `data/chunks/*.jsonl`，切块数量与拆分情况已完成抽样核对。
+- `Task 5` 已完成 `code-reviewer` 审查，当前无新的实质性缺陷发现。
+- 已完成“段内二级切块”需求审计：当前生成 chunk 中仅 `xiaofangfa_2019` 有 `2` 个超出 `300` 字阈值的块，但多份法规的真实条文都存在 `（一）（二）` 枚举结构，因此不能只对单一文件做特判。
+- 已新增重构设计文档、实施计划与 ADR，当前 `Task 6` 已被正式门禁拦截，必须先完成这次 `normalizer/chunk_builder` 重构与全量重建。
+- 新增的重构设计文档、实施计划与 ADR 已统一改成中文，避免文档系统中英混杂。
+- 当前主要阻塞点是：尚未执行 [normalization-and-chunking-refactor 计划](./plans/2026-03-28-normalization-and-chunking-refactor.md)；在完成真实夹具、上游修复、分阶段重建和全量重建前，不得进入 `Task 6`。
 
 ## 最新记录
+
+### 2026-03-28 重构 ADR 中文化完成
+
+- 执行内容：将 [标准化与切块重构 ADR](./adr/2026-03-28-normalization-and-chunking-refactor.md) 全量改写为中文版本，并同步修正文档状态摘要中对该批重构文档语言状态的描述。
+- 执行环境：本次为文档改写；未执行新的 Python、pytest 或服务启动命令。
+- 验证结果：重构设计文档、实施计划与 ADR 现已全部统一为中文表述，文档系统不再保留这批重构决策的英文正文。
+- 当前阻塞点：等待按中文化后的重构计划开始执行真实夹具、上游修复、分阶段重建与全量重建；在此之前，`Task 6` 继续保持暂停。
+
+### 2026-03-28 重构文档中文化完成
+
+- 执行内容：将 [标准化与切块重构设计](./plans/2026-03-28-normalization-and-chunking-refactor-design.md) 与 [标准化与切块重构实施计划](./plans/2026-03-28-normalization-and-chunking-refactor.md) 统一改写为中文版本，保留原有门禁、任务拆分与验证要求。
+- 执行环境：本次为文档改写；未执行新的 Python、pytest 或服务启动命令。
+- 验证结果：两份新文档已不再中英混杂，后续可直接用于中文语境下的设计审阅和执行交接。
+- 当前阻塞点：等待按新的中文实施计划开始执行重构；在该计划完成前，`Task 6` 仍保持暂停。
+
+### 2026-03-28 重构门禁设计与计划落盘
+
+- 执行内容：完成 `Task 6` 前置重构的文档设计落盘，新增 [标准化与切块重构设计](./plans/2026-03-28-normalization-and-chunking-refactor-design.md)、[标准化与切块重构实施计划](./plans/2026-03-28-normalization-and-chunking-refactor.md) 与对应 [ADR](./adr/2026-03-28-normalization-and-chunking-refactor.md)，并同步更新 [文档索引](./文档索引.md)、主线 [实施计划](./plans/2026-03-28-fire-law-rag-implementation.md) 及基线 [设计文档](./plans/2026-03-28-fire-law-rag-design.md)。
+- 执行环境：本次为文档设计与整理；未执行新的 Python、pytest 或服务启动命令。
+- 验证结果：文档系统已正式引入 ADR 层；`Task 6` 现已被新重构计划门禁拦截。后续执行必须先完成真实夹具、`normalizer` 修复、`chunk_builder` 二级切块、分阶段重建和全量重建。
+- 当前阻塞点：等待按新实施计划开始执行重构；在该计划完成前，原主线 `Task 6` 保持暂停。
+
+### 2026-03-28 Task 5 段内二级切块需求审计
+
+- 执行内容：在 `fire` conda 环境扫描全部 `data/chunks/*.jsonl`，核对是否存在超过 `DEFAULT_MAX_CHUNK_CHARS=300` 的已生成 chunk；同时扫描 `data/structured/*.json` 中带 `（一）（二）` 等枚举标记的真实条文，评估“段内二级切块”是否只影响个别法规。
+- 执行环境：`fire`
+- 验证结果：当前已生成 chunk 中，仅 [xiaofangfa_2019.jsonl](/Users/itboybob/Project/fire/data/chunks/xiaofangfa_2019.jsonl) 仍存在 `2` 个超限块：
+  - `xiaofangfa_2019#article-62-part-1`，长度 `334`
+  - `xiaofangfa_2019#article-65-part-1`，长度 `379`
+- 其余 5 份法规的已生成 chunk 未发现超限。但真实 `structured` 输入中，多份法规都存在带 `（一）（二）` 的枚举条文，例如 [xiaofangfa_2019.json](/Users/itboybob/Project/fire/data/structured/xiaofangfa_2019.json)、[hebei_xiaofang_anquan_zerenzhi_guiding.txt](/Users/itboybob/Project/fire/data/normalized/hebei_xiaofang_anquan_zerenzhi_guiding.txt)、[xiaofang_anquan_zerenzhi_shishi_banfa.txt](/Users/itboybob/Project/fire/data/normalized/xiaofang_anquan_zerenzhi_shishi_banfa.txt) 等。因此若引入“段内二级切块”，应作为通用规则落入 `chunk_builder.py`，并全量重建 `data/chunks/*.jsonl`，而不是只对 `xiaofangfa_2019` 做特判。
+- 当前阻塞点：当前无新的技术阻塞；后续若正式调整切块规则，需要同步更新真实夹具回归，并在 `Task 6` 建索引前重建下游产物。
+
+### 2026-03-28 分块超链接残留根因定位
+
+- 执行内容：在 `fire` conda 环境执行 `conda run -n fire /usr/bin/textutil -convert txt -stdout -encoding UTF-8 '法律文本/消防法--2019年4月23日.doc'` 抽样复核原始转换输出，并结合 `rg` 全量搜索 `data/normalized/`、`data/structured/`、`data/chunks/` 中的 `HYPERLINK` 残留；同时对 `app/services/normalizer.py`、`app/services/structure_parser.py`、`app/services/chunk_builder.py` 与 `tests/unit/services/test_normalizer.py` 做全链路只读审查。
+- 执行环境：`fire`
+- 验证结果：已确认 `HYPERLINK` 在 `.doc -> textutil` 输出阶段就以内联字段码形式进入正文，当前仅发现于 `xiaofangfa_2019` 的第六十二条和第六十五条。`clean_text()` 只在整行以 `HYPERLINK` 开头时丢弃该行，因此会漏掉 `《 HYPERLINK "..." \l "#" 法律名》` 这种条文内嵌样式；`structure_parser` 与 `chunk_builder` 均未做二次清洗，只会把污染继续传递到 `data/structured/*.json` 和 `data/chunks/*.jsonl`。现有测试也只覆盖了独立成行的 `HYPERLINK foo`，没有覆盖真实 `.doc` 的内联字段码样式。
+- 当前阻塞点：需要先在 `normalizer` 中实现“删除字段码、保留显示文本”的内联超链接清洗，再补真实样式回归测试，并从 `data/normalized/` 起重生成受影响产物。
+
+### 2026-03-28 Task 5 审查通过
+
+- 执行内容：由 `code-reviewer` 对 `app/services/chunk_builder.py` 与 `tests/unit/services/test_chunk_builder.py` 做只读审查，重点检查切块路径保留、长条文按段拆分、JSONL 落盘，以及与现有 `data/structured/*.json` 的匹配风险。
+- 执行环境：审查基于当前工作树与已通过的 `fire` 环境验证结果完成。
+- 验证结果：未发现新的实质性问题。剩余风险主要是三类：
+  - 若单个段落本身极长，当前实现不会继续向句子级拆分，因此单块长度仍可能超过 `DEFAULT_MAX_CHUNK_CHARS`
+  - `Task 5` 测试目前仍以合成结构 payload 为主，尚未固化真实 `data/structured/*.json -> data/chunks/*.jsonl` 的夹具回归
+  - 空条文 / 空 `chunks` 输出的边界行为尚未单独写测试
+- 当前阻塞点：当前无新的技术阻塞；这些风险可在后续 `Task 6` 前按需要补成回归测试。
+
+### 2026-03-28 Task 5 真实语料切块执行完成
+
+- 执行内容：在 `fire` conda 环境调用当前 `chunk_builder` 实现，从 `data/structured/*.json` 生成全部 `data/chunks/*.jsonl`，并抽样核对切块数量、路径和多段条文拆分结果。
+- 执行环境：`fire`
+- 验证结果：通过，已生成 `6` 份 chunk 产物。统计结果为：
+  - `hebei_xiaofang_anquan_zerenzhi_guiding`：`55` 块，其中多段拆分块 `32`
+  - `hebei_xiaofang_anquan_zerenzhi_shishi_banfa`：`30` 块，其中多段拆分块 `10`
+  - `hebei_xiaofang_tiaoli`：`63` 块，其中多段拆分块 `0`
+  - `jiguan_tuanti_qiye_shiye_danwei_xiaofang_anquan_guanli_guiding`：`53` 块，其中多段拆分块 `10`
+  - `xiaofang_anquan_zerenzhi_shishi_banfa`：`47` 块，其中多段拆分块 `24`
+  - `xiaofangfa_2019`：`81` 块，其中多段拆分块 `14`
+  抽样复核 `xiaofangfa_2019#article-16-part-1` 显示切块仍保持路径 `中华人民共和国消防法 > 第二章 火灾预防 > 第十六条`，且是按段保留条文内容，没有退化成任意句子碎片。
+- 当前阻塞点：当前无新的技术阻塞；若继续执行计划，可进入 `Task 6`。
+
+### 2026-03-28 Task 5 服务层回归重新通过
+
+- 执行内容：在 `fire` conda 环境执行 `python -m pytest tests/unit/services/test_corpus_ingestor.py tests/unit/services/test_normalizer.py tests/unit/services/test_structure_parser.py tests/unit/services/test_chunk_builder.py -q`，重新回归验证 `Task 2` 到 `Task 5` 的离线链路。
+- 执行环境：`fire`
+- 验证结果：通过，结果为 `20 passed in 0.04s`。说明当前语料发现、标准化、结构解析和切块逻辑之间没有出现新的回归冲突。
+- 当前阻塞点：仍需在真实 `data/structured/*.json` 上生成首批 `data/chunks/*.jsonl`，并检查切块数、路径和样本内容是否符合“按条优先”的设计约束。
+
+### 2026-03-28 Task 5 重新绿测通过
+
+- 执行内容：在 `app/services/chunk_builder.py` 中补回按条优先切块实现后，于 `fire` conda 环境执行 `python -m pytest tests/unit/services/test_chunk_builder.py -q`。
+- 执行环境：`fire`
+- 验证结果：通过，结果为 `4 passed in 0.01s`。说明当前最小切块能力已成立：条文路径保留、长条按段拆分、无章节标题路径不漂移，以及 `data/chunks/<document_id>.jsonl` 落盘。
+- 当前阻塞点：仍需把 `Task 5` 与 `Task 2-4` 一起跑服务层回归，并在真实 `data/structured/*.json` 上生成 `data/chunks/*.jsonl` 后做抽样审查。
+
+### 2026-03-28 Task 5 服务层回归通过
+
+- 执行内容：在 `fire` conda 环境执行 `python -m pytest tests/unit/services/test_corpus_ingestor.py tests/unit/services/test_normalizer.py tests/unit/services/test_structure_parser.py tests/unit/services/test_chunk_builder.py -q`，回归验证 `Task 2` 到 `Task 5` 的离线链路。
+- 执行环境：`fire`
+- 验证结果：通过，结果为 `19 passed in 0.06s`。说明当前语料发现、标准化、结构解析和切块逻辑之间没有出现回归冲突。
+- 当前阻塞点：仍需在真实 `data/structured/*.json` 上生成首批 `data/chunks/*.jsonl`，并检查切块数、路径和样本内容是否符合“按条优先”的设计约束。
+
+### 2026-03-28 Task 5 绿测通过
+
+- 执行内容：新增 `app/services/chunk_builder.py`，实现 `Chunk` 数据模型、按条优先切块、超长条文按段拆分，以及 `write_chunk_file()` 的 JSONL 落盘；随后在 `fire` conda 环境执行 `python -m pytest tests/unit/services/test_chunk_builder.py -q`。
+- 执行环境：`fire`
+- 验证结果：通过，结果为 `3 passed in 0.02s`。说明 `Task 5` 的最小能力已成立：条文路径保留、分段后路径不漂移、以及 `data/chunks/<document_id>.jsonl` 输出稳定。
+- 当前阻塞点：仍需扩大到服务层回归，并在真实 `data/structured/*.json` 上生成首批 `data/chunks/*.jsonl` 后做抽样审查。
+
+### 2026-03-28 Task 5 红测成立
+
+- 执行内容：新增 `tests/unit/services/test_chunk_builder.py`，覆盖条文路径保留、超长条文按段切块和 JSONL 落盘后，在 `fire` conda 环境执行 `python -m pytest tests/unit/services/test_chunk_builder.py -q`。
+- 执行环境：`fire`
+- 验证结果：按预期失败，结果为 `3 failed in 0.03s`，全部失败均为 `ModuleNotFoundError: No module named 'app.services.chunk_builder'`。说明 `Task 5` 当前仍处于纯测试阶段，TDD 红测成立。
+- 当前阻塞点：需要新增 `app/services/chunk_builder.py`，补上切块数据模型、按条优先切块逻辑和 JSONL 落盘实现。
 
 ### 2026-03-28 Task 4 终审通过
 

@@ -10,7 +10,7 @@
 
 ## 当前状态
 
-项目已完成 `Task 1`、`Task 2` 和 `Task 3`，并已在真实语料上生成首批标准化文本。详细执行状态见 [docs/status.md](docs/status.md)。
+项目已完成 `Task 1` 到 `Task 5`，并已在真实语料上生成首批标准化文本、结构化 JSON 和按条优先的 chunks。详细执行状态见 [docs/status.md](docs/status.md)。
 
 ## 环境规则
 
@@ -32,6 +32,12 @@
 - 原始 `.doc` / `.docx` 文档通过 macOS 自带 `textutil` 转成 UTF-8 纯文本
 - 标准化后的文本写入 `data/normalized/<document_id>.txt`
 - 若转换成功但清洗后为空，则写入 `data/normalized/<document_id>.error.txt`
+
+## 结构化与切块约定
+
+- 结构解析结果写入 `data/structured/<document_id>.json`
+- 切块结果写入 `data/chunks/<document_id>.jsonl`
+- chunk 以“条”为主键路径，默认仅在条文过长时按段落继续拆分，不按句子任意切碎
 
 ## 相关文档
 

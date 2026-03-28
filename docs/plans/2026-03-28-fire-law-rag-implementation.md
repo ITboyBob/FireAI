@@ -341,13 +341,16 @@ def test_build_chunks_preserves_article_path():
             {
                 "article_no": "第二条",
                 "chapter_title": "第一章 总则",
-                "text": "国家实行消防安全责任制。"
+                "heading_path": ["第一章 总则"],
+                "text": "国家实行消防安全责任制。",
             }
         ],
     }
     chunks = build_chunks(structured)
     assert chunks[0]["path"] == "中华人民共和国消防法 > 第一章 总则 > 第二条"
 ```
+
+同时至少补一个“超长条文按段落拆分但路径不漂移”的用例，以及一个“无章节标题时 path 不出现多余分隔符”的用例。
 
 **步骤 2：运行测试，确认失败**
 
@@ -361,7 +364,11 @@ def build_chunks(structured: dict) -> list[dict]:
     article = structured["articles"][0]
     return [
         {
-            "chunk_id": f'{structured["document_id"]}#article-2',
+            "chunk_id": f'{structured["document_id"]}#article-1',
+            "document_id": structured["document_id"],
+            "article_no": article["article_no"],
+            "chapter_title": article.get("chapter_title"),
+            "heading_path": article.get("heading_path", []),
             "path": f'{structured["title"]} > {article["chapter_title"]} > {article["article_no"]}',
             "text": article["text"],
         }
@@ -370,17 +377,20 @@ def build_chunks(structured: dict) -> list[dict]:
 
 随后扩展为：
 - 超长条文按段落拆分，但保留同一父路径
-- 保留 `document_id`、条号、章节名与过滤元数据
-- 向 `data/chunks/<document_id>.jsonl` 落盘
+- `chunk_id` 需稳定且可追溯到原条文顺序；分段后追加 `part-n`
+- 保留 `document_id`、条号、章节名、`heading_path` 与过滤元数据
+- 提供 `write_chunks(chunks, document_id, output_dir)`，向 `data/chunks/<document_id>.jsonl` 落盘
 
 **步骤 4：运行测试，确认通过**
 
 运行：`conda run -n fire python -m pytest tests/unit/services/test_chunk_builder.py -q`  
-预期：`1 passed`
+预期：新增的切块用例全部通过，而不是只通过单个最小样例。
 
 **步骤 5：用户检查点（可选）**
 
-抽样检查切块结果，确认没有退化成任意句子碎片。
+抽样检查真实 `data/chunks/*.jsonl`，确认没有退化成任意句子碎片，且多段条文仍能回到同一条文路径。
+
+> **当前门禁：** `Task 6` 暂停执行。必须先完成 [Normalization And Chunking Refactor Design](./2026-03-28-normalization-and-chunking-refactor-design.md)、[Normalization And Chunking Refactor Implementation Plan](./2026-03-28-normalization-and-chunking-refactor.md) 与对应 [ADR](../adr/2026-03-28-normalization-and-chunking-refactor.md) 中定义的重构与全量重建，再继续索引构建。
 
 ### 任务 6：构建 SQLite FTS5 关键词索引
 
