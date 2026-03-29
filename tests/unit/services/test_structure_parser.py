@@ -87,3 +87,15 @@ def test_parse_legal_document_extracts_spaced_dates_from_parenthetical():
 
     assert document.promulgated_on == "2001年11月14日"
     assert document.effective_on == "2002年5月1日"
+
+
+def test_parse_legal_document_keeps_real_article_after_inline_hyperlink_cleanup():
+    raw = (FIXTURE_DIR / "xiaofangfa_article_62_clean.txt").read_text(encoding="utf-8")
+
+    document = parse_legal_document("xiaofangfa_2019", raw)
+
+    assert document.title == "中华人民共和国消防法"
+    assert document.articles[0].article_no == "第六十二条"
+    assert document.articles[0].text.startswith(
+        "有下列行为之一的，依照《中华人民共和国治安管理处罚法》的规定处罚："
+    )

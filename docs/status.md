@@ -28,9 +28,108 @@
 - 已完成“段内二级切块”需求审计：当前生成 chunk 中仅 `xiaofangfa_2019` 有 `2` 个超出 `300` 字阈值的块，但多份法规的真实条文都存在 `（一）（二）` 枚举结构，因此不能只对单一文件做特判。
 - 已新增重构设计文档、实施计划与 ADR，当前 `Task 6` 已被正式门禁拦截，必须先完成这次 `normalizer/chunk_builder` 重构与全量重建。
 - 新增的重构设计文档、实施计划与 ADR 已统一改成中文，避免文档系统中英混杂。
-- 当前主要阻塞点是：尚未执行 [normalization-and-chunking-refactor 计划](./plans/2026-03-28-normalization-and-chunking-refactor.md)；在完成真实夹具、上游修复、分阶段重建和全量重建前，不得进入 `Task 6`。
+- 标准化与切块重构 `Task 1` 已补齐真实夹具，并完成两次红测确认；当前失败稳定收敛到“真实行内超链接清洗”和“第六十二条枚举级 chunk 回归”两项新增行为。
+- 标准化与切块重构 `Task 2` 已完成 `normalizer` 修复、单测回归和 `xiaofangfa_2019` 哨兵重建；当前 `data/normalized/` 目录已显式确认不再残留 `HYPERLINK/http(s):///\l "#"` 字段码痕迹。
+- 标准化与切块重构 `Task 3` 已完成结构化哨兵测试、`structure_parser` 回归、`xiaofangfa_2019` 结构化重建与摘要对比；当前 `data/structured/xiaofangfa_2019.json` 已显式确认不再残留超链接字段码，且标题、首末条、日期、条文数量保持稳定。
+- 标准化与切块重构 `Task 4` 启动审计后发现计划矛盾：当前真实夹具 [xiaofangfa_article_62_structured.json](/Users/itboybob/Project/fire/tests/fixtures/chunks/xiaofangfa_article_62_structured.json) 在完成任务 2 清洗后，正文总长度仅 `165`，分段长度为 `[33, 44, 32, 9, 18, 24]`，已不满足“按段切块后仍超过 `300` 才触发二级切块”的设计前提。
+- 已检索 [status.md](/Users/itboybob/Project/fire/docs/status.md) 全文，当前未发现用户曾在状态文档中明确批准“只有按段切块后某段仍超过 `300` 且包含枚举标记才触发二级切块”；该触发条件来自已批准的设计文档与实施计划，而不是状态记录里的用户确认语句。
+- 用户已于 `2026-03-29` 明确改选“修正真实哨兵样本，不修改 Task 4 触发规则”，并要求在 ADR 中补记本次决策，同时保留对“引用粒度可能仍偏粗”的风险说明。
+- `@architect` 已完成专题分析：当前文档系统对“执行状态”有统一入口，但没有把“规则级批准”设计成可审计对象，因此能找到“设计文档已批准”，却无法稳定回溯“某条细则是否被用户逐条批准”的证据链。
+- 在 `fire` 环境重新扫描 `法律文本/*`、`data/normalized/*.txt` 与 `data/structured/*.json` 后，当前 6 份真实语料中未找到任何“单行/单段长度超过 `300` 且包含 `（一）（二）` 枚举标记”的样本；这意味着用户改选的“方向一：修正真实哨兵样本，保持原触发规则不变”在当前语料范围内已无法直接落地。
+- 已按用户最新要求，由 `@Curie` 在重构设计文档与实施计划的 `chunk_builder / 段内二级切块` 位置补充“单段/单行超过 `300` 且带枚举标记时应优先识别”的执行提示；本次只增加提示，不修改既有触发规则，也不继续扩展文档系统。
+- 当前主要阻塞点是：`Task 4` 不再只是“旧样本失效”，而是“当前项目语料本身不包含能触发既定规则的真实样本”。在用户未进一步调整任务边界前，不得继续实现二级切块逻辑；在完成真实夹具、上游修复、分阶段重建和全量重建前，不得进入 `Task 6`。
 
 ## 最新记录
+
+### 2026-03-29 按用户要求补充 Task 4 执行识别提示
+
+- 执行内容：根据用户最新要求，停止继续完善文档系统，也不修改 `Task 4` 触发规则或继续寻找新样本；改为由 `@Curie` 只在 [重构设计文档](/Users/itboybob/Project/fire/docs/plans/2026-03-28-normalization-and-chunking-refactor-design.md) 与 [重构实施计划](/Users/itboybob/Project/fire/docs/plans/2026-03-28-normalization-and-chunking-refactor.md) 的 `chunk_builder / 段内二级切块` 相关位置补充执行识别提示，并在主代理侧复核 diff。
+- 执行环境：本次为文档修改与只读复核；未执行新的 Python、pytest 或服务启动命令。
+- 验证结果：
+  - [重构设计文档](/Users/itboybob/Project/fire/docs/plans/2026-03-28-normalization-and-chunking-refactor-design.md#L62) 已新增提示：若某个单段长度超过 `300` 且包含枚举标记，应优先视为需要进入该路径验证的候选样本
+  - [重构实施计划](/Users/itboybob/Project/fire/docs/plans/2026-03-28-normalization-and-chunking-refactor.md#L182) 已新增提示：若真实样本先出现“单行长度超过 `300` 且带枚举标记”的情况，应优先检查其在结构化后是否满足触发条件
+  - 复核 `git diff` 后确认：本次仅补充执行识别提示，没有改写原有触发条件，也没有继续扩展文档系统
+- 当前阻塞点：该提示只提升后续识别效率，不会自动制造新的真实样本。因此 `Task 4` 的核心阻塞仍然存在，当前尚不能据此直接继续实现二级切块逻辑。
+
+### 2026-03-29 Task 4 真实样本复核失败并完成文档系统根因分析
+
+- 执行内容：继续推进 `Task 4` 前，先复核 [重构实施计划](/Users/itboybob/Project/fire/docs/plans/2026-03-28-normalization-and-chunking-refactor.md)、[重构 ADR](/Users/itboybob/Project/fire/docs/adr/2026-03-28-normalization-and-chunking-refactor.md)、[chunk_builder.py](/Users/itboybob/Project/fire/app/services/chunk_builder.py) 与 [test_chunk_builder.py](/Users/itboybob/Project/fire/tests/unit/services/test_chunk_builder.py)；随后在 `fire` conda 环境分别扫描 `data/structured/*.json`、`data/normalized/*.txt` 与 `法律文本/*`，查找是否存在“单行/单段超过 `300` 且包含 `（一）（二）` 枚举标记”的真实样本；同时调用 `@architect` 分析“为什么找不到用户明确批准该触发规则的记录”，并审视当前文档系统应如何避免再次出现同类问题。
+- 执行环境：`fire`
+- 验证结果：
+  - `data/structured/*.json` 扫描结果为空：当前 6 份结构化语料中，不存在任何“单段超过 `300` 且包含枚举标记”的条文段落
+  - `data/normalized/*.txt` 扫描结果为空：当前 6 份标准化语料中，也不存在任何“单行超过 `300` 且包含枚举标记”的文本行
+  - `法律文本/*` 经 `textutil` 转换后的原始文本抽查结果同样为空：当前项目语料源中未发现符合该触发条件的真实段落
+  - `@architect` 的结论是：仓库当前更擅长记录“执行到了哪一步”，但没有定义“规则级批准应该落在哪个文档、以什么格式固化、如何跨设计/计划/状态复用”，因此会出现“能找到整篇设计已批准，却找不到具体细则逐条批准证据”的问题
+  - `@architect` 建议后续补上：规则状态三分法、`Decision ID`、独立决策台账、`检查点` 与 `批准点` 分离，以及在文档索引中显式加入“去哪里查批准”
+- 当前阻塞点：用户此前改选的“方向一：修正真实哨兵样本，保持原触发规则不变”已被当前真实语料再次证伪。若不扩大语料范围或修改任务边界，`Task 4` 无法在现有 6 份法规内继续诚实执行。
+
+### 2026-03-29 检索状态文档并记录 Task 4 决策改选
+
+- 执行内容：检索 [status.md](/Users/itboybob/Project/fire/docs/status.md) 全文，回溯是否存在用户明确批准“只有按段切块后某段仍超过 `300` 且包含枚举标记才触发二级切块”的状态记录；随后根据用户于 `2026-03-29` 的最新决策，更新 [标准化与切块重构 ADR](/Users/itboybob/Project/fire/docs/adr/2026-03-28-normalization-and-chunking-refactor.md)，明确放弃“枚举条文即使未超限也拆分”，改选“修正真实哨兵样本，保持原触发规则不变”。
+- 执行环境：本次为文档检索与文档更新；未执行新的 Python、pytest 或服务启动命令。
+- 验证结果：
+  - `status.md` 中未找到用户对该具体触发条件的明确批准记录
+  - 能回溯到的最接近记录是 `2026-03-28 Task 5 段内二级切块需求审计`，其结论是“若引入段内二级切块，应作为通用规则落入 `chunk_builder.py`”，但并未把“仅当超限才触发”写成用户批准语句
+  - ADR 已新增 `2026-03-29 决策补充`，正式记录这次改选及其负面影响：一部分未超限但带枚举结构的法条仍不会被拆分，因此后续检索/引用粒度可能仍然偏粗
+- 当前阻塞点：需要先修正任务 4 的真实哨兵样本，使其与现有触发规则一致；在此之前，不应继续修改 `chunk_builder.py`。
+
+### 2026-03-29 标准化与切块重构 Task 4 启动审计发现计划矛盾
+
+- 执行内容：准备进入 `Task 4` 前，在 `fire` conda 环境复核 [chunk_builder.py](/Users/itboybob/Project/fire/app/services/chunk_builder.py)、[test_chunk_builder.py](/Users/itboybob/Project/fire/tests/unit/services/test_chunk_builder.py) 与真实夹具；并通过临时检查确认 [xiaofangfa_article_62_structured.json](/Users/itboybob/Project/fire/tests/fixtures/chunks/xiaofangfa_article_62_structured.json) 的第六十二条清洗后正文长度与分段长度。
+- 执行环境：`fire`
+- 验证结果：发现阻塞性矛盾，而不是代码缺陷：
+  - 真实夹具第六十二条当前总长度只有 `165`
+  - 分段长度为 `[33, 44, 32, 9, 18, 24]`
+  - 因此它既没有整体超过 `300`，也不存在任何单段超过 `300`
+  - 这与任务 4 设计中的触发条件“仅当按段切块后某段仍超过 `max_chunk_chars` 且包含枚举标记时，才触发二级切块”直接冲突
+  - 但现有 [xiaofangfa_article_62_expected.jsonl](/Users/itboybob/Project/fire/tests/fixtures/chunks/xiaofangfa_article_62_expected.jsonl) 却要求无条件拆成 `5` 个枚举块
+- 当前阻塞点：`Task 4` 目前不能被诚实执行。若继续硬改，只能把实现改成“未超限也按枚举拆”，这会破坏设计中“触发条件保守”的约束。需要先在两条路里选一条：
+  - 修正任务 4 的真实哨兵样本，改用清洗后仍真实超限的枚举条文
+  - 或者正式修改设计与实施计划，接受“枚举条文即使未超限也拆分”的新规则
+
+### 2026-03-28 标准化与切块重构 Task 3 完成并进入用户检查点
+
+- 执行内容：按实施计划继续执行 `Task 3`。先审计 [structure_parser.py](/Users/itboybob/Project/fire/app/services/structure_parser.py) 与 [test_structure_parser.py](/Users/itboybob/Project/fire/tests/unit/services/test_structure_parser.py) 的现有覆盖，判断“任务 2 清理后的真实消防法片段”尚未被直接固定，因此新增 [xiaofangfa_article_62_clean.txt](/Users/itboybob/Project/fire/tests/fixtures/structured/xiaofangfa_article_62_clean.txt) 与新的 `structure_parser` 哨兵测试；随后在 `fire` conda 环境执行 `conda run -n fire python -m pytest tests/unit/services/test_structure_parser.py -q`；再按计划重建 `data/structured/xiaofangfa_2019.json`，并将重建后的结构化摘要与重建前基线逐项对比。
+- 执行环境：`fire`
+- 验证结果：通过，结果分为四段：
+  - 哨兵回归：新增测试后，`conda run -n fire python -m pytest tests/unit/services/test_structure_parser.py -q` 结果为 `5 passed in 0.02s`
+  - 结构化哨兵重建：`conda run -n fire python -c "... parse_legal_document(...); write_structured_document(...)"` 成功输出 `data/structured/xiaofangfa_2019.json`
+  - 摘要对比：重建前后 `title=中华人民共和国消防法`、`first_article_no=第一条`、`last_article_no=第七十四条`、`promulgated_on=null`、`effective_on=2009年5月1日`、`article_count=74` 均保持一致
+  - 显式污染检查：`rg -n 'HYPERLINK|https?://|\\l "#"' data/structured/xiaofangfa_2019.json -S` 无命中；关键抽样显示 `第六十二条` 与 `第六十五条` 中原先的超链接污染已被清除，但法规可见文本仍完整保留
+- 当前阻塞点：无新的技术阻塞；已满足任务 3 的用户自管检查点条件，等待用户先检查结构化哨兵结果，再进入任务 4 的切块逻辑修改。
+
+### 2026-03-28 标准化与切块重构 Task 2 完成并进入用户检查点
+
+- 执行内容：按实施计划继续执行 `Task 2`。先在 `fire` conda 环境执行 `conda run -n fire python -m pytest tests/unit/services/test_normalizer.py::test_clean_text_strips_inline_hyperlink_field_code_from_real_fixture -q` 保持红测；随后修改 [normalizer.py](/Users/itboybob/Project/fire/app/services/normalizer.py)，新增 `INLINE_HYPERLINK_PATTERN` 与 `_strip_inline_hyperlink_fields()`，并在 `clean_text()` 的空白归一化前接入；再执行 `conda run -n fire python -m pytest tests/unit/services/test_normalizer.py -q`；最后按计划重建 `xiaofangfa_2019` 标准化哨兵样本，并用 `rg` 显式检查超链接残留。
+- 执行环境：`fire`
+- 验证结果：通过，结果分为四段：
+  - 红测：`1 failed in 0.02s`，失败点仅为 `test_clean_text_strips_inline_hyperlink_field_code_from_real_fixture`
+  - `normalizer` 绿测：`9 passed in 0.03s`
+  - 哨兵重建：`conda run -n fire python -c "... normalize_document(...)"` 成功输出 `data/normalized/xiaofangfa_2019.txt`
+  - 显式残留检查：
+    - `rg -n 'HYPERLINK|https?://|\\l "#"' data/normalized/xiaofangfa_2019.txt -S` 无命中
+    - `rg -n 'HYPERLINK|https?://|\\l "#"' data/normalized -S` 无命中
+    - 关键正文抽样显示 `第六十二条` 现为 `依照《中华人民共和国治安管理处罚法》的规定处罚`，`第六十五条` 现为 `依照《中华人民共和国产品质量法》的规定从重处罚`
+- 当前阻塞点：无新的技术阻塞；已满足任务 2 的用户自管检查点条件，等待用户先检查标准化哨兵结果，再继续任务 3。
+
+### 2026-03-28 标准化与切块重构 Task 1 复跑确认并进入用户检查点
+
+- 执行内容：在 `fire` conda 环境按实施计划第 4 步再次执行 `conda run -n fire python -m pytest tests/unit/services/test_normalizer.py tests/unit/services/test_chunk_builder.py -q`，确认补齐真实夹具后，失败是否仍只落在目标新增行为上。
+- 执行环境：`fire`
+- 验证结果：按预期失败，结果为 `2 failed, 12 passed in 0.02s`。失败集合与首次红测完全一致，仍仅包括：
+  - `test_clean_text_strips_inline_hyperlink_field_code_from_real_fixture`
+  - `test_build_chunks_matches_real_structured_fixture`
+  说明当前不存在“夹具缺失、测试语法错误、非目标断言连带失败”等额外漂移。
+- 当前阻塞点：无新的技术阻塞；已满足任务 1 的用户自管检查点条件，等待用户审阅真实夹具后，再进入 `Task 2` 和 `Task 4` 的代码修改。
+
+### 2026-03-28 标准化与切块重构 Task 1 首次红测成立
+
+- 执行内容：新增真实回归夹具 [inline_hyperlink_raw.txt](/Users/itboybob/Project/fire/tests/fixtures/normalized/inline_hyperlink_raw.txt)、[inline_hyperlink_expected.txt](/Users/itboybob/Project/fire/tests/fixtures/normalized/inline_hyperlink_expected.txt)、[xiaofangfa_article_62_structured.json](/Users/itboybob/Project/fire/tests/fixtures/chunks/xiaofangfa_article_62_structured.json)、[xiaofangfa_article_62_expected.jsonl](/Users/itboybob/Project/fire/tests/fixtures/chunks/xiaofangfa_article_62_expected.jsonl)，并修改 [test_normalizer.py](/Users/itboybob/Project/fire/tests/unit/services/test_normalizer.py) 与 [test_chunk_builder.py](/Users/itboybob/Project/fire/tests/unit/services/test_chunk_builder.py) 接入真实失败测试；随后在 `fire` conda 环境执行 `conda run -n fire python -m pytest tests/unit/services/test_normalizer.py tests/unit/services/test_chunk_builder.py -q`。
+- 执行环境：`fire`
+- 验证结果：按预期失败，结果为 `2 failed, 12 passed in 0.04s`。失败点仅集中在两条新增断言：
+  - `test_clean_text_strips_inline_hyperlink_field_code_from_real_fixture`：当前 `clean_text()` 仍保留真实行内 `HYPERLINK ... \l "#"` 字段码。
+  - `test_build_chunks_matches_real_structured_fixture`：当前 `build_chunks()` 仍把第六十二条输出为单个粗粒度 chunk，尚未细化为枚举级 chunk。
+- 当前阻塞点：需要按实施计划第 4 步复跑一次同一组测试，确认失败不会漂移到“夹具缺失 / 测试语法 / 非目标断言”之外；完成后进入任务 1 的用户检查点。
 
 ### 2026-03-28 重构 ADR 中文化完成
 

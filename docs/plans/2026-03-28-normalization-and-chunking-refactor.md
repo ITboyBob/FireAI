@@ -179,6 +179,8 @@ def _split_enumerated_paragraph(paragraph: str, max_chunk_chars: int) -> list[di
 - 当前按段切块后，某段仍超过 `max_chunk_chars`
 - 该段包含可识别的枚举标记
 
+执行识别提示：若真实样本中先看到“单行长度超过 `300` 且带枚举标记”的情况，应优先检查它在结构化后是否落入上述触发条件。
+
 同时扩展输出元数据：
 - `subitem_no`
 - 当发生二级切块时，`path` 细化为 `... > （一）`

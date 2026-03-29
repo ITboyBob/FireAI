@@ -4,6 +4,9 @@ import json
 from app.services.chunk_builder import build_chunks, write_chunks
 
 
+FIXTURE_DIR = Path(__file__).resolve().parents[2] / "fixtures" / "chunks"
+
+
 def test_build_chunks_preserves_article_path_and_metadata():
     structured = {
         "document_id": "xiaofangfa_2019",
@@ -105,6 +108,20 @@ def test_build_chunks_omits_missing_heading_from_path():
 
     assert chunks[0]["path"] == "河北省消防安全责任制实施办法 > 第一条"
     assert chunks[0]["heading_path"] == []
+
+
+def test_build_chunks_matches_real_structured_fixture():
+    structured = json.loads(
+        (FIXTURE_DIR / "xiaofangfa_article_62_structured.json").read_text(encoding="utf-8")
+    )
+
+    chunks = build_chunks(structured, max_chunk_chars=300)
+
+    expected_lines = (
+        FIXTURE_DIR / "xiaofangfa_article_62_expected.jsonl"
+    ).read_text(encoding="utf-8").splitlines()
+
+    assert [json.dumps(chunk, ensure_ascii=False) for chunk in chunks] == expected_lines
 
 
 def test_write_chunks_persists_jsonl(tmp_path: Path):

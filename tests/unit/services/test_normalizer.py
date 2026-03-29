@@ -15,8 +15,12 @@ from app.services.normalizer import (
 FIXTURE_DIR = Path(__file__).resolve().parents[2] / "fixtures" / "normalized"
 
 
+def _read_fixture(name: str) -> str:
+    return (FIXTURE_DIR / name).read_text(encoding="utf-8").rstrip("\n")
+
+
 def _expected_fire_law() -> str:
-    return (FIXTURE_DIR / "expected_fire_law.txt").read_text(encoding="utf-8").rstrip("\n")
+    return _read_fixture("expected_fire_law.txt")
 
 
 def test_clean_text_removes_page_noise():
@@ -47,6 +51,15 @@ def test_clean_text_matches_expected_fire_law_fixture():
     cleaned = clean_text(raw)
 
     assert cleaned == _expected_fire_law()
+
+
+def test_clean_text_strips_inline_hyperlink_field_code_from_real_fixture():
+    raw = _read_fixture("inline_hyperlink_raw.txt")
+    expected = _read_fixture("inline_hyperlink_expected.txt")
+
+    cleaned = clean_text(raw)
+
+    assert cleaned == expected
 
 
 def test_clean_text_normalizes_unicode_line_separators():

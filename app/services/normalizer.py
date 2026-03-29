@@ -12,6 +12,9 @@ STRUCTURE_HEADING_PATTERN = re.compile(
 )
 ARTICLE_PATTERN = re.compile(r"^(第[一二三四五六七八九十百千万零〇两]+条)\s*(.*)$")
 PAGE_NOISE_PATTERN = re.compile(r"^第\s*\d+\s*页$")
+INLINE_HYPERLINK_PATTERN = re.compile(
+    r'\s*HYPERLINK\s+"[^"]+"\s+(?:\\l\s+"[^"]+"\s+)?'
+)
 
 
 class NormalizationError(RuntimeError):
@@ -48,6 +51,7 @@ def clean_text(raw: str) -> str:
         if line.startswith("HYPERLINK") or PAGE_NOISE_PATTERN.fullmatch(line):
             continue
 
+        line = _strip_inline_hyperlink_fields(line)
         line = re.sub(r"[ \t]+", " ", line)
         line = _normalize_heading_spacing(line)
         cleaned_lines.append(line)
@@ -129,3 +133,7 @@ def _normalize_heading_spacing(line: str) -> str:
         return f"{prefix} {body.strip()}".strip()
 
     return line
+
+
+def _strip_inline_hyperlink_fields(line: str) -> str:
+    return INLINE_HYPERLINK_PATTERN.sub("", line)
