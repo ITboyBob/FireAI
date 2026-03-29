@@ -16,6 +16,7 @@
 - 若当前 shell 不在 `fire` 环境，则不得直接运行 Python、pytest、脚本或服务启动命令。
 - 推荐使用 `conda run -n fire ...` 显式执行，避免误用 `base` 或系统 Python。
 - 若执行结果仅在非 `fire` 环境得到验证，`docs/status.md` 中必须明确标记为“未完成环境合规验证”。
+- 凡是新增或修改测试，必须先运行对应的单元/预编写测试，再基于真实上游产物（如 `data/normalized`、`data/structured`、`data/chunks` 或真实源文档）补做一轮真实验证。
 
 ## 文档读取规则
 

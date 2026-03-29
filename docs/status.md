@@ -37,9 +37,61 @@
 - `@architect` 已完成专题分析：当前文档系统对“执行状态”有统一入口，但没有把“规则级批准”设计成可审计对象，因此能找到“设计文档已批准”，却无法稳定回溯“某条细则是否被用户逐条批准”的证据链。
 - 在 `fire` 环境重新扫描 `法律文本/*`、`data/normalized/*.txt` 与 `data/structured/*.json` 后，当前 6 份真实语料中未找到任何“单行/单段长度超过 `300` 且包含 `（一）（二）` 枚举标记”的样本；这意味着用户改选的“方向一：修正真实哨兵样本，保持原触发规则不变”在当前语料范围内已无法直接落地。
 - 已按用户最新要求，由 `@Curie` 在重构设计文档与实施计划的 `chunk_builder / 段内二级切块` 位置补充“单段/单行超过 `300` 且带枚举标记时应优先识别”的执行提示；本次只增加提示，不修改既有触发规则，也不继续扩展文档系统。
-- 当前主要阻塞点是：`Task 4` 不再只是“旧样本失效”，而是“当前项目语料本身不包含能触发既定规则的真实样本”。在用户未进一步调整任务边界前，不得继续实现二级切块逻辑；在完成真实夹具、上游修复、分阶段重建和全量重建前，不得进入 `Task 6`。
+- 已复核原实施计划的 `Task 5`，结论是当前**不能直接执行原 Task 5**：该任务的测试通过、哨兵重建与变化归因都以前置 `Task 4` 已完成为前提，而当前 `Task 4` 的真实样本阻塞仍未解除。
+- 已按用户要求复核 `data/chunks/` 下的超链接污染范围，确认当前污染只命中 [xiaofangfa_2019.jsonl](/Users/itboybob/Project/fire/data/chunks/xiaofangfa_2019.jsonl)；随后已基于新的 [xiaofangfa_2019.json](/Users/itboybob/Project/fire/data/structured/xiaofangfa_2019.json) 按现有旧分块逻辑重建该文件，当前 `data/chunks/` 目录已显式确认不再残留 `HYPERLINK/http(s):///\l "#"`。
+- 用户已于 `2026-03-29` 明确决定暂时搁置标准化与切块重构计划，回到原主线实施计划；基于当前 `data/normalized`、`data/structured`、`data/chunks` 已无超链接污染、`data/chunks/*.jsonl` 无空字段/重复 `chunk_id`/超长块，原主线 `Task 6` 已恢复执行。
+- 原主线 `Task 6` 已按 TDD 完成：新增 [keyword_index.py](/Users/itboybob/Project/fire/app/services/keyword_index.py)、[test_keyword_index.py](/Users/itboybob/Project/fire/tests/unit/services/test_keyword_index.py) 与 [build_corpus.py](/Users/itboybob/Project/fire/scripts/build_corpus.py)，并在 `fire` 环境通过单测、真实索引烟雾验证和 `build_corpus.py` 入口验证。
+- 已按用户要求更新 [AGENTS.md](/Users/itboybob/Project/fire/AGENTS.md)，新增仓库级测试规则：以后凡是新增或修改测试，除了运行对应单元/预编写测试，还必须基于真实上游产物再做一轮真实验证。
+- 当前主要阻塞点已转为原主线后续任务，而不是 `Task 6`：若继续推进，应进入 `Task 7`；仍保留的已知债务是“枚举条文的引用粒度可能偏粗”，但这不再阻塞当前关键词索引构建。
 
 ## 最新记录
+
+### 2026-03-29 将“真实上游产物验证”上升为仓库级测试规则
+
+- 执行内容：按用户要求调用 `@Curie` 更新 [AGENTS.md](/Users/itboybob/Project/fire/AGENTS.md)，在仓库级 `执行说明` 中补充一条新的测试验证规则，要求以后新增或修改测试时，除运行对应的单元/预编写测试外，还必须基于真实上游产物再做一轮真实验证。
+- 执行环境：本次为文档更新与主代理复核；未执行新的 Python、pytest 或服务启动命令。
+- 验证结果：
+  - [AGENTS.md](/Users/itboybob/Project/fire/AGENTS.md#L19) 已新增规则：`凡是新增或修改测试，必须先运行对应的单元/预编写测试，再基于真实上游产物（如 data/normalized、data/structured、data/chunks 或真实源文档）补做一轮真实验证。`
+  - 主代理已复核 `git diff`，确认本次只修改 `AGENTS.md`，没有扩写其他制度或改动代码
+- 当前阻塞点：无新的技术阻塞；该规则会在后续任务中生效，当前主线仍可继续推进到 `Task 7`。
+
+### 2026-03-29 恢复并完成原主线 Task 6
+
+- 执行内容：根据用户“暂时搁置重构计划，重新回到原执行计划”的决定，先复核当前 `data/` 三层产物是否足以支撑恢复原主线 [Task 6](/Users/itboybob/Project/fire/docs/plans/2026-03-28-fire-law-rag-implementation.md#L395)；确认 `data/normalized`、`data/structured`、`data/chunks` 已无超链接污染后，按 `executing-plans` 执行 `Task 6` 的 TDD：新增 [test_keyword_index.py](/Users/itboybob/Project/fire/tests/unit/services/test_keyword_index.py)，先跑红测，再实现 [keyword_index.py](/Users/itboybob/Project/fire/app/services/keyword_index.py) 与 [build_corpus.py](/Users/itboybob/Project/fire/scripts/build_corpus.py)，随后在 `fire` 环境完成单测、真实语料索引烟雾验证与脚本入口验证。
+- 执行环境：`fire`
+- 验证结果：
+  - 准入判断：当前 `data/normalized`、`data/structured`、`data/chunks` 已显式确认无 `HYPERLINK/http(s):///\l "#"`；`data/chunks/*.jsonl` 当前无空 `path`、空 `text`、重复 `chunk_id`，且 `6` 份 chunk 文件都不再存在长度超过 `300` 的块
+  - 红测成立：`conda run -n fire python -m pytest tests/unit/services/test_keyword_index.py -q` 初次结果为 `ModuleNotFoundError: No module named 'app.services.keyword_index'`
+  - `Task 6` 绿测：补齐最小实现后，`conda run -n fire python -m pytest tests/unit/services/test_keyword_index.py -q` 结果为 `2 passed in 0.03s`
+  - 真实索引烟雾验证：基于当前 `data/chunks/*.jsonl` 共 `328` 条 chunk 构建 [retrieval.db](/Users/itboybob/Project/fire/data/retrieval.db)，库中 `SELECT count(*) FROM chunks` 返回 `328`；查询 `消防设施` 的前 `3` 个命中为：
+    - `hebei_xiaofang_tiaoli#article-27`
+    - `hebei_xiaofang_tiaoli#article-29`
+    - `hebei_xiaofang_tiaoli#article-28`
+  - 脚本入口验证：`conda run -n fire python scripts/build_corpus.py` 可直接执行，成功重写 `6` 份 `data/structured/*.json` 与 `data/chunks/*.jsonl`
+- 当前阻塞点：原主线 `Task 6` 已完成，当前无新的 Task 6 级阻塞；若继续主线，应进入 `Task 7`。仍保留的已知债务是枚举条文引用粒度偏粗，但该风险不再阻塞当前关键词索引构建。
+
+### 2026-03-29 复核并重建 `xiaofangfa_2019` chunk 产物以清除残留超链接污染
+
+- 执行内容：按用户要求先在 `fire` conda 环境执行 `rg -n 'HYPERLINK|https?://|\\l "#"' data/chunks -S`，确认 `data/chunks/` 下的超链接污染是否只存在于 [xiaofangfa_2019.jsonl](/Users/itboybob/Project/fire/data/chunks/xiaofangfa_2019.jsonl)；结论成立后，再基于新的 [xiaofangfa_2019.json](/Users/itboybob/Project/fire/data/structured/xiaofangfa_2019.json) 使用现有 [chunk_builder.py](/Users/itboybob/Project/fire/app/services/chunk_builder.py) 的旧分块逻辑重建 `data/chunks/xiaofangfa_2019.jsonl`。
+- 执行环境：`fire`
+- 验证结果：
+  - 污染范围查证成立：重建前 `rg -n 'HYPERLINK|https?://|\\l "#"' data/chunks -S` 仅命中 [xiaofangfa_2019.jsonl](/Users/itboybob/Project/fire/data/chunks/xiaofangfa_2019.jsonl) 第 `66`、`70` 行，对应 `第六十二条` 与 `第六十五条`
+  - 重建命令成功输出 `data/chunks/xiaofangfa_2019.jsonl`
+  - 重建后再次执行 `rg -n 'HYPERLINK|https?://|\\l "#"' data/chunks -S` 无命中，说明 `data/chunks/` 目录当前已无超链接字段码残留
+  - 抽样复核显示：
+    - [xiaofangfa_2019.jsonl](/Users/itboybob/Project/fire/data/chunks/xiaofangfa_2019.jsonl) 中 `第六十二条` 已变为单块 `xiaofangfa_2019#article-62`，文本长度 `165`，且不再包含超链接污染
+    - `第六十五条` 仍按旧逻辑分为 `2` 块，但 `part-1` 文本已更新为 `依照《中华人民共和国产品质量法》的规定从重处罚`
+- 当前阻塞点：`data/chunks/` 的已知超链接污染已清除，但“段内二级切块”重构本身仍处于搁置状态；是否恢复原主线 `Task 6`，仍需基于当前数据质量与门禁口径另行判断。
+
+### 2026-03-29 复核原实施计划后确认不能直接执行 Task 5
+
+- 执行内容：按用户要求重新检查 [重构实施计划](/Users/itboybob/Project/fire/docs/plans/2026-03-28-normalization-and-chunking-refactor.md)、[项目状态](/Users/itboybob/Project/fire/docs/status.md) 与 [重构 ADR](/Users/itboybob/Project/fire/docs/adr/2026-03-28-normalization-and-chunking-refactor.md)，判断在当前状态下是否可以跳过 `Task 4` 的实际完成，直接执行原计划中的 `Task 5`。
+- 执行环境：本次为文档复核；未执行新的 Python、pytest 或服务启动命令。
+- 验证结果：
+  - [实施计划 Task 5](/Users/itboybob/Project/fire/docs/plans/2026-03-28-normalization-and-chunking-refactor.md#L202) 的步骤 1 预期“目标测试全部通过，哨兵样本稳定，且变化能够归因到预期阶段”，这隐含前提是 [Task 4](/Users/itboybob/Project/fire/docs/plans/2026-03-28-normalization-and-chunking-refactor.md#L154) 已经完成并把 `chunk_builder` 回归拉绿
+  - [实施计划 Task 4](/Users/itboybob/Project/fire/docs/plans/2026-03-28-normalization-and-chunking-refactor.md#L190) 明确要求先跑 `tests/unit/services/test_chunk_builder.py -q` 并重建 chunk 哨兵样本；但当前 `Task 4` 的真实样本阻塞仍未解除
+  - [ADR](/Users/itboybob/Project/fire/docs/adr/2026-03-28-normalization-and-chunking-refactor.md#L20) 也明确规定本次重构采用顺序执行：先修 `normalizer`，再验证 `structured`，再处理 `chunk_builder`，最后才做分阶段和全量重建
+- 当前阻塞点：若现在直接执行原 `Task 5`，会把“尚未完成的 `Task 4`”伪装成“已完成并可归因验证”，导致测试口径和状态记录同时失真。因此当前不能直接执行原计划的 `Task 5`。
 
 ### 2026-03-29 按用户要求补充 Task 4 执行识别提示
 
