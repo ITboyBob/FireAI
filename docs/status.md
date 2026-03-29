@@ -48,12 +48,30 @@
 - 已在 `fire` 环境基于真实 `data/chunks/*.jsonl` 共 `328` 条 chunk 做过一次“假嵌入器 + 临时向量存储”真实上游验证，确认 `scripts/build_index.py` 的离线链路能同时产出 `retrieval.db`、`vector_map.json` 与占位 `faiss.index`。
 - 用户已于 `2026-03-29` 明确批准在 `fire` 环境安装 `numpy`、`faiss-cpu`、`sentence-transformers`；当前三项依赖及其传递依赖已安装完成，并通过导入验证，版本分别为 `numpy 2.4.3`、`faiss-cpu 1.13.2`、`sentence-transformers 5.3.0`、`torch 2.11.0`。
 - 已使用真实嵌入模型 `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` 在 `fire` 环境成功执行 `scripts/build_index.py`；当前 `data/index/` 已生成真实 `retrieval.db`、`faiss.index`、`vector_map.json`，且关键词回查 `消防设施` 仍命中 `hebei_xiaofang_tiaoli#article-27`。
+- 原主线 `Task 8` 已按 TDD 完成查询规范化与混合检索：新增 [query_normalizer.py](/Users/itboybob/Project/fire/app/services/query_normalizer.py)、[retriever.py](/Users/itboybob/Project/fire/app/services/retriever.py)、[test_query_normalizer.py](/Users/itboybob/Project/fire/tests/unit/services/test_query_normalizer.py) 与 [test_retriever.py](/Users/itboybob/Project/fire/tests/unit/services/test_retriever.py)，并在 `fire` 环境通过单测、受影响回归和真实索引检索验证。
 - 已按用户要求调用 `@code-reviewer` 复核 `test_build_chunks_matches_real_structured_fixture` 的失败根因；结论是当前主问题位于“旧真实夹具/测试断言仍要求未超限枚举条文拆分”，而不是 `Task 7` 新实现或 `structured` 上游再次退化。
 - 已新增 [技术债记录](/Users/itboybob/Project/fire/docs/debts/2026-03-29-chunk-builder-enum-red-test-debt.md)，并将 `tests/unit/services/test_chunk_builder.py::test_build_chunks_matches_real_structured_fixture` 显式标记为 `xfail`；当前主线放行不再被这条已知技术债阻塞，但技术债本身仍需后续单独清偿。
 - 在 `fire` 环境重新执行 `conda run -n fire python -m pytest -q` 后，当前结果为 `30 passed, 1 xfailed in 0.37s`；其中唯一 `xfailed` 项即上述技术债测试。
 - 原主线 `Task 7` 当前已完成真实依赖安装与环境合规验证；若继续主线，下一步应进入 `Task 8`，而不是继续停留在向量依赖准备阶段。
 
 ## 最新记录
+
+### 2026-03-29 完成原主线 Task 8 查询规范化与混合检索
+
+- 执行内容：按 `executing-plans` 与 TDD 执行 [原主线 Task 8](/Users/itboybob/Project/fire/docs/plans/2026-03-28-fire-law-rag-implementation.md#L527)。先读取文档索引、状态、实施计划与设计文档，再核对最新官方文档中 `SQLite FTS5 bm25` 的排序语义、`SentenceTransformer.encode_query()/encode_document()` 的检索建议以及 `FAISS` 对内积检索/归一化向量的要求；随后新增 [query_normalizer.py](/Users/itboybob/Project/fire/app/services/query_normalizer.py) 与 [retriever.py](/Users/itboybob/Project/fire/app/services/retriever.py)，补齐 [test_query_normalizer.py](/Users/itboybob/Project/fire/tests/unit/services/test_query_normalizer.py) 与 [test_retriever.py](/Users/itboybob/Project/fire/tests/unit/services/test_retriever.py)，实现别名规范化、地域/条号/日期线索提取、canonical title 收敛、关键词/向量结果融合去重与来源保留。
+- 执行环境：`fire`
+- 依赖情况：无需新增依赖，沿用当前 `fire` 环境内已安装的 `numpy`、`faiss-cpu`、`sentence-transformers` 与现有真实索引产物。
+- 验证结果：
+  - 红测确认：`conda run -n fire python -m pytest tests/unit/services/test_query_normalizer.py tests/unit/services/test_retriever.py -q` 初次结果为 `2 errors`，失败原因是 `app.services.query_normalizer` 尚不存在。
+  - Task 8 单测：`conda run -n fire python -m pytest tests/unit/services/test_query_normalizer.py tests/unit/services/test_retriever.py -q` 最终结果为 `5 passed in 0.01s`
+  - 受影响回归：`conda run -n fire python -m pytest tests/unit/services/test_keyword_index.py tests/unit/services/test_vector_index.py tests/unit/services/test_query_normalizer.py tests/unit/services/test_retriever.py -q` 结果为 `11 passed in 0.08s`
+  - 真实上游检索验证：在真实 [data/index/retrieval.db](/Users/itboybob/Project/fire/data/index/retrieval.db)、[data/index/faiss.index](/Users/itboybob/Project/fire/data/index/faiss.index) 与 [data/index/vector_map.json](/Users/itboybob/Project/fire/data/index/vector_map.json) 上，以真实嵌入模型 `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` 构造 `Retriever.from_disk()` 执行检索冒烟：
+    - `消防法第二条责任制` 命中 `xiaofangfa_2019#article-2`，路径为 `中华人民共和国消防法 > 第一章 总则 > 第二条`
+    - `河北消防条例第28条自2010年7月1日起施行吗` 命中 `hebei_xiaofang_tiaoli#article-28`，路径为 `河北省消防条例 > 第三章 消防设施 > 第二十八条`
+    - `谁对本单位消防安全全面负责` 返回 `vector` 来源结果，证明自然问句场景下向量支路已实际参与检索
+  - 稳定性复核：显式设置 `OMP_NUM_THREADS=1` 与 `TOKENIZERS_PARALLELISM=false` 后，在同一进程连续执行两条真实查询，均稳定返回结果，未复现早期一次性的 `Segmentation fault 11`
+  - 环境合规说明：本次实现与验收所引用的测试/检索结果均来自 `fire` 环境；执行早期曾误用一次非 `fire` 的只读 Python 探针查看数据字段，该探针不计入任何验证结论
+- 当前阻塞点：`Task 8` 已完成，当前无新的技术阻塞；若继续主线，应进入 `Task 9` 的答案组装与 OpenAI 兼容聊天客户端实现。当前非阻塞风险是：自然语言问句的融合排序仍偏保守，后续可能需要结合答案层和更多真实问句继续调权。
 
 ### 2026-03-29 完成 Task 7 真实依赖安装与环境合规验证
 
