@@ -49,12 +49,54 @@
 - 用户已于 `2026-03-29` 明确批准在 `fire` 环境安装 `numpy`、`faiss-cpu`、`sentence-transformers`；当前三项依赖及其传递依赖已安装完成，并通过导入验证，版本分别为 `numpy 2.4.3`、`faiss-cpu 1.13.2`、`sentence-transformers 5.3.0`、`torch 2.11.0`。
 - 已使用真实嵌入模型 `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` 在 `fire` 环境成功执行 `scripts/build_index.py`；当前 `data/index/` 已生成真实 `retrieval.db`、`faiss.index`、`vector_map.json`，且关键词回查 `消防设施` 仍命中 `hebei_xiaofang_tiaoli#article-27`。
 - 原主线 `Task 8` 已按 TDD 完成查询规范化与混合检索：新增 [query_normalizer.py](/Users/itboybob/Project/fire/app/services/query_normalizer.py)、[retriever.py](/Users/itboybob/Project/fire/app/services/retriever.py)、[test_query_normalizer.py](/Users/itboybob/Project/fire/tests/unit/services/test_query_normalizer.py) 与 [test_retriever.py](/Users/itboybob/Project/fire/tests/unit/services/test_retriever.py)，并在 `fire` 环境通过单测、受影响回归和真实索引检索验证。
+- 原主线 `Task 9` 已按 TDD 完成答案组装与 OpenAI 兼容聊天客户端：新增 [chat.py](/Users/itboybob/Project/fire/app/schemas/chat.py)、[chat_client.py](/Users/itboybob/Project/fire/app/services/chat_client.py)、[answer_service.py](/Users/itboybob/Project/fire/app/services/answer_service.py) 与 [test_answer_service.py](/Users/itboybob/Project/fire/tests/unit/services/test_answer_service.py)，并补齐 `CHAT_*` 配置默认值与 [.env.example](/Users/itboybob/Project/fire/.env.example) 占位项。
+- 已在 `fire` 环境确认 `openai 2.30.0` 已可直接导入，无需为 `Task 9` 新增依赖；当前答案层采用 `json_schema + Pydantic` 结构化输出，并在本地二次校验“引文必须来自当前证据集”，避免把格式正确但无依据的模型回答误当成可放行结果。
+- 已按用户确认执行一次配置安全修正：当前 [settings.py](/Users/itboybob/Project/fire/app/core/settings.py) 与 [.env.example](/Users/itboybob/Project/fire/.env.example) 已移除真实 `API Key`，仅在示例文件保留所选提供商 `iFlow` 与模型 `qwen3-32b`；真实密钥后续只应存放在本机未纳入版本控制的 `.env`。
 - 已按用户要求调用 `@code-reviewer` 复核 `test_build_chunks_matches_real_structured_fixture` 的失败根因；结论是当前主问题位于“旧真实夹具/测试断言仍要求未超限枚举条文拆分”，而不是 `Task 7` 新实现或 `structured` 上游再次退化。
 - 已新增 [技术债记录](/Users/itboybob/Project/fire/docs/debts/2026-03-29-chunk-builder-enum-red-test-debt.md)，并将 `tests/unit/services/test_chunk_builder.py::test_build_chunks_matches_real_structured_fixture` 显式标记为 `xfail`；当前主线放行不再被这条已知技术债阻塞，但技术债本身仍需后续单独清偿。
 - 在 `fire` 环境重新执行 `conda run -n fire python -m pytest -q` 后，当前结果为 `30 passed, 1 xfailed in 0.37s`；其中唯一 `xfailed` 项即上述技术债测试。
 - 原主线 `Task 7` 当前已完成真实依赖安装与环境合规验证；若继续主线，下一步应进入 `Task 8`，而不是继续停留在向量依赖准备阶段。
+- 当前主线最新已推进到 `Task 9` 完成；若继续执行既定计划，下一步应进入 `Task 10` 的聊天 API 暴露。
 
 ## 最新记录
+
+### 2026-03-29 创建本机 `.env` 并补齐当前运行依赖配置
+
+- 执行内容：根据用户授权，新建未纳入版本控制的 `.env`，将当前选定的聊天提供商 `iFlow`、模型 `qwen3-32b`、聊天超时/温度参数，以及离线索引已验证通过的本地嵌入模型 `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` 一并写入本机配置，避免后续在线链路联调时只完成聊天配置而遗漏嵌入配置。
+- 执行环境：本次将使用 `fire` 环境做最小加载验证。
+- 依赖情况：无需新增依赖，沿用当前 `fire` 环境内已安装的 `openai`、`sentence-transformers` 等既有依赖。
+- 验证结果：
+  - [`.env`](/Users/itboybob/Project/fire/.env) 已创建，且仍被 [`.gitignore`](/Users/itboybob/Project/fire/.gitignore#L7) 忽略
+  - `fire` 环境最小加载验证已通过：`Settings()` 可正常读取 `CHAT_BASE_URL=https://apis.iflow.cn/v1`、`CHAT_MODEL=qwen3-32b`、真实 `CHAT_API_KEY` 与 `EMBEDDING_MODEL_NAME=sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`
+- 当前阻塞点：功能层无新增阻塞；若继续推进 Task 10，当前本机配置已具备接入真实聊天客户端的基础条件。非阻塞风险仍然是：此前暴露过的真实 `API Key` 最好尽快轮换。
+
+### 2026-03-29 移除受版本管理文件中的真实聊天密钥
+
+- 执行内容：根据用户确认，对 [settings.py](/Users/itboybob/Project/fire/app/core/settings.py) 与 [.env.example](/Users/itboybob/Project/fire/.env.example) 做配置安全修正，移除真实聊天密钥，恢复源码默认占位值，并在示例文件中仅保留当前项目选定的提供商 `iFlow` 与模型 `qwen3-32b` 作为非敏感配置说明。
+- 执行环境：本次包含文档与配置文件修改；后续验证在 `fire` 环境执行。
+- 依赖情况：无需新增依赖，沿用当前 `fire` 环境。
+- 验证结果：
+  - [settings.py](/Users/itboybob/Project/fire/app/core/settings.py#L12) 当前不再硬编码真实 `API Key`
+  - [.env.example](/Users/itboybob/Project/fire/.env.example#L1) 当前仅保留占位 `CHAT_API_KEY=replace-me`，并显式注明真实密钥只应写入本机 `.env`
+  - 最小回归：`conda run -n fire python -m pytest tests/unit/core/test_settings.py tests/unit/services/test_answer_service.py -q` 结果为 `6 passed in 0.52s`
+- 当前阻塞点：功能层无新增阻塞；后续一旦进入真实模型联调，仍需要用户在本机 `.env` 中提供真实 `CHAT_API_KEY`。由于真实密钥已经在此前对话和本地受版本管理文件中出现过，安全上更稳妥的做法是尽快在提供商后台执行一次密钥轮换。
+
+### 2026-03-29 完成原主线 Task 9 答案组装与 OpenAI 兼容聊天客户端
+
+- 执行内容：按 `executing-plans` 与 TDD 执行 [原主线 Task 9](/Users/itboybob/Project/fire/docs/plans/2026-03-28-fire-law-rag-implementation.md#L590)。先读取文档索引、状态、实施计划与设计文档，再核对 OpenAI 官方文档中“Structured Outputs 优先于旧 JSON mode”的当前建议，以及 Chat Completions 在 OpenAI 兼容场景下通过 `base_url` 复用 SDK 的接法；随后在本地分支 `task9-answer-chat` 上补齐 [app/schemas/](/Users/itboybob/Project/fire/app/schemas)、[chat_client.py](/Users/itboybob/Project/fire/app/services/chat_client.py)、[answer_service.py](/Users/itboybob/Project/fire/app/services/answer_service.py) 与 [test_answer_service.py](/Users/itboybob/Project/fire/tests/unit/services/test_answer_service.py)，实现结构化输出包装、答案 prompt 组装、引文候选集约束、无证据拒答与引文落地校验。
+- 执行环境：`fire`
+- 依赖情况：无需新增依赖，沿用当前 `fire` 环境内已安装的 `openai 2.30.0`；本任务只新增配置项 `CHAT_TIMEOUT_SECONDS` 与 `CHAT_TEMPERATURE`，未触发新的安装需求。
+- 验证结果：
+  - 依赖确认：`conda run -n fire python -c "import openai; print(openai.__version__)"` 结果为 `2.30.0`
+  - 红测确认：`conda run -n fire python -m pytest tests/unit/services/test_answer_service.py -q` 初次结果为 `1 error`，失败原因是 `app.services.answer_service` 尚不存在
+  - Task 9 单测：`conda run -n fire python -m pytest tests/unit/services/test_answer_service.py -q` 最终结果为 `5 passed in 0.22s`
+  - 受影响回归：`conda run -n fire python -m pytest tests/unit/core/test_settings.py tests/unit/services/test_answer_service.py -q` 结果为 `6 passed in 0.22s`
+  - 真实上游验证：直接读取真实 [xiaofangfa_2019.jsonl](/Users/itboybob/Project/fire/data/chunks/xiaofangfa_2019.jsonl) 中 `xiaofangfa_2019#article-2` 作为证据，使用测试桩客户端调用 `build_answer()`：
+    - 有证据场景稳定返回引文 `《中华人民共和国消防法》第二条`
+    - 空证据场景稳定返回 `证据不足，无法可靠回答。`
+    - 说明答案层在真实 chunk 产物上已能同时守住“引文必须来自证据集”和“无证据直接拒答”两条门禁
+  - 环境合规说明：本次实现与验收结论均来自 `fire` 环境；执行前审查阶段曾误用一次非 `fire` 的只读 Python 探针检查目录存在性，该探针不计入任何验证结论
+- 当前阻塞点：`Task 9` 已完成，当前无新的技术阻塞；若继续主线，应进入 `Task 10` 的聊天 API 暴露。当前非阻塞风险是：部分第三方“OpenAI 兼容”后端可能只支持旧 `json_object` 而不支持 `json_schema`，若后续联调遇到兼容性问题，应在客户端增加受控回退策略，而不是放松引文校验。
 
 ### 2026-03-29 完成原主线 Task 8 查询规范化与混合检索
 
