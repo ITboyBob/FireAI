@@ -16,6 +16,8 @@
 - 严格遵守 TDD：先写失败测试，确认失败，再写最小实现，确认通过。
 - 本仓库禁止代理擅自执行 git commit。若用户需要 checkpoint，由用户自行决定如何提交。
 - 所有代码执行命令默认使用 `conda run -n fire ...`。若命令未带环境前缀，视为文档缺陷，需要修正。
+- 若实施计划或实际执行表明当前任务依赖尚未安装，代理必须先显式向用户报备待安装的依赖清单；仅在用户确认后，才可将缺少的依赖安装到 `fire` 环境，并把安装动作与验证结果同步记录到 [项目状态](../status.md)。
+- 若某个任务未单独写“执行前依赖提示”，默认表示“无需新增依赖，沿用当前 `fire` 环境”。
 - 每次完成代码执行后，必须同步更新 [项目状态](../status.md)。
 
 ### 任务 1：初始化项目骨架与本地配置
@@ -461,6 +463,11 @@ def build_keyword_index(chunks: list[dict], db_path):
 - 新建：`tests/unit/services/test_vector_index.py`
 - 新建：`scripts/build_index.py`
 
+**执行前依赖提示：**
+- 本任务前半段的 `FakeEmbedder` 红绿测试不要求真实向量依赖
+- 在接入真实本地嵌入模型或首次运行 `scripts/build_index.py` 之前，必须先将向量检索依赖安装到 `fire` 环境，至少包括 `numpy`、`faiss-cpu`
+- 若采用 `sentence-transformers` 作为默认本地嵌入方案，还必须在 `fire` 环境安装 `sentence-transformers`
+
 **步骤 1：编写失败测试**
 
 ```python
@@ -581,6 +588,10 @@ def fuse_results(keyword_hits, vector_hits, top_k: int):
 人工看几条规范化后的查询，确认别名映射足够稳定，再接生成层。
 
 ### 任务 9：实现答案组装与 OpenAI 兼容聊天客户端
+
+**执行前依赖提示：**
+- 本任务依赖 `openai` 兼容 Python 客户端；若当前 `fire` 环境缺少该依赖，应先安装再继续执行
+- 若后续接入额外模型协议适配器，也应在本任务开始前一并完成安装，并记录到 [项目状态](../status.md)
 
 **文件：**
 - 新建：`app/schemas/__init__.py`
@@ -703,6 +714,10 @@ def chat(payload: dict) -> dict:
 
 ### 任务 11：增加极薄网页聊天界面与端到端文档
 
+**执行前依赖提示：**
+- 本任务默认复用现有 `fastapi`、`jinja2`、`httpx` 与 `pytest`，通常不需要新增依赖
+- 若后续将浏览器端验证升级为真实浏览器自动化，再按实际方案安装额外依赖（例如 `playwright`），并记录到 [项目状态](../status.md)
+
 **文件：**
 - 新建：`app/templates/index.html`
 - 新建：`app/static/app.css`
@@ -786,6 +801,8 @@ conda run -n fire python scripts/build_corpus.py
 conda run -n fire python scripts/build_index.py
 conda run -n fire python -m uvicorn app.main:create_app --factory --reload
 ```
+
+其中，运行 `scripts/build_index.py` 前，需先确认 `Task 7` 所需的向量检索依赖已经安装到 `fire` 环境。
 
 预期：
 - `data/normalized/`、`data/structured/`、`data/chunks/`、`data/index/`、`data/manifests/` 存在

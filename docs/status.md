@@ -42,9 +42,122 @@
 - 用户已于 `2026-03-29` 明确决定暂时搁置标准化与切块重构计划，回到原主线实施计划；基于当前 `data/normalized`、`data/structured`、`data/chunks` 已无超链接污染、`data/chunks/*.jsonl` 无空字段/重复 `chunk_id`/超长块，原主线 `Task 6` 已恢复执行。
 - 原主线 `Task 6` 已按 TDD 完成：新增 [keyword_index.py](/Users/itboybob/Project/fire/app/services/keyword_index.py)、[test_keyword_index.py](/Users/itboybob/Project/fire/tests/unit/services/test_keyword_index.py) 与 [build_corpus.py](/Users/itboybob/Project/fire/scripts/build_corpus.py)，并在 `fire` 环境通过单测、真实索引烟雾验证和 `build_corpus.py` 入口验证。
 - 已按用户要求更新 [AGENTS.md](/Users/itboybob/Project/fire/AGENTS.md)，新增仓库级测试规则：以后凡是新增或修改测试，除了运行对应单元/预编写测试，还必须基于真实上游产物再做一轮真实验证。
-- 当前主要阻塞点已转为原主线后续任务，而不是 `Task 6`：若继续推进，应进入 `Task 7`；仍保留的已知债务是“枚举条文的引用粒度可能偏粗”，但这不再阻塞当前关键词索引构建。
+- 已按用户要求审查原主线实施计划中的依赖安装说明，并补齐“执行过程中自动安装依赖”的仓库级规则；当前计划已明确：`Task 7` 在接入真实向量检索前需要额外安装依赖，`Task 9` 和 `Task 11` 也已补上依赖边界说明。
+- 依赖安装规则已按用户最新要求再次收紧：当前仓库级口径不再是“发现缺依赖就直接安装”，而是“先向用户显式报备待安装依赖清单并请求确认，再在 `fire` 环境安装”；同时，已新增“撰写任何执行计划时，必须显式说明本 Phase / Task 是否需要安装依赖，并注明安装环境”的规则。
+- 原主线 `Task 7` 已按 TDD 完成本地嵌入器、向量存储接口、向量索引构建器和 `scripts/build_index.py`；当前索引目录约定已显式收束到 `data/index/`，并新增 `vector_map.json` / `faiss.index` 产物边界。
+- 已在 `fire` 环境基于真实 `data/chunks/*.jsonl` 共 `328` 条 chunk 做过一次“假嵌入器 + 临时向量存储”真实上游验证，确认 `scripts/build_index.py` 的离线链路能同时产出 `retrieval.db`、`vector_map.json` 与占位 `faiss.index`。
+- 用户已于 `2026-03-29` 明确批准在 `fire` 环境安装 `numpy`、`faiss-cpu`、`sentence-transformers`；当前三项依赖及其传递依赖已安装完成，并通过导入验证，版本分别为 `numpy 2.4.3`、`faiss-cpu 1.13.2`、`sentence-transformers 5.3.0`、`torch 2.11.0`。
+- 已使用真实嵌入模型 `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` 在 `fire` 环境成功执行 `scripts/build_index.py`；当前 `data/index/` 已生成真实 `retrieval.db`、`faiss.index`、`vector_map.json`，且关键词回查 `消防设施` 仍命中 `hebei_xiaofang_tiaoli#article-27`。
+- 已按用户要求调用 `@code-reviewer` 复核 `test_build_chunks_matches_real_structured_fixture` 的失败根因；结论是当前主问题位于“旧真实夹具/测试断言仍要求未超限枚举条文拆分”，而不是 `Task 7` 新实现或 `structured` 上游再次退化。
+- 已新增 [技术债记录](/Users/itboybob/Project/fire/docs/debts/2026-03-29-chunk-builder-enum-red-test-debt.md)，并将 `tests/unit/services/test_chunk_builder.py::test_build_chunks_matches_real_structured_fixture` 显式标记为 `xfail`；当前主线放行不再被这条已知技术债阻塞，但技术债本身仍需后续单独清偿。
+- 在 `fire` 环境重新执行 `conda run -n fire python -m pytest -q` 后，当前结果为 `30 passed, 1 xfailed in 0.37s`；其中唯一 `xfailed` 项即上述技术债测试。
+- 原主线 `Task 7` 当前已完成真实依赖安装与环境合规验证；若继续主线，下一步应进入 `Task 8`，而不是继续停留在向量依赖准备阶段。
 
 ## 最新记录
+
+### 2026-03-29 完成 Task 7 真实依赖安装与环境合规验证
+
+- 执行内容：在获得用户明确许可后，于 `fire` 环境安装 `numpy`、`faiss-cpu`、`sentence-transformers`，并补齐其传递依赖；随后验证导入版本、复跑 `Task 7` 相关单测与受影响回归，再使用真实嵌入模型 `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` 执行 [build_index.py](/Users/itboybob/Project/fire/scripts/build_index.py) 完成真实索引构建；最后在真实生成的 [data/index/retrieval.db](/Users/itboybob/Project/fire/data/index/retrieval.db) 上补做一次关键词回查。
+- 执行环境：`fire`
+- 验证结果：
+  - 安装命令：`conda run -n fire python -m pip install numpy faiss-cpu sentence-transformers`
+  - 依赖版本验证：`numpy=2.4.3`、`faiss=1.13.2`、`sentence_transformers=5.3.0`、`torch=2.11.0`
+  - `Task 7` 单测：`conda run -n fire python -m pytest tests/unit/services/test_vector_index.py -q` 结果为 `4 passed in 0.08s`
+  - 受影响回归：`conda run -n fire python -m pytest tests/unit/core/test_settings.py tests/unit/services/test_keyword_index.py tests/unit/services/test_vector_index.py -q` 结果为 `7 passed in 0.09s`
+  - 全量回归：`conda run -n fire python -m pytest -q` 结果为 `30 passed, 1 xfailed in 0.37s`
+  - 真实入口验证：`EMBEDDING_MODEL_NAME=sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2 conda run --no-capture-output -n fire python scripts/build_index.py` 成功输出：
+    - `chunks=328`
+    - `keyword_db=data/index/retrieval.db`
+    - `vector_index=data/index/faiss.index`
+    - `vector_map=data/index/vector_map.json`
+  - 文件落盘验证：`data/index/` 当前包含真实 `retrieval.db`、`faiss.index`、`vector_map.json`
+  - 回查验证：在真实 `data/index/retrieval.db` 上查询 `消防设施`，前 `3` 个命中中首项为 `hebei_xiaofang_tiaoli#article-27`
+  - [pyproject.toml](/Users/itboybob/Project/fire/pyproject.toml) 已补入 `numpy`、`faiss-cpu`、`sentence-transformers` 运行时依赖，避免环境只在本机偶然可复现
+- 当前阻塞点：原主线 `Task 7` 已完成。当前已知技术债不再阻塞主线放行；若继续推进，应进入 `Task 8` 的查询规范化与混合检索。
+
+### 2026-03-29 为枚举级切块旧红测建立技术债记录并解除主线放行阻塞
+
+- 执行内容：按用户要求新增 [技术债记录](/Users/itboybob/Project/fire/docs/debts/2026-03-29-chunk-builder-enum-red-test-debt.md)，系统化记录 `tests/unit/services/test_chunk_builder.py::test_build_chunks_matches_real_structured_fixture` 对应的历史债务、影响范围、解除条件与临时放行策略；随后更新 [文档索引](/Users/itboybob/Project/fire/docs/文档索引.md)，并在 [test_chunk_builder.py](/Users/itboybob/Project/fire/tests/unit/services/test_chunk_builder.py#L115) 中为该测试补上显式 `xfail` 标记，避免后续 `pytest -q` 把这条已知技术债继续误判为当前主线新回归。
+- 执行环境：`fire`
+- 验证结果：
+  - 技术债文档已落盘，路径为 [docs/debts/2026-03-29-chunk-builder-enum-red-test-debt.md](/Users/itboybob/Project/fire/docs/debts/2026-03-29-chunk-builder-enum-red-test-debt.md)
+  - [文档索引](/Users/itboybob/Project/fire/docs/文档索引.md#L19) 已新增“技术债记录”层，明确其用途与读取时机
+  - [test_chunk_builder.py](/Users/itboybob/Project/fire/tests/unit/services/test_chunk_builder.py#L115) 已将该测试标记为 `xfail`，原因中回链技术债文档
+  - `conda run -n fire python -m pytest -q` 结果为 `30 passed, 1 xfailed in 0.33s`；说明当前主线的全量回归已经不再被这条已知技术债直接阻塞
+  - 结合 [Task 7 完成度复核](#2026-03-29-原主线-task-7-完成度复核) 中的代码、测试和真实上游验证结果，可判定 `Task 7` 在“不安装新依赖”的边界内已经完成；剩余仅是等待用户确认依赖安装后的真实后端环境验证
+- 当前阻塞点：当前主线放行已不再被该技术债卡住；若继续推进主线，下一真实阻塞只剩 `Task 7` 的向量依赖安装确认。技术债本身仍保留，未来若要解除，必须按其记录中的两条合法路径之一处理。
+
+### 2026-03-29 原主线 Task 7 完成度复核
+
+- 执行内容：按用户要求忽略 [test_build_chunks_matches_real_structured_fixture](/Users/itboybob/Project/fire/tests/unit/services/test_chunk_builder.py#L113) 这条旧红测，仅以 [原主线实施计划 Task 7](/Users/itboybob/Project/fire/docs/plans/2026-03-28-fire-law-rag-implementation.md#L457) 为准重新逐项核对当前实现，并在 `fire` 环境复跑 Task 7 相关单测、受影响回归、真实上游建索引验证和依赖探测。
+- 执行环境：`fire`
+- 验证结果：
+  - 计划文件列出的 `5` 个目标文件均已落地：
+    - [embedder.py](/Users/itboybob/Project/fire/app/services/embedder.py)
+    - [vector_store.py](/Users/itboybob/Project/fire/app/services/vector_store.py)
+    - [vector_index.py](/Users/itboybob/Project/fire/app/services/vector_index.py)
+    - [test_vector_index.py](/Users/itboybob/Project/fire/tests/unit/services/test_vector_index.py)
+    - [build_index.py](/Users/itboybob/Project/fire/scripts/build_index.py)
+  - 计划步骤对照：
+    - `FakeEmbedder` 场景已覆盖：`build_vector_index()` 与 `build_indexes()` 均可在无真实向量依赖的前提下通过测试桩完成验证
+    - 窄接口 `VectorStore` 已定义于 [vector_store.py](/Users/itboybob/Project/fire/app/services/vector_store.py#L12)
+    - 默认 FAISS 实现 `FaissVectorStore` 已存在，并在缺依赖时抛出明确错误，而不是静默退化
+    - `faiss.index` 与 `vector_map.json` 的持久化逻辑已存在于 [vector_index.py](/Users/itboybob/Project/fire/app/services/vector_index.py#L45)
+    - [build_index.py](/Users/itboybob/Project/fire/scripts/build_index.py#L27) 已可在一次调用中同时构建关键词索引与向量索引
+  - Task 7 单测：`conda run -n fire python -m pytest tests/unit/services/test_vector_index.py -q` 结果为 `4 passed in 0.10s`
+  - 受影响回归：`conda run -n fire python -m pytest tests/unit/core/test_settings.py tests/unit/services/test_keyword_index.py tests/unit/services/test_vector_index.py -q` 结果为 `7 passed in 0.08s`
+  - 真实上游验证：基于仓库现有 `data/chunks/*.jsonl` 共 `328` 条 chunk，通过假嵌入器与临时向量存储执行 `build_indexes()`，成功产出 `faiss.index`、`retrieval.db`、`vector_map.json`，并确认查询 `消防设施` 的首个关键词命中为 `hebei_xiaofang_tiaoli#article-27`
+  - 依赖探测：`numpy=False`、`faiss=False`、`sentence_transformers=False`
+  - 复核结论：当前未发现任何“不依赖 `numpy/faiss-cpu/sentence-transformers` 仍可继续补完”的 Task 7 缺口
+- 当前阻塞点：若要把 Task 7 从“代码与假后端验证完成”提升到“真实 FAISS + 真实本地嵌入模型已完成环境合规验证”，仍必须先获批安装 `numpy`、`faiss-cpu`、`sentence-transformers`；在此之前，Task 7 只能视为“非依赖部分已完成，真实依赖验证待解锁”。
+
+### 2026-03-29 复核 `test_build_chunks_matches_real_structured_fixture` 失败根因
+
+- 执行内容：按用户要求调用 `@code-reviewer` 做只读审查，同时在 `fire` 环境本地复核 [test_chunk_builder.py](/Users/itboybob/Project/fire/tests/unit/services/test_chunk_builder.py)、[chunk_builder.py](/Users/itboybob/Project/fire/app/services/chunk_builder.py)、真实夹具 [xiaofangfa_article_62_structured.json](/Users/itboybob/Project/fire/tests/fixtures/chunks/xiaofangfa_article_62_structured.json)、期望夹具 [xiaofangfa_article_62_expected.jsonl](/Users/itboybob/Project/fire/tests/fixtures/chunks/xiaofangfa_article_62_expected.jsonl)，并重跑目标失败测试确认现状。
+- 执行环境：`fire`
+- 验证结果：
+  - `conda run -n fire python -m pytest tests/unit/services/test_chunk_builder.py::test_build_chunks_matches_real_structured_fixture -q -vv` 结果仍为稳定失败；失败差异集中在：当前实现输出单个 article-level chunk，而期望夹具要求 `5` 个枚举级 chunk
+  - 真实结构化夹具中，第六十二条当前总长度为 `165`，分段长度为 `[33, 44, 32, 9, 18, 24]`，不满足“某段仍超过 `300` 且带枚举标记才触发二级切块”的已接受规则
+  - [chunk_builder.py](/Users/itboybob/Project/fire/app/services/chunk_builder.py#L82) 当前只在条文整体超限时才继续做按段切块，并未实现“未超限也按枚举拆分”；这与当前重构 ADR 中的收紧口径一致，不属于 `Task 7` 引入的新回归
+  - `@code-reviewer` 与主代理结论一致：根因层级是“旧红测/旧期望夹具仍在”，背后是已记录的计划矛盾和历史债务；该问题不会阻塞当前 `Task 7`、`build_index`、`Task 8`、`Task 9` 的功能推进，但会持续污染“全量测试是否全绿”的门禁判断
+- 当前阻塞点：如果继续沿当前主线推进，功能上可以前进，但全量测试门禁会一直被这条旧红测拦住；若要彻底消除该失败，只能二选一：要么恢复并完成那条重构线，要么重新发起设计变更，正式接受“未超限枚举条文也拆分”的新规则。
+
+### 2026-03-29 完成原主线 Task 7 接口落地与假后端验证
+
+- 执行内容：按 `executing-plans` 与 TDD 执行 [原主线 Task 7](/Users/itboybob/Project/fire/docs/plans/2026-03-28-fire-law-rag-implementation.md#L457)。先读取项目索引、状态和实施计划，再核对设计文档中对 `Embedder` / `RetrieverStore` 的稳定接口约束；随后查询最新官方文档，确认 `SentenceTransformer.encode_document()` / `encode_query()` 的调用方式，以及 FAISS `IndexFlat` / `write_index()` / `read_index()` 的持久化能力后，新增 [embedder.py](/Users/itboybob/Project/fire/app/services/embedder.py)、[vector_store.py](/Users/itboybob/Project/fire/app/services/vector_store.py)、[vector_index.py](/Users/itboybob/Project/fire/app/services/vector_index.py)、[build_index.py](/Users/itboybob/Project/fire/scripts/build_index.py) 与 [test_vector_index.py](/Users/itboybob/Project/fire/tests/unit/services/test_vector_index.py)，并同步扩展 [settings.py](/Users/itboybob/Project/fire/app/core/settings.py) 与 [.env.example](/Users/itboybob/Project/fire/.env.example) 的索引/嵌入配置。
+- 执行环境：`fire`
+- 验证结果：
+  - 官方文档核对完成：`SentenceTransformer` 当前官方文档明确提供 `encode_document()` / `encode_query()`，并说明在 `normalize_embeddings=True` 时可改用点积；FAISS 官方教程与 Wiki 明确展示了 `index.add()`、`index.search()`、`write_index()`、`read_index()` 的用法
+  - 环境探测结果：在 `fire` 环境执行模块探测后，`numpy=False`、`faiss=False`、`sentence_transformers=False`；因此本次没有擅自安装依赖，而是把真实后端实现收敛为显式可选依赖边界
+  - `Task 7` 单测：`conda run -n fire python -m pytest tests/unit/services/test_vector_index.py -q` 结果为 `4 passed in 0.06s`
+  - 受影响回归：`conda run -n fire python -m pytest tests/unit/core/test_settings.py tests/unit/services/test_keyword_index.py tests/unit/services/test_vector_index.py -q` 结果为 `7 passed in 0.06s`
+  - 真实上游产物验证：在 `fire` 环境读取仓库真实 `data/chunks/*.jsonl` 共 `328` 条 chunk，注入 `FakeEmbedder` 与临时 `TempVectorStore` 执行一次 `build_indexes()`，成功产出 `faiss.index`、`retrieval.db`、`vector_map.json` 三个文件；随后用生成的关键词库查询 `消防设施`，首个命中为 `hebei_xiaofang_tiaoli#article-27`
+  - 全量测试探测：`conda run -n fire python -m pytest -q` 当前结果为 `1 failed, 30 passed in 0.24s`；唯一失败为 [test_chunk_builder.py](/Users/itboybob/Project/fire/tests/unit/services/test_chunk_builder.py) 中的 `test_build_chunks_matches_real_structured_fixture`，失败点仍是 `第六十二条` 枚举级 chunk 夹具与当前旧切块实现不一致，这与本次 `Task 7` 改动无直接耦合
+- 当前阻塞点：若要继续把 `Task 7` 从“接口实现 + 假后端验证”推进到“真实 FAISS / sentence-transformers 环境合规验证”，必须先向用户显式报备并获批安装 `numpy`、`faiss-cpu`、`sentence-transformers`；此外，仓库当前仍存在一个与 `Task 7` 无关的既有全量测试失败，不能把现在误记为全仓全绿。
+
+### 2026-03-29 收紧“自动安装依赖”规则并新增计划撰写约束
+
+- 执行内容：按用户要求调用 `@doc-updater` 收紧仓库级依赖安装规则，并补充一条新的计划撰写规则；随后由主代理复核并按用户最终口径调整 [AGENTS.md](/Users/itboybob/Project/fire/AGENTS.md) 与 [原主线实施计划](/Users/itboybob/Project/fire/docs/plans/2026-03-28-fire-law-rag-implementation.md)。
+- 执行环境：本次为文档更新与主代理复核；未执行新的 Python、pytest 或服务启动命令。
+- 验证结果：
+  - [AGENTS.md](/Users/itboybob/Project/fire/AGENTS.md#L18) 中的依赖安装规则已改为：若实施计划或实际执行表明当前任务依赖尚未安装，必须先显式向用户请求并报备待安装依赖清单；仅在用户确认后，才可在 `fire` 环境自动安装
+  - [AGENTS.md](/Users/itboybob/Project/fire/AGENTS.md#L22) 已新增 `计划撰写规则`：撰写任何类型的执行计划时，都必须显式说明本 Phase / Task 是否需要安装依赖；若需要，还必须写明依赖清单与安装环境
+  - [原主线实施计划](/Users/itboybob/Project/fire/docs/plans/2026-03-28-fire-law-rag-implementation.md#L19) 已同步改为“先向用户报备依赖清单，再安装”的表述，并新增“未单独写执行前依赖提示时，默认表示无需新增依赖，沿用当前 `fire` 环境”的解释
+- 当前阻塞点：无新的技术阻塞；后续若进入需要新增依赖的任务，必须先向用户显式报备待安装依赖清单，再执行安装。
+
+### 2026-03-29 补齐原主线实施计划中的依赖安装说明
+
+- 执行内容：按用户要求审查 [原主线实施计划](/Users/itboybob/Project/fire/docs/plans/2026-03-28-fire-law-rag-implementation.md) 中从 `Task 6` 往后的依赖安装说明，并核对当前 [pyproject.toml](/Users/itboybob/Project/fire/pyproject.toml) 与 `fire` 环境现状；随后补充 [AGENTS.md](/Users/itboybob/Project/fire/AGENTS.md) 与实施计划，明确“执行过程中自动安装依赖”的仓库级规则，以及 `Task 7/9/11` 的依赖边界。
+- 执行环境：`fire`
+- 验证结果：
+  - 当前 [pyproject.toml](/Users/itboybob/Project/fire/pyproject.toml) 已声明 `fastapi`、`jinja2`、`openai`、`pydantic-settings`、`uvicorn`、`pytest`、`httpx`，但未显式覆盖 `Task 7` 需要的向量检索依赖
+  - 在 `fire` 环境中执行模块探测后，`faiss`、`numpy`、`playwright`、`sentence_transformers` 当前均未安装
+  - [AGENTS.md](/Users/itboybob/Project/fire/AGENTS.md#L18) 已新增仓库级规则：若实施计划或实际执行表明当前任务依赖尚未安装，代理应在继续前主动将其安装到 `fire` 环境，并在 `docs/status.md` 记录安装内容、安装时机与验证结果
+  - [原主线实施计划](/Users/itboybob/Project/fire/docs/plans/2026-03-28-fire-law-rag-implementation.md#L19) 已新增总则：执行中若发现缺少依赖，应先安装到 `fire` 环境再继续
+  - [Task 7](/Users/itboybob/Project/fire/docs/plans/2026-03-28-fire-law-rag-implementation.md#L465) 已补充执行前依赖提示：接入真实向量检索前至少需要 `numpy`、`faiss-cpu`，若采用 `sentence-transformers` 方案还需安装 `sentence-transformers`
+  - [Task 9](/Users/itboybob/Project/fire/docs/plans/2026-03-28-fire-law-rag-implementation.md#L591) 已补充 `openai` 兼容客户端的依赖说明
+  - [Task 11](/Users/itboybob/Project/fire/docs/plans/2026-03-28-fire-law-rag-implementation.md#L716) 已补充“默认不新增依赖；若升级为真实浏览器自动化，再安装 `playwright` 等依赖”的说明
+- 当前阻塞点：当前没有新的技术阻塞；后续进入 `Task 7` 时，应按新规则先自动安装缺失依赖，再继续实现。
 
 ### 2026-03-29 将“真实上游产物验证”上升为仓库级测试规则
 
