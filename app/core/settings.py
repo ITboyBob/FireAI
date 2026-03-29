@@ -1,5 +1,7 @@
+from functools import lru_cache
 from pathlib import Path
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -18,3 +20,15 @@ class Settings(BaseSettings):
     embedding_device: str = "cpu"
     embedding_batch_size: int = 32
     embedding_max_seq_length: int | None = None
+
+    @field_validator("embedding_max_seq_length", mode="before")
+    @classmethod
+    def empty_string_to_none(cls, value: object) -> object:
+        if value == "":
+            return None
+        return value
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()

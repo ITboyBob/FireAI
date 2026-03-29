@@ -54,17 +54,32 @@ class SentenceTransformerEmbedder:
         return self.encode_documents(texts)
 
     def encode_documents(self, texts: Sequence[str]) -> list[list[float]]:
-        return self._encode(texts, method_name="encode_document")
+        return self._encode(
+            texts,
+            route_name="document",
+            preferred_method_name="encode_document",
+        )
 
     def encode_queries(self, texts: Sequence[str]) -> list[list[float]]:
-        return self._encode(texts, method_name="encode_query")
+        return self._encode(
+            texts,
+            route_name="query",
+            preferred_method_name="encode_query",
+        )
 
-    def _encode(self, texts: Sequence[str], *, method_name: str) -> list[list[float]]:
+    def _encode(
+        self,
+        texts: Sequence[str],
+        *,
+        route_name: str,
+        preferred_method_name: str,
+    ) -> list[list[float]]:
         items = [text for text in texts if text and text.strip()]
         if not items:
             return []
 
         model = self._get_model()
+        method_name = preferred_method_name if _should_use_specialized_encoder(model, route_name) else "encode"
         encoder = getattr(model, method_name, None) or getattr(model, "encode")
         vectors = encoder(
             items,
@@ -92,3 +107,15 @@ class SentenceTransformerEmbedder:
 
         self._model = model
         return model
+
+
+def _should_use_specialized_encoder(model: Any, route_name: str) -> bool:
+    if getattr(model, "router", None) is not None:
+        return True
+
+    prompts = getattr(model, "prompts", None)
+    if not isinstance(prompts, dict):
+        return False
+
+    prompt = prompts.get(route_name)
+    return isinstance(prompt, str) and bool(prompt.strip())

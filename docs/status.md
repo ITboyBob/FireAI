@@ -51,14 +51,35 @@
 - 原主线 `Task 8` 已按 TDD 完成查询规范化与混合检索：新增 [query_normalizer.py](/Users/itboybob/Project/fire/app/services/query_normalizer.py)、[retriever.py](/Users/itboybob/Project/fire/app/services/retriever.py)、[test_query_normalizer.py](/Users/itboybob/Project/fire/tests/unit/services/test_query_normalizer.py) 与 [test_retriever.py](/Users/itboybob/Project/fire/tests/unit/services/test_retriever.py)，并在 `fire` 环境通过单测、受影响回归和真实索引检索验证。
 - 原主线 `Task 9` 已按 TDD 完成答案组装与 OpenAI 兼容聊天客户端：新增 [chat.py](/Users/itboybob/Project/fire/app/schemas/chat.py)、[chat_client.py](/Users/itboybob/Project/fire/app/services/chat_client.py)、[answer_service.py](/Users/itboybob/Project/fire/app/services/answer_service.py) 与 [test_answer_service.py](/Users/itboybob/Project/fire/tests/unit/services/test_answer_service.py)，并补齐 `CHAT_*` 配置默认值与 [.env.example](/Users/itboybob/Project/fire/.env.example) 占位项。
 - 已在 `fire` 环境确认 `openai 2.30.0` 已可直接导入，无需为 `Task 9` 新增依赖；当前答案层采用 `json_schema + Pydantic` 结构化输出，并在本地二次校验“引文必须来自当前证据集”，避免把格式正确但无依据的模型回答误当成可放行结果。
+- 原主线 `Task 10` 已按 TDD 完成聊天 API 暴露：新增 [chat.py](/Users/itboybob/Project/fire/app/api/chat.py)、[test_chat_api.py](/Users/itboybob/Project/fire/tests/integration/api/test_chat_api.py) 与 [test_chat_dependencies.py](/Users/itboybob/Project/fire/tests/unit/api/test_chat_dependencies.py)，将 `/api/chat` 接入真实“查询规范化 -> 检索 -> 答案生成”链路，并把“尚未完成建库 / 模型调用失败 / 证据不足”拆成可区分的响应路径。
+- 已修正 `Settings` 对空 `EMBEDDING_MAX_SEQ_LENGTH` 的解析，并把默认值测试改成显式隔离本机 `.env`，避免本机配置污染仓库基线测试。
+- 已定位并修复当前 `fire` 环境下的一个原生稳定性问题：若先加载真实 `FAISS` 索引，再首次触发 `sentence-transformers` 编码，会在查询阶段触发段错误；当前 [chat.py](/Users/itboybob/Project/fire/app/api/chat.py) 已通过“先预热 embedder、后加载 FAISS”规避该问题，并完成真实 `data/index/` 冒烟验证。
 - 已按用户确认执行一次配置安全修正：当前 [settings.py](/Users/itboybob/Project/fire/app/core/settings.py) 与 [.env.example](/Users/itboybob/Project/fire/.env.example) 已移除真实 `API Key`，仅在示例文件保留所选提供商 `iFlow` 与模型 `qwen3-32b`；真实密钥后续只应存放在本机未纳入版本控制的 `.env`。
 - 已按用户要求调用 `@code-reviewer` 复核 `test_build_chunks_matches_real_structured_fixture` 的失败根因；结论是当前主问题位于“旧真实夹具/测试断言仍要求未超限枚举条文拆分”，而不是 `Task 7` 新实现或 `structured` 上游再次退化。
 - 已新增 [技术债记录](/Users/itboybob/Project/fire/docs/debts/2026-03-29-chunk-builder-enum-red-test-debt.md)，并将 `tests/unit/services/test_chunk_builder.py::test_build_chunks_matches_real_structured_fixture` 显式标记为 `xfail`；当前主线放行不再被这条已知技术债阻塞，但技术债本身仍需后续单独清偿。
 - 在 `fire` 环境重新执行 `conda run -n fire python -m pytest -q` 后，当前结果为 `30 passed, 1 xfailed in 0.37s`；其中唯一 `xfailed` 项即上述技术债测试。
 - 原主线 `Task 7` 当前已完成真实依赖安装与环境合规验证；若继续主线，下一步应进入 `Task 8`，而不是继续停留在向量依赖准备阶段。
-- 当前主线最新已推进到 `Task 9` 完成；若继续执行既定计划，下一步应进入 `Task 10` 的聊天 API 暴露。
+- 当前主线最新已推进到 `Task 10` 完成；若继续执行既定计划，下一步应进入 `Task 11` 的极薄网页聊天界面与端到端文档。
 
 ## 最新记录
+
+### 2026-03-29 完成原主线 Task 10 聊天 API 暴露
+
+- 执行内容：按 `executing-plans` 与 TDD 执行 [原主线 Task 10](/Users/itboybob/Project/fire/docs/plans/2026-03-28-fire-law-rag-implementation.md#L658)。先读取文档索引、状态、实施计划与设计文档，再核对 FastAPI 官方文档中 `APIRouter`、`response_model`、依赖覆盖测试和 `HTTPException` 的当前推荐用法；随后新增 [chat.py](/Users/itboybob/Project/fire/app/api/chat.py) 与 [test_chat_api.py](/Users/itboybob/Project/fire/tests/integration/api/test_chat_api.py)，把 `/api/chat` 接入真实“查询规范化 -> 混合检索 -> 答案生成”链路，并通过依赖注入把“索引未就绪 / 模型调用失败 / 证据不足”拆成不同返回路径。执行中顺手修复了两个真实运行问题：一是 [settings.py](/Users/itboybob/Project/fire/app/core/settings.py) 对空 `EMBEDDING_MAX_SEQ_LENGTH` 的解析缺陷；二是当前 `fire` 环境下“先加载 FAISS、后首次触发 `sentence-transformers` 编码”会导致原生段错误，因此在 [chat.py](/Users/itboybob/Project/fire/app/api/chat.py#L100) 前置加入 embedder 预热，并补上 [test_chat_dependencies.py](/Users/itboybob/Project/fire/tests/unit/api/test_chat_dependencies.py) 锁住初始化顺序。
+- 执行环境：`fire`
+- 依赖情况：无需新增依赖，沿用当前 `fire` 环境内已安装的 `fastapi`、`openai`、`numpy`、`faiss-cpu`、`sentence-transformers` 与现有真实索引产物。
+- 验证结果：
+  - 红测确认：`conda run -n fire python -m pytest tests/integration/api/test_chat_api.py -q` 初次结果为 `1 error`，失败原因是 `app.api.chat` 尚不存在
+  - Task 10 集成测试：`conda run -n fire python -m pytest tests/integration/api/test_chat_api.py -q` 最终结果为 `4 passed in 0.33s`
+  - 受影响回归：`conda run -n fire python -m pytest tests/unit/api/test_chat_dependencies.py tests/unit/services/test_vector_index.py tests/unit/core/test_settings.py tests/unit/services/test_answer_service.py tests/integration/api/test_health_api.py tests/integration/api/test_chat_api.py -q` 结果为 `18 passed in 0.36s`
+  - 真实上游验证：使用真实 [retrieval.db](/Users/itboybob/Project/fire/data/index/retrieval.db)、[faiss.index](/Users/itboybob/Project/fire/data/index/faiss.index) 与 [vector_map.json](/Users/itboybob/Project/fire/data/index/vector_map.json)，通过 `TestClient(create_app())` 调用 `/api/chat`，仅将聊天客户端替换为测试桩以避免外部模型额度消耗；最终返回：
+    - HTTP `200`
+    - `conclusion = 已命中真实索引并返回证据。`
+    - `citations = ['《中华人民共和国消防法》第二条']`
+    - `evidence_count = 1`
+    - `first_chunk = xiaofangfa_2019#article-2`
+  - 真实故障复现与修复验证：在 `fire` 环境中已独立复现“`FaissVectorStore.load('data/index/faiss.index')` 先执行，再首次 `embedder.encode_queries(...)` 会触发 `Segmentation fault: 11`”；加入预热后，再执行“预热 embedder -> 加载 FAISS -> 再次编码 -> 检索”链路可稳定返回 `searched 3 55`
+- 当前阻塞点：`Task 10` 已完成，当前无新的技术阻塞；若继续主线，应进入 `Task 11` 的极薄网页聊天界面与端到端文档。当前非阻塞风险是：这次真实 API 冒烟为了避免隐式外部花费，只验证了真实检索链路与 API 结构，没有直接消耗真实聊天提供商额度；若后续要做最终联调，仍建议用户在确认可接受外部调用成本后再执行一次真实 `/api/chat` 全链路请求。
 
 ### 2026-03-29 创建本机 `.env` 并补齐当前运行依赖配置
 

@@ -87,6 +87,7 @@ def test_sentence_transformer_embedder_uses_document_and_query_encoders(monkeypa
             self.model_name_or_path = model_name_or_path
             self.device = device
             self.max_seq_length = None
+            self.prompts = {"query": "query: ", "document": "document: "}
 
         def encode_document(self, texts, **kwargs):
             calls.append(("document", list(texts), kwargs))
@@ -147,6 +148,47 @@ def test_sentence_transformer_embedder_uses_document_and_query_encoders(monkeypa
     ]
     assert embedder._model is not None
     assert embedder._model.max_seq_length == 256
+
+
+def test_sentence_transformer_embedder_falls_back_to_encode_for_promptless_query_models(monkeypatch):
+    calls: list[tuple[str, list[str], dict]] = []
+
+    class FakeSentenceTransformer:
+        def __init__(self, model_name_or_path: str, *, device: str | None = None):
+            self.model_name_or_path = model_name_or_path
+            self.device = device
+            self.max_seq_length = None
+            self.prompts = {"query": "", "document": ""}
+
+        def encode(self, texts, **kwargs):
+            calls.append(("encode", list(texts), kwargs))
+            return [[0.0, 1.0]]
+
+        def encode_query(self, texts, **kwargs):
+            calls.append(("query", list(texts), kwargs))
+            return [[1.0, 0.0]]
+
+    monkeypatch.setitem(
+        sys.modules,
+        "sentence_transformers",
+        SimpleNamespace(SentenceTransformer=FakeSentenceTransformer),
+    )
+
+    embedder = SentenceTransformerEmbedder(model_name_or_path="local-model", device="cpu")
+
+    assert embedder.encode_queries(["消防法第二条"]) == [[0.0, 1.0]]
+    assert calls == [
+        (
+            "encode",
+            ["消防法第二条"],
+            {
+                "batch_size": 32,
+                "show_progress_bar": False,
+                "convert_to_numpy": True,
+                "normalize_embeddings": True,
+            },
+        )
+    ]
 
 
 def test_faiss_vector_store_raises_clear_error_when_dependencies_missing(monkeypatch):
