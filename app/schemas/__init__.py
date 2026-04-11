@@ -6,6 +6,7 @@ from app.schemas.conversation import (
     ConversationDetail,
     ConversationListItem,
     ConversationMessage,
+    RenameConversationInput,
     SendConversationMessageResponse,
     UserMessageInput,
 )
@@ -19,6 +20,7 @@ __all__ = [
     "ConversationMessage",
     "EvidenceItem",
     "ModelAnswer",
+    "RenameConversationInput",
     "SendConversationMessageResponse",
     "UserMessageInput",
 ]

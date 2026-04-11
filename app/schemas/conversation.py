@@ -18,6 +18,9 @@ class ConversationMessage(BaseModel):
     role: str
     content: str
     created_at: str
+    legal_basis: list[str] = Field(default_factory=list)
+    clause_texts: list[dict[str, str]] = Field(default_factory=list)
+    correction_notice: str = ""
 
 
 class AssistantMessagePayload(BaseModel):
@@ -43,6 +46,12 @@ class UserMessageInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     message: str = Field(min_length=1)
+
+
+class RenameConversationInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    title: str = Field(min_length=1)
 
 
 class SendConversationMessageResponse(BaseModel):
