@@ -16,3 +16,15 @@ def test_normalize_query_extracts_region_article_and_effective_date():
     assert normalized.article_no == "第二十八条"
     assert normalized.effective_on == "2010年7月1日"
     assert "河北省消防条例" in normalized.canonical_terms
+
+
+def test_normalize_query_uses_context_hints_for_followup():
+    normalized = normalize_query(
+        "它第二条怎么说？",
+        context_hints={"canonical_title": "中华人民共和国消防法", "article_no": "第二条"},
+    )
+
+    assert normalized.article_no == "第二条"
+    assert normalized.canonical_terms == ["中华人民共和国消防法"]
+    assert "中华人民共和国消防法" in normalized.keyword_terms
+    assert "第二条" in normalized.rewritten_query

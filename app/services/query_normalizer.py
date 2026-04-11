@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 import re
+from typing import Any
 
 
 TITLE_ALIASES: tuple[tuple[str, str], ...] = (
@@ -43,25 +44,40 @@ class NormalizedQuery:
     article_no: str | None = None
     promulgated_on: str | None = None
     effective_on: str | None = None
+    rewritten_query: str = ""
     vector_query: str = ""
 
 
-def normalize_query(query: str) -> NormalizedQuery:
+def normalize_query(query: str, *, context_hints: dict[str, Any] | None = None) -> NormalizedQuery:
     cleaned = re.sub(r"\s+", " ", query).strip()
     canonical_terms = _extract_canonical_terms(cleaned)
+    if not canonical_terms and context_hints and context_hints.get("canonical_title"):
+        canonical_terms = _unique_terms([str(context_hints["canonical_title"])])
     intent_terms = [term for term in INTENT_TERMS if term in cleaned]
-    article_no = _extract_article_no(cleaned)
-    region = _extract_region(cleaned)
+    article_no = _extract_article_no(cleaned) or _context_hint(context_hints, "article_no")
+    region = _extract_region(cleaned) or _context_hint(context_hints, "region")
     promulgated_on, effective_on, time_terms = _extract_dates(cleaned)
+    rewritten_query = " ".join(
+        _unique_terms(
+            [
+                *canonical_terms,
+                article_no,
+                region,
+                cleaned,
+                *time_terms,
+            ]
+        )
+    )
     keyword_terms = _unique_terms(
         [
-            cleaned,
             *canonical_terms,
             article_no,
+            region,
+            rewritten_query,
             *time_terms,
         ]
     )
-    vector_query = " ".join(_unique_terms([cleaned, *canonical_terms, *intent_terms]))
+    vector_query = " ".join(_unique_terms([rewritten_query, *intent_terms]))
 
     return NormalizedQuery(
         original=query,
@@ -74,6 +90,7 @@ def normalize_query(query: str) -> NormalizedQuery:
         article_no=article_no,
         promulgated_on=promulgated_on,
         effective_on=effective_on,
+        rewritten_query=rewritten_query,
         vector_query=vector_query,
     )
 
@@ -150,3 +167,13 @@ def _unique_terms(values: list[str | None]) -> list[str]:
         seen.add(term)
         terms.append(term)
     return terms
+
+
+def _context_hint(context_hints: dict[str, Any] | None, key: str) -> str | None:
+    if not context_hints:
+        return None
+    value = context_hints.get(key)
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
