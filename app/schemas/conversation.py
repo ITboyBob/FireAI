@@ -1,0 +1,51 @@
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class ConversationListItem(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    title: str
+    auto_title: bool
+    updated_at: str
+    last_message_at: str | None = None
+
+
+class ConversationMessage(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    role: str
+    content: str
+    created_at: str
+
+
+class AssistantMessagePayload(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    message_id: str = ""
+    answer: str = Field(min_length=1)
+    legal_basis: list[str] = Field(default_factory=list)
+    clause_texts: list[dict[str, str]] = Field(default_factory=list)
+    correction_notice: str = ""
+    created_at: str = ""
+
+
+class ConversationDetail(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    conversation: ConversationListItem
+    messages: list[ConversationMessage] = Field(default_factory=list)
+    history_summary: str = ""
+
+
+class UserMessageInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    message: str = Field(min_length=1)
+
+
+class SendConversationMessageResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    assistant: AssistantMessagePayload
