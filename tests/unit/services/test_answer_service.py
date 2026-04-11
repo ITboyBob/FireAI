@@ -156,6 +156,59 @@ def test_openai_chat_client_uses_json_schema_response_format():
     assert result["citations"] == ["《中华人民共和国消防法》第二条"]
 
 
+def test_openai_chat_client_uses_text_response_format_for_iflow():
+    class FakeCompletions:
+        def __init__(self):
+            self.last_kwargs = None
+
+        def create(self, **kwargs):
+            self.last_kwargs = kwargs
+            message = SimpleNamespace(
+                content=json.dumps(
+                    {
+                        "conclusion": "国家实行消防安全责任制。",
+                        "citations": ["《中华人民共和国消防法》第二条"],
+                        "scope": "适用于一般消防安全责任制说明。",
+                        "uncertainty": "未检索到地方性补充规定。",
+                    },
+                    ensure_ascii=False,
+                ),
+                refusal=None,
+            )
+            return SimpleNamespace(choices=[SimpleNamespace(message=message)])
+
+    class FakeSdkClient:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+            self.chat = SimpleNamespace(completions=FakeCompletions())
+
+    captured: dict[str, object] = {}
+
+    def fake_factory(**kwargs):
+        client = FakeSdkClient(**kwargs)
+        captured["client"] = client
+        return client
+
+    client = OpenAIChatClient(
+        api_key="test-key",
+        base_url="https://apis.iflow.cn/v1",
+        model="qwen3-32b",
+        client_factory=fake_factory,
+    )
+
+    result = client.complete(
+        [
+            {"role": "system", "content": "请严格输出 JSON。"},
+            {"role": "user", "content": "问题：消防法关于职责怎么规定？"},
+        ]
+    )
+
+    sdk_client = captured["client"]
+    request = sdk_client.chat.completions.last_kwargs
+    assert request["response_format"] == {"type": "text"}
+    assert result["citations"] == ["《中华人民共和国消防法》第二条"]
+
+
 def test_openai_chat_client_raises_when_model_output_is_not_valid_json():
     class FakeCompletions:
         def create(self, **kwargs):

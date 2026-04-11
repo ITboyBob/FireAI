@@ -31,14 +31,7 @@ class OpenAIChatClient:
             model=self.model,
             messages=[{"role": item["role"], "content": item["content"]} for item in messages],
             temperature=self.temperature,
-            response_format={
-                "type": "json_schema",
-                "json_schema": {
-                    "name": "chat_answer",
-                    "strict": True,
-                    "schema": ModelAnswer.model_json_schema(),
-                },
-            },
+            response_format=_build_response_format(self.base_url),
         )
 
         payload = _extract_message_payload(response)
@@ -88,6 +81,20 @@ def _extract_message_payload(response: Any) -> str:
             raise ChatCompletionError("模型响应缺少 JSON 内容。")
         return text
     raise ChatCompletionError("模型响应内容不是可解析的 JSON 文本。")
+
+
+def _build_response_format(base_url: str) -> dict[str, Any]:
+    if "iflow.cn" in base_url.lower():
+        return {"type": "text"}
+
+    return {
+        "type": "json_schema",
+        "json_schema": {
+            "name": "chat_answer",
+            "strict": True,
+            "schema": ModelAnswer.model_json_schema(),
+        },
+    }
 
 
 def _read_value(container: Any, key: str) -> Any:

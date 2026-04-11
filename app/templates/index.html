@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ page_title }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}">
+    <script defer src="{{ url_for('static', path='/app.js') }}"></script>
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero">
+        <p class="eyebrow">本地离线检索 / 证据约束回答</p>
+        <h1>消防法律 RAG</h1>
+        <p class="hero-copy">
+          这是一个极薄验证面板。它不会替你解释不存在的证据，只会把当前索引能支持的法规依据摊开给你看。
+        </p>
+        <div class="hero-cards">
+          <article>
+            <h2>输入</h2>
+            <p>自然语言问题，直接发给 `/api/chat`。</p>
+          </article>
+          <article>
+            <h2>输出</h2>
+            <p>结论、引文、适用范围、不确定点和原始证据。</p>
+          </article>
+          <article>
+            <h2>边界</h2>
+            <p>索引未就绪或证据不足时，界面会明确拒答，不做幻觉补全。</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="console">
+        <div class="console-header">
+          <div>
+            <p class="panel-kicker">问答面板</p>
+            <h2>只做一件事：看证据能不能撑住答案</h2>
+          </div>
+          <div class="chips" aria-label="示例问题">
+            <button type="button" class="prompt-chip" data-prompt="消防法关于消防安全责任制怎么规定？">责任制</button>
+            <button type="button" class="prompt-chip" data-prompt="河北省消防条例对消防设施维护有什么要求？">消防设施</button>
+            <button type="button" class="prompt-chip" data-prompt="机关单位的消防安全职责有哪些？">机关职责</button>
+          </div>
+        </div>
+
+        <form id="chat-form" class="chat-form" data-chat-endpoint="{{ chat_endpoint }}">
+          <label class="field-label" for="question-input">输入问题</label>
+          <textarea
+            id="question-input"
+            name="message"
+            rows="5"
+            placeholder="例如：消防法关于消防安全责任制怎么规定？"
+            required
+          ></textarea>
+          <div class="form-actions">
+            <p id="request-status" class="request-status" aria-live="polite">等待提问。</p>
+            <button id="submit-button" type="submit">提交问题</button>
+          </div>
+        </form>
+
+        <section id="error-panel" class="feedback feedback-error" hidden aria-live="polite"></section>
+
+        <section id="answer-panel" class="answer-panel" aria-live="polite">
+          <div class="answer-empty">
+            <p>回答会显示在这里。</p>
+            <p>若当前还没建索引，界面会直接显示“尚未完成建库”。</p>
+          </div>
+
+          <article id="answer-card" hidden>
+            <div class="answer-section">
+              <p class="answer-label">结论</p>
+              <p id="answer-conclusion" class="answer-text"></p>
+            </div>
+
+            <div class="answer-grid">
+              <section class="answer-section">
+                <p class="answer-label">引文</p>
+                <ul id="answer-citations" class="tag-list"></ul>
+              </section>
+              <section class="answer-section">
+                <p class="answer-label">适用范围</p>
+                <p id="answer-scope" class="meta-text"></p>
+              </section>
+              <section class="answer-section">
+                <p class="answer-label">不确定点</p>
+                <p id="answer-uncertainty" class="meta-text"></p>
+              </section>
+            </div>
+
+            <section class="answer-section">
+              <p class="answer-label">证据</p>
+              <ol id="answer-evidence" class="evidence-list"></ol>
+            </section>
+          </article>
+        </section>
+      </section>
+    </main>
+  </body>
+</html>

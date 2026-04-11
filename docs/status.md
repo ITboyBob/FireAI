@@ -59,9 +59,86 @@
 - 已新增 [技术债记录](/Users/itboybob/Project/fire/docs/debts/2026-03-29-chunk-builder-enum-red-test-debt.md)，并将 `tests/unit/services/test_chunk_builder.py::test_build_chunks_matches_real_structured_fixture` 显式标记为 `xfail`；当前主线放行不再被这条已知技术债阻塞，但技术债本身仍需后续单独清偿。
 - 在 `fire` 环境重新执行 `conda run -n fire python -m pytest -q` 后，当前结果为 `30 passed, 1 xfailed in 0.37s`；其中唯一 `xfailed` 项即上述技术债测试。
 - 原主线 `Task 7` 当前已完成真实依赖安装与环境合规验证；若继续主线，下一步应进入 `Task 8`，而不是继续停留在向量依赖准备阶段。
-- 当前主线最新已推进到 `Task 10` 完成；若继续执行既定计划，下一步应进入 `Task 11` 的极薄网页聊天界面与端到端文档。
+- 当前主线 `Task 11` 已完成，原实施计划中的 `Task 1` 到 `Task 11` 均已落地；当前无新的主线技术阻塞，剩余主要是已登记的枚举级切块技术债与后续真实聊天提供商联调风险。
+- 原主线 `Task 11` 已启动 TDD 红测：当前已新增根页面渲染断言与小型离线流水线集成测试，但模板、静态资源和根路由尚未实现。
+- `Task 11` 首轮红测已经暴露出一个真实计划缺口：现有 `tests/fixtures/raw/*` 更适合作为“原始文件发现夹具”，并不能稳定支撑“从原始文档一路产出 chunk 和 index”的小型离线流水线集成测试；当前已在任务 11 的集成测试中改为运行时生成最小 `.docx` 法规样本，并复跑确认失败面已收敛到根页面 `404`。
+- 原主线 `Task 11` 的目标测试现已转绿：`/` 根页面会渲染模板并引用 `/static/app.css`、`/static/app.js`，小型离线流水线集成测试也已能稳定产出 `data/normalized`、`data/structured`、`data/chunks` 与 `data/index`。
+- 全量测试已在 `fire` 环境重新通过，当前结果为 `49 passed, 1 xfailed in 0.53s`；唯一 `xfailed` 项仍是已登记的 `chunk_builder` 枚举级技术债，与任务 11 无直接耦合。
+- 原主线 `Task 11` 已完成：当前 [README.md](/Users/itboybob/Project/fire/README.md) 已补齐安装、建库、运行、测试与已知限制说明，真实 `build_corpus.py` / `build_index.py` 与根页面 `/`、静态资源 `/static/*`、健康检查 `/health` 也已在 `fire` 环境完成合规验证。
+- `Task 11` 完成后的运行就绪度复核已启动：当前 `fastapi`、`jinja2`、`openai`、`uvicorn`、`httpx`、`pytest`、`numpy`、`faiss`、`sentence-transformers` 均可在 `fire` 环境导入，`.env` 中的真实聊天配置和 `data/index/*` 索引文件也已就位；唯一缺失依赖是 `playwright`，因此“手工前端测试”已具备前提，但“浏览器自动化回归”仍未具备前提。
+- 真实聊天前置检查已有结论：当前并非“依赖没装好”，而是“真实 `/api/chat` 请求能发出，但模型调用阶段返回 `502`”；因此前端网页已具备手工联调入口，但还不能宣称“真实聊天稳定可用”。
 
 ## 最新记录
+
+### 2026-03-29 Task 11 完成后的依赖与真实聊天前置条件复核
+
+- 执行内容：根据用户要求，在 `Task 11` 完成后继续检查“项目所有依赖是否安装完成，以及是否可以触发真实聊天并在前端网页测试”。先启动 `@code-reviewer` 做只读复核；同时由主代理在 `fire` 环境分步检查运行时依赖导入情况、`.env` 中聊天与嵌入配置是否已脱离占位值，以及 `data/index/` 下三类索引文件是否存在。
+- 执行环境：`fire`
+- 依赖情况：本轮为复核与验证；未新增依赖安装。
+- 验证结果：
+  - 依赖探针最终结果：`fastapi 0.135.2`、`jinja2 3.1.6`、`openai 2.30.0`、`uvicorn 0.42.0`、`httpx 0.28.1`、`pytest 9.0.2`、`numpy 2.4.3`、`faiss 1.13.2`、`sentence-transformers 5.3.0` 均可导入
+  - 自动化测试相关依赖现状：`playwright` 当前仍未安装，探针结果为 `ModuleNotFoundError: No module named 'playwright'`
+  - 聊天配置就绪度：`CHAT_API_KEY`、`CHAT_BASE_URL`、`CHAT_MODEL` 当前均已脱离仓库占位值，`EMBEDDING_MODEL_NAME=sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`
+  - 索引就绪度：`data/index/retrieval.db`、`data/index/faiss.index`、`data/index/vector_map.json` 当前均存在
+  - 过程说明：本轮中有三次依赖探针命令因为 shell 引号转义写错而失败，但失败点都在验证命令本身，不在运行环境；最终已用可审计输出重新确认结果
+- 当前阻塞点：当前不存在阻止“手工真实聊天测试”的缺失依赖；唯一缺口是 `playwright` 未安装，因此如果要做浏览器自动化点击测试，仍需先向用户报备并获批安装相关依赖。
+- 补充验证：在 `fire` 环境通过 `TestClient(create_app())` 对真实 `/api/chat` 发起一次请求（问题：`消防法关于消防安全责任制怎么规定？`，`top_k=3`），结果为 HTTP `502`，响应体 `{'detail': '模型调用失败，当前无法基于证据生成稳定结论。'}`；这说明真实聊天链路已能触发到模型调用阶段，但当前还未达到“前端网页可稳定演示真实回答”的状态
+- 根因补查：在 `fire` 环境直接调用 [OpenAIChatClient.complete()](/Users/itboybob/Project/fire/app/services/chat_client.py) 后，当前真实提供商返回的是 `ChatCompletionError: 模型返回了无法通过 schema 校验的 JSON。`；因此当前主问题不是缺依赖、缺索引或前端请求路径错误，而是现用提供商 / 模型对 `json_schema + strict` 的响应与本地 `ModelAnswer` 校验口径不兼容
+- 官方文档对照补查：通过 MCP 抓取 iFlow 官方 [API 手册](https://platform.iflow.cn/docs/api-reference) 后，已确认官方 `POST https://apis.iflow.cn/v1/chat/completions` 示例里使用的是 `response_format: {\"type\": \"text\"}`，而不是当前代码采用的 `json_schema + strict`
+- 官方文档驱动实验：在 `fire` 环境使用真实 `qwen3-32b` 和 iFlow 官方文档示例参数 `response_format={\"type\":\"text\"}` 直接请求后，模型成功返回可被 `json.loads()` 解析的合法 JSON，字段完整为 `conclusion/citations/scope/uncertainty`；这进一步说明真实接入问题的根因位于 iFlow 兼容层参数选择，而不是模型本身、索引本身或前端请求链路
+- 修复进展：当前已按官方文档口径收窄 [OpenAIChatClient](/Users/itboybob/Project/fire/app/services/chat_client.py) 的 iFlow 分支：`iflow.cn` 走 `response_format={\"type\":\"text\"}`，其他提供商仍保留 `json_schema + strict`；同时已补单测锁住这条兼容逻辑
+- 修复后回归：`conda run -n fire python -m pytest tests/unit/services/test_answer_service.py tests/integration/api/test_chat_api.py -q` 结果为 `11 passed in 0.34s`
+- 修复后真实链路复验：再次通过 `TestClient(create_app())` 请求真实 `/api/chat` 后，结果仍为 HTTP `502`，响应体 `{'detail': '模型调用失败，当前无法基于证据生成稳定结论。'}`；这说明“改成官方 `response_format=text`”只能证明 iFlow 基础 JSON 输出可行，但在当前完整 RAG prompt 下，模型返回内容仍未稳定满足本地 `ModelAnswer` 校验
+- 稳定性补样：继续在 `fire` 环境对真实 `/api/chat` 连续发起 `3` 次同问题请求后，结果为 `2` 次 HTTP `200`、`1` 次 HTTP `502`；成功样本的结论均为“根据《中华人民共和国消防法》第十六条，单位的主要负责人是本单位的消防安全责任人”，失败样本仍是 `模型调用失败，当前无法基于证据生成稳定结论。`。这说明官方文档驱动修复已把接入状态从“固定失败”提升到“可用但不稳定”
+- 全量回归补记：在完成 iFlow 兼容层修复后重新执行 `conda run -n fire python -m pytest -q`，结果为 `50 passed, 1 xfailed in 0.55s`；唯一 `xfailed` 仍是已登记的 `chunk_builder` 枚举级技术债，与本轮 iFlow 调试无直接耦合
+
+### 2026-03-29 完成知识图谱增强兼容性调研
+
+- 执行内容：按仓库文档读取规则先核对 [文档索引](/Users/itboybob/Project/fire/docs/文档索引.md)、[项目状态](/Users/itboybob/Project/fire/docs/status.md) 与 [设计文档](/Users/itboybob/Project/fire/docs/plans/2026-03-28-fire-law-rag-design.md)，确认当前基线已明确将“Neo4j、知识图谱、三元组联动”排除在本阶段范围外；随后使用 `Tavily MCP` 广泛检索 Microsoft GraphRAG、Neo4j GraphRAG 与知识图谱增强 RAG 的最新公开资料，评估现有离线建库 / 在线检索分层是否支持后续扩展。
+- 执行环境：本轮为架构调研与资料检索；未执行新的 Python、pytest、建库脚本或服务启动命令。
+- 验证结果：
+  - 当前仓库设计虽然**不把知识图谱纳入现阶段范围**，但离线链路与在线链路边界清晰，且 [Retriever](/Users/itboybob/Project/fire/app/services/retriever.py) 与设计文档中的 `EvidenceAssembler` / `AnswerService` 职责已分离，因此从架构上看**可以兼容后续知识图谱增强**，但属于新增能力，不是零改动直接开启
+  - 外部资料一致表明，知识图谱增强通常应优先插入“离线建库 + 在线检索”两层：离线侧先抽取实体/关系并构建图索引，在线侧再在初始检索命中后做实体扩展、邻居遍历或图约束召回，而不是只在最终答案生成阶段临时拼接
+  - 对本项目而言，最稳妥的接入点是：在现有“结构解析/切块”之后新增一段图构建流程，并在现有混合检索之后新增图扩展检索；`AnswerService` 仍只消费统一证据，不应承担图构建主职责
+- 当前阻塞点：若未来真的进入知识图谱增强实现，首先要做的是**重新批准设计边界**，因为当前正式设计基线仍将 Neo4j / 知识图谱排除在范围外；其次要决定是先做轻量本地图结构（法规-章节-条文-引用关系），还是直接引入 Neo4j 这类更重的外部存储。
+
+### 2026-03-29 真实问句诊断：`消防安全责任制` 回答偏窄
+
+- 执行内容：基于用户真实问句“消防法关于消防安全责任制是怎么规定的”，先核对现行《中华人民共和国消防法》官方公开文本，再在 `fire` 环境下读取 [query_normalizer.py](/Users/itboybob/Project/fire/app/services/query_normalizer.py)、[keyword_index.py](/Users/itboybob/Project/fire/app/services/keyword_index.py)、[retriever.py](/Users/itboybob/Project/fire/app/services/retriever.py) 与 [answer_service.py](/Users/itboybob/Project/fire/app/services/answer_service.py)，并对真实索引执行 `normalize_query()`、`search_keyword_index()` 与 `Retriever.search()` 探针，定位“回答为什么显得怪”。
+- 执行环境：`fire`
+- 依赖情况：无需新增依赖，沿用当前 `fire` 环境内已有的 `sqlite3`、`sentence-transformers`、`faiss-cpu` 与现有真实索引产物；法条核对额外参考四川省消防救援总队公开的现行《中华人民共和国消防法》全文页面（反映 `2021-04-29` 修正后的文本）。
+- 验证结果：
+  - `normalize_query("消防法关于消防安全责任制是怎么规定的")` 当前产出 `keyword_terms=['消防法关于消防安全责任制是怎么规定的', '中华人民共和国消防法']`，没有把“消防安全责任制”单独沉淀成关键词；对应实现位于 [query_normalizer.py](/Users/itboybob/Project/fire/app/services/query_normalizer.py#L49)。
+  - 对真实索引执行 `search_keyword_index("中华人民共和国消防法", data/index/retrieval.db)` 后，前 `8` 条结果依次出现 [第七十四条](/Users/itboybob/Project/fire/data/chunks/xiaofangfa_2019.jsonl)、[第十六条末句](/Users/itboybob/Project/fire/data/chunks/xiaofangfa_2019.jsonl)、第七十二条、第四十八条等；其中首项竟是“本法自 `2009年5月1日` 起施行”，说明当前 FTS 排序会把“仅命中法规标题”的块错误抬高。相关实现位于 [keyword_index.py](/Users/itboybob/Project/fire/app/services/keyword_index.py#L51)。
+  - 对真实索引执行 `Retriever.search(..., top_k=8)` 后，前 `3` 条结果为 `article-74`、`article-16-part-2`、`article-72`，而真正更贴近问题的《消防法》第二条未进入前列；这说明当前“标题词 + 宽泛责任类问句”的检索质量不足，生成模型即使不胡编，也很容易被错误证据带偏。
+  - 官方公开文本显示：现行《消防法》第二条先从总则层面规定“实行消防安全责任制”；第十六条再具体列举单位应履行的消防安全职责，并在条末规定“单位的主要负责人是本单位的消防安全责任人”。因此，真实聊天返回“根据《中华人民共和国消防法》第十六条，单位的主要负责人是本单位的消防安全责任人”虽然不算纯错答，但明显属于**抓到一条局部规定后把它误当成整体结论**。
+  - 当前 [answer_service.py](/Users/itboybob/Project/fire/app/services/answer_service.py#L77) 的提示词只要求“依据证据输出结论”，并未强制模型区分“总则层面的总体规定”和“具体条款中的责任人/职责细项”，这会进一步放大检索偏差带来的结论收缩问题。
+- 当前阻塞点：主线暂无新增技术阻塞；当前新增的是一个非阻塞质量风险，即“标题别名进入关键词检索后会把无关条文抬高，答案提示词又缺少‘先总后分’约束”，因此像“怎么规定”“如何规定”这类概括型问句仍可能继续出现“法律上局部正确、语义上答非所问”的回答。
+
+### 2026-03-29 原主线 Task 11 首轮红测成立并暴露原始夹具缺口
+
+- 执行内容：按 `executing-plans` 与 TDD 开始执行 [原主线 Task 11](/Users/itboybob/Project/fire/docs/plans/2026-03-28-fire-law-rag-implementation.md#L715)。先读取文档索引、状态、实施计划、设计文档，并补查 FastAPI 官方文档中 `Jinja2Templates` 与 `StaticFiles` 的当前推荐接法，以及 MDN 对浏览器 `fetch()` 错误处理的建议；随后在 [test_chat_api.py](/Users/itboybob/Project/fire/tests/integration/api/test_chat_api.py) 中新增根页面渲染断言，并新建 [test_build_pipeline.py](/Users/itboybob/Project/fire/tests/integration/pipeline/test_build_pipeline.py) 作为任务 11 的小型离线流水线集成测试。
+- 执行环境：`fire`
+- 依赖情况：无需新增依赖，沿用当前 `fire` 环境内已有的 `fastapi`、`jinja2`、`pytest`、`httpx`、`numpy` 与 `faiss-cpu`；本轮红测未引入 `playwright` 等新依赖。
+- 验证结果：
+  - 红测命令：`conda run -n fire python -m pytest tests/integration/pipeline/test_build_pipeline.py tests/integration/api/test_chat_api.py -q`
+  - 结果为 `2 failed, 4 passed in 0.38s`
+  - 失败 1：`GET /` 当前返回 `404`，说明任务 11 所需的根页面路由、模板渲染与静态资源挂载尚未实现
+  - 失败 2：小型流水线测试中，`scripts/build_corpus.py` 虽成功写出 `data/structured/*.json` 与 `data/chunks/*.jsonl` 路径，但 `build_index.py` 随后报 `.../data/chunks 下没有可建索引的 chunk`；这表明现有 `tests/fixtures/raw/*` 不能稳定产出可建索引的 chunk，更像“文件发现夹具”，不适合作为任务 11 的端到端离线夹具
+- 当前阻塞点：页面实现本身没有新的设计阻塞，但离线集成测试夹具需要先调整为“能真实产出条文 chunk 的最小原始文档样本”；否则会把夹具能力不足误判成流水线实现缺陷。
+- 补充验证：在同一条红测命令下将离线夹具改为运行时生成的最小 `.docx` 法规样本后，`tests/integration/pipeline/test_build_pipeline.py` 已通过，整体结果收敛为 `1 failed, 5 passed in 0.46s`；当前唯一失败只剩 `GET /` 返回 `404`，说明任务 11 现在可以进入页面实现阶段。
+- 绿测确认：在补齐 [main.py](/Users/itboybob/Project/fire/app/main.py)、[index.html](/Users/itboybob/Project/fire/app/templates/index.html)、[app.css](/Users/itboybob/Project/fire/app/static/app.css) 与 [app.js](/Users/itboybob/Project/fire/app/static/app.js) 后，再次执行 `conda run -n fire python -m pytest tests/integration/pipeline/test_build_pipeline.py tests/integration/api/test_chat_api.py -q`，结果为 `6 passed in 0.47s`
+- 全量回归：`conda run -n fire python -m pytest -q` 结果为 `49 passed, 1 xfailed in 0.53s`；唯一 `xfailed` 项仍为 [test_chunk_builder.py](/Users/itboybob/Project/fire/tests/unit/services/test_chunk_builder.py) 中已登记的历史技术债测试，不属于任务 11 回归
+- 真实验证补记：曾尝试用一条 `conda run -n fire python - <<'PY' ...` 命令合并执行“真实建库 + 页面冒烟”，该命令退出码为 `0`，但当前终端包装层未回传脚本 stdout；为避免把不可审计结果误记为已验证，后续改为分步重跑真实验证命令并分别落盘
+- 真实语料建库入口复验：`conda run -n fire python scripts/build_corpus.py` 已再次成功执行，当前 `6` 份真实法规均完成 `structured -> chunks` 重建，说明任务 11 的页面接入未破坏离线入口脚本
+- 真实索引入口复验：`conda run -n fire python scripts/build_index.py` 已再次成功执行，当前真实索引摘要为 `chunks=328`、`keyword_db=data/index/retrieval.db`、`vector_index=data/index/faiss.index`、`vector_map=data/index/vector_map.json`；执行中仅出现 Hugging Face Hub 未鉴权提示和 `BertModel` 的 `position_ids` `UNEXPECTED` 加载说明，均未阻断索引构建
+- 页面冒烟补记：曾尝试用一条内联 `python -c` 命令验证 `/`、`/health` 与 `/static/*`，但该命令因 shell 对中文字符串和引号的转义失败而报 `SyntaxError: '(' was never closed`；该失败属于验证命令书写错误，不代表应用本身存在回归，因此已计划立即改用更稳妥的写法重跑
+- 页面冒烟复验：改用 ASCII 转义后的 `python -c` 命令重新验证真实应用工厂，结果为 `root 200`、`health 200`、`css 200`、`js 200`、`title True`、`form True`，说明根页面、静态资源与健康检查均已在真实应用实例下可用
+- 运行就绪度混合检查补记：曾尝试在同一条 `python -c` 命令里同时做“依赖导入检查 + 根页面检查 + 真实 `/api/chat` 请求”；该命令本身存在两个缺陷：一是版本打印代码误写成 `getattr(module, __version__, n/a)`，导致依赖检查日志失真；二是它在真实聊天前显式预导入了 `faiss` / `sentence_transformers`，随后又在同一进程触发 `/api/chat`，结果复现出已知的 `Segmentation fault: 11`。由于这条命令破坏了正常应用路径中的初始化顺序，因此不能直接据此判定“前端真实聊天一定不可用”，后续需拆成独立命令重跑
+- 依赖元数据复验：改用 `importlib.metadata.version()` 只读核对 `fire` 环境已安装版本，当前 `fastapi 0.135.2`、`jinja2 3.1.6`、`openai 2.30.0`、`uvicorn 0.42.0`、`httpx 0.28.1`、`pytest 9.0.2`、`numpy 2.4.3`、`faiss-cpu 1.13.2`、`sentence-transformers 5.3.0` 均已安装，未发现缺包
+- 真实聊天复验：在不额外预导入 `faiss`/`sentence_transformers` 的情况下，直接通过 `TestClient(create_app())` 发送一次真实 `/api/chat` 请求，结果为 `status 200`、`content_type application/json`，返回字段完整包含 `citations / conclusion / evidence / scope / uncertainty`；本次真实回答摘要为“根据《中华人民共和国消防法》第十六条，单位的主要负责人是本单位的消防安全责任人”，`citation_count=1`、`evidence_count=3`。这说明当前真实聊天链路在正常应用初始化顺序下可以成功触发
+- 前端手工测试前置条件复验：在不触发真实聊天的轻量检查中，`Settings()` 显示 `chat_api_key_set=True`、`chat_base_url_set=True`、`chat_model_set=True`、`embedding_model_name=sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`，同时渲染后的根页面满足 `root_has_endpoint=True`，说明浏览器端已经拿到 `/api/chat` 请求入口，当前具备打开网页做手工真实聊天测试的前提
+- 当前阻塞点：主线 `Task 11` 已完成，当前无新的主线技术阻塞。剩余非阻塞风险是：网页界面仍只是验证面板，真实聊天联调仍取决于本机 `.env` 中的外部模型配置和可接受的调用成本。
 
 ### 2026-03-29 完成原主线 Task 10 聊天 API 暴露
 

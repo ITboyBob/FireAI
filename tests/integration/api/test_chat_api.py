@@ -6,6 +6,18 @@ from app.main import create_app
 from app.services.answer_service import MODEL_FAILURE_UNCERTAINTY
 
 
+def test_root_page_renders_chat_shell():
+    client = TestClient(create_app())
+
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert "消防法律 RAG" in response.text
+    assert 'id="chat-form"' in response.text
+    assert "/static/app.css" in response.text
+    assert "/static/app.js" in response.text
+
+
 class FakeRetriever:
     def __init__(self, results):
         self.results = results
