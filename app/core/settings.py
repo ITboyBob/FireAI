@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     data_dir: Path = Path("data")
     raw_corpus_dir: Path = Path("法律文本")
     index_dir: Path = Path("data") / "index"
+    conversation_db_path: Path = Path("var") / "conversations.db"
+    conversation_context_window_turns: int = 4
+    conversation_summary_trigger_turns: int = 6
     chat_api_key: str = "replace-me"
     chat_base_url: str = "https://api.example.com/v1"
     chat_model: str = "replace-me"

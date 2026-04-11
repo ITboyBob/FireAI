@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from app.core.settings import Settings
 
 
@@ -15,3 +17,11 @@ def test_settings_treats_empty_embedding_max_seq_length_as_none(monkeypatch):
     settings = Settings()
 
     assert settings.embedding_max_seq_length is None
+
+
+def test_settings_build_conversation_defaults():
+    settings = Settings.model_validate({})
+
+    assert settings.conversation_db_path == Path("var") / "conversations.db"
+    assert settings.conversation_context_window_turns == 4
+    assert settings.conversation_summary_trigger_turns == 6
