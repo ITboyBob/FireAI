@@ -6,16 +6,15 @@ from app.main import create_app
 from app.services.answer_service import MODEL_FAILURE_UNCERTAINTY
 
 
-def test_root_page_renders_chat_shell():
+def test_root_page_renders_conversation_shell():
     client = TestClient(create_app())
 
     response = client.get("/")
 
     assert response.status_code == 200
-    assert "消防法律 RAG" in response.text
-    assert 'id="chat-form"' in response.text
-    assert "/static/app.css" in response.text
-    assert "/static/app.js" in response.text
+    assert 'id="conversation-list"' in response.text
+    assert 'id="conversation-thread"' in response.text
+    assert 'id="composer-form"' in response.text
 
 
 class FakeRetriever:

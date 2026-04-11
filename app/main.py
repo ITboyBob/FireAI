@@ -16,7 +16,7 @@ STATIC_DIR = APP_DIR / "static"
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="消防法律 RAG")
+    app = FastAPI(title="消防问答系统 2.0")
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
     @app.get("/", response_class=HTMLResponse, tags=["web"])
@@ -25,8 +25,9 @@ def create_app() -> FastAPI:
             request=request,
             name="index.html",
             context={
-                "page_title": "消防法律 RAG",
+                "page_title": "消防问答系统 2.0",
                 "chat_endpoint": "/api/chat",
+                "conversation_endpoint": "/api/conversations",
             },
         )
 

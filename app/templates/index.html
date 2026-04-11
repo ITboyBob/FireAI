@@ -8,92 +8,76 @@
     <script defer src="{{ url_for('static', path='/app.js') }}"></script>
   </head>
   <body>
-    <main class="shell">
-      <section class="hero">
-        <p class="eyebrow">本地离线检索 / 证据约束回答</p>
-        <h1>消防法律 RAG</h1>
-        <p class="hero-copy">
-          这是一个极薄验证面板。它不会替你解释不存在的证据，只会把当前索引能支持的法规依据摊开给你看。
-        </p>
-        <div class="hero-cards">
-          <article>
-            <h2>输入</h2>
-            <p>自然语言问题，直接发给 `/api/chat`。</p>
-          </article>
-          <article>
-            <h2>输出</h2>
-            <p>结论、引文、适用范围、不确定点和原始证据。</p>
-          </article>
-          <article>
-            <h2>边界</h2>
-            <p>索引未就绪或证据不足时，界面会明确拒答，不做幻觉补全。</p>
-          </article>
+    <main class="workspace" data-conversation-endpoint="{{ conversation_endpoint }}">
+      <aside class="conversation-sidebar">
+        <div class="sidebar-head">
+          <p class="eyebrow">消防问答系统 2.0</p>
+          <h1>历史会话</h1>
+          <p class="sidebar-copy">
+            每一轮都重新检索最新证据，但会保留你和系统当时的真实对话轨迹。
+          </p>
+          <button id="new-conversation-button" class="primary-button" type="button">新建会话</button>
         </div>
-      </section>
 
-      <section class="console">
-        <div class="console-header">
+        <section class="sidebar-panel">
+          <div class="panel-title-row">
+            <p class="panel-title">会话列表</p>
+            <span id="conversation-count" class="counter">0</span>
+          </div>
+          <ul id="conversation-list" class="conversation-list" aria-label="会话列表"></ul>
+        </section>
+      </aside>
+
+      <section class="conversation-main">
+        <header class="thread-header">
           <div>
-            <p class="panel-kicker">问答面板</p>
-            <h2>只做一件事：看证据能不能撑住答案</h2>
+            <p class="eyebrow">当前会话</p>
+            <h2 id="conversation-title">请选择会话</h2>
+            <p id="conversation-subtitle" class="thread-subtitle">会话详情、法律依据和修正提示会显示在这里。</p>
           </div>
-          <div class="chips" aria-label="示例问题">
-            <button type="button" class="prompt-chip" data-prompt="消防法关于消防安全责任制怎么规定？">责任制</button>
-            <button type="button" class="prompt-chip" data-prompt="河北省消防条例对消防设施维护有什么要求？">消防设施</button>
-            <button type="button" class="prompt-chip" data-prompt="机关单位的消防安全职责有哪些？">机关职责</button>
+          <div class="thread-actions">
+            <button id="rename-conversation-button" class="ghost-button" type="button">重命名</button>
+            <button id="delete-conversation-button" class="danger-button" type="button">删除</button>
           </div>
-        </div>
-
-        <form id="chat-form" class="chat-form" data-chat-endpoint="{{ chat_endpoint }}">
-          <label class="field-label" for="question-input">输入问题</label>
-          <textarea
-            id="question-input"
-            name="message"
-            rows="5"
-            placeholder="例如：消防法关于消防安全责任制怎么规定？"
-            required
-          ></textarea>
-          <div class="form-actions">
-            <p id="request-status" class="request-status" aria-live="polite">等待提问。</p>
-            <button id="submit-button" type="submit">提交问题</button>
-          </div>
-        </form>
+        </header>
 
         <section id="error-panel" class="feedback feedback-error" hidden aria-live="polite"></section>
 
-        <section id="answer-panel" class="answer-panel" aria-live="polite">
-          <div class="answer-empty">
-            <p>回答会显示在这里。</p>
-            <p>若当前还没建索引，界面会直接显示“尚未完成建库”。</p>
+        <section id="conversation-thread" class="conversation-thread" aria-live="polite">
+          <div class="thread-empty">
+            <p class="empty-title">还没有打开任何会话。</p>
+            <p>你可以先新建一个会话，或者直接在下方输入问题，系统会自动为你建立当前会话。</p>
+            <div class="starter-grid">
+              <button type="button" class="starter-card" data-prompt="消防法关于消防安全责任制怎么规定？">
+                <span>责任制</span>
+                <small>从消防法切入</small>
+              </button>
+              <button type="button" class="starter-card" data-prompt="河北省消防条例第二十八条怎么规定？">
+                <span>河北条例</span>
+                <small>直接命中地方条文</small>
+              </button>
+              <button type="button" class="starter-card" data-prompt="它第二条怎么说？">
+                <span>追问</span>
+                <small>测试上下文承接</small>
+              </button>
+            </div>
           </div>
-
-          <article id="answer-card" hidden>
-            <div class="answer-section">
-              <p class="answer-label">结论</p>
-              <p id="answer-conclusion" class="answer-text"></p>
-            </div>
-
-            <div class="answer-grid">
-              <section class="answer-section">
-                <p class="answer-label">引文</p>
-                <ul id="answer-citations" class="tag-list"></ul>
-              </section>
-              <section class="answer-section">
-                <p class="answer-label">适用范围</p>
-                <p id="answer-scope" class="meta-text"></p>
-              </section>
-              <section class="answer-section">
-                <p class="answer-label">不确定点</p>
-                <p id="answer-uncertainty" class="meta-text"></p>
-              </section>
-            </div>
-
-            <section class="answer-section">
-              <p class="answer-label">证据</p>
-              <ol id="answer-evidence" class="evidence-list"></ol>
-            </section>
-          </article>
         </section>
+
+        <form id="composer-form" class="composer-form">
+          <label class="composer-label" for="composer-input">继续提问</label>
+          <textarea
+            id="composer-input"
+            name="message"
+            rows="4"
+            placeholder="例如：消防法关于消防安全责任制怎么规定？"
+            required
+          ></textarea>
+          <div class="composer-footer">
+            <p id="request-status" class="request-status" aria-live="polite">等待输入。</p>
+            <button id="send-button" class="primary-button" type="submit">发送问题</button>
+          </div>
+        </form>
       </section>
     </main>
   </body>
