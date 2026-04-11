@@ -3,7 +3,8 @@ import re
 from typing import Any
 
 from app.schemas.conversation import SendConversationMessageResponse
-from app.services.answer_service import build_answer
+from app.services.answer_service import build_answer, is_model_failure_uncertainty
+from app.services.chat_client import ChatCompletionError
 from app.services.conversation_repository import ConversationDetail, ConversationRepository, StoredAnswerSnapshot
 from app.services.conversation_service import ConversationService
 from app.services.query_normalizer import normalize_query
@@ -55,6 +56,8 @@ class ConversationTurnService:
         normalized = normalize_query(message, context_hints=classification.context_hints)
         evidence = self.retriever.search(normalized, top_k=self.retrieval_top_k)
         answer = build_answer(evidence, client=self.chat_client, question=message)
+        if is_model_failure_uncertainty(answer.get("uncertainty")):
+            raise ChatCompletionError(str(answer["uncertainty"]))
 
         assistant_payload = self.presenter.build(
             answer=answer,

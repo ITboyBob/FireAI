@@ -55,6 +55,9 @@ def _extract_message_payload(response: Any) -> str:
     if choices is None and isinstance(response, dict):
         choices = response.get("choices")
     if not choices:
+        provider_error = _extract_provider_error(response)
+        if provider_error:
+            raise ChatCompletionError(provider_error)
         raise ChatCompletionError("模型响应中缺少 choices。")
 
     message = getattr(choices[0], "message", None)
@@ -117,3 +120,18 @@ def _extract_content_part(part: Any) -> str:
     if isinstance(text, str):
         return text
     return ""
+
+
+def _extract_provider_error(response: Any) -> str:
+    message = _read_value(response, "msg") or _read_value(response, "message")
+    status = _read_value(response, "status")
+    if not message:
+        return ""
+
+    message_text = str(message).strip()
+    status_text = str(status).strip() if status is not None else ""
+    if not message_text:
+        return ""
+    if status_text:
+        return f"提供商返回错误（status={status_text}）：{message_text}"
+    return message_text

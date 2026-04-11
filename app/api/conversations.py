@@ -20,6 +20,7 @@ from app.services.conversation_repository import ConversationNotFoundError, Conv
 from app.services.conversation_service import ConversationService
 from app.services.conversation_summary import ConversationSummaryManager
 from app.services.conversation_turn_service import ConversationTurnService
+from app.services.chat_client import ChatCompletionError
 from app.services.knowledge_version import KnowledgeVersionResolver
 from app.services.turn_classifier import TurnClassifier
 
@@ -129,6 +130,8 @@ async def send_message(
         result = service.handle_user_message(conversation_id, payload.message)
     except ConversationNotFoundError as exc:
         raise HTTPException(status_code=404, detail=MISSING_CONVERSATION_DETAIL) from exc
+    except ChatCompletionError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
     return SendConversationMessageResponse.model_validate(result, from_attributes=True)
 
 

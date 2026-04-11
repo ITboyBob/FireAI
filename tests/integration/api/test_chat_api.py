@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 from app.api.chat import get_chat_client, get_retriever
 from app.main import create_app
 from app.services.answer_service import MODEL_FAILURE_UNCERTAINTY
+from app.services.chat_client import ChatCompletionError
 
 
 def test_root_page_renders_conversation_shell():
@@ -145,3 +146,28 @@ def test_chat_endpoint_returns_502_when_model_call_fails():
 
     assert response.status_code == 502
     assert response.json() == {"detail": MODEL_FAILURE_UNCERTAINTY}
+
+
+def test_chat_endpoint_returns_provider_detail_when_chat_client_reports_it():
+    retriever = FakeRetriever(
+        [
+            {
+                "chunk_id": "xiaofangfa_2019#article-2",
+                "document_id": "xiaofangfa_2019",
+                "title": "中华人民共和国消防法",
+                "path": "中华人民共和国消防法 > 第一章 总则 > 第二条",
+                "text": "国家实行消防安全责任制。",
+                "article_no": "第二条",
+            }
+        ]
+    )
+    chat_client = FakeChatClient(error=ChatCompletionError("Your API Token has expired."))
+    app = create_app()
+    app.dependency_overrides[get_retriever] = lambda: retriever
+    app.dependency_overrides[get_chat_client] = lambda: chat_client
+    client = TestClient(app)
+
+    response = client.post("/api/chat", json={"message": "消防法关于职责怎么规定？"})
+
+    assert response.status_code == 502
+    assert response.json() == {"detail": "模型调用失败：Your API Token has expired."}

@@ -50,6 +50,7 @@ class NormalizedQuery:
 
 def normalize_query(query: str, *, context_hints: dict[str, Any] | None = None) -> NormalizedQuery:
     cleaned = re.sub(r"\s+", " ", query).strip()
+    has_context_hints = bool(context_hints)
     canonical_terms = _extract_canonical_terms(cleaned)
     if not canonical_terms and context_hints and context_hints.get("canonical_title"):
         canonical_terms = _unique_terms([str(context_hints["canonical_title"])])
@@ -62,7 +63,6 @@ def normalize_query(query: str, *, context_hints: dict[str, Any] | None = None) 
             [
                 *canonical_terms,
                 article_no,
-                region,
                 cleaned,
                 *time_terms,
             ]
@@ -70,14 +70,14 @@ def normalize_query(query: str, *, context_hints: dict[str, Any] | None = None) 
     )
     keyword_terms = _unique_terms(
         [
+            rewritten_query if has_context_hints else cleaned,
             *canonical_terms,
             article_no,
-            region,
-            rewritten_query,
             *time_terms,
         ]
     )
-    vector_query = " ".join(_unique_terms([rewritten_query, *intent_terms]))
+    vector_seed = rewritten_query if has_context_hints else cleaned
+    vector_query = " ".join(_unique_terms([vector_seed, *canonical_terms, *intent_terms]))
 
     return NormalizedQuery(
         original=query,

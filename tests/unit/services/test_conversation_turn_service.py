@@ -1,9 +1,12 @@
+import pytest
+
 from app.services.context_manager import ContextManager
 from app.services.conversation_presenter import ConversationPresenter
 from app.services.conversation_repository import ConversationRepository
 from app.services.conversation_service import ConversationService
 from app.services.conversation_summary import ConversationSummaryManager
 from app.services.conversation_turn_service import ConversationTurnService
+from app.services.chat_client import ChatCompletionError
 from app.services.turn_classifier import TurnClassifier
 
 
@@ -36,6 +39,12 @@ class FakeChatClient:
         }
 
 
+class FailingChatClient:
+    def complete(self, messages):
+        del messages
+        raise RuntimeError("upstream unavailable")
+
+
 class FakeKnowledgeVersionResolver:
     def resolve(self) -> str:
         return "kb:test"
@@ -59,6 +68,31 @@ def _build_service(repo: ConversationRepository, *, summary_manager=None, summar
         knowledge_version_resolver=FakeKnowledgeVersionResolver(),
         retriever=retriever,
         chat_client=FakeChatClient(),
+        presenter=ConversationPresenter(),
+        summary_trigger_turns=summary_trigger_turns,
+    )
+    service.retriever = retriever
+    return service
+
+
+def _build_service_with_chat_client(
+    repo: ConversationRepository,
+    *,
+    chat_client,
+    summary_manager=None,
+    summary_trigger_turns: int = 6,
+):
+    conversation_service = ConversationService(repository=repo)
+    retriever = FakeRetriever()
+    service = ConversationTurnService(
+        repository=repo,
+        conversation_service=conversation_service,
+        turn_classifier=TurnClassifier(),
+        context_manager=ContextManager(window_turns=1),
+        summary_manager=summary_manager or ConversationSummaryManager(),
+        knowledge_version_resolver=FakeKnowledgeVersionResolver(),
+        retriever=retriever,
+        chat_client=chat_client,
         presenter=ConversationPresenter(),
         summary_trigger_turns=summary_trigger_turns,
     )
@@ -136,3 +170,13 @@ def test_handle_user_message_degrades_when_summary_unavailable(tmp_path):
     detail = repo.get_conversation_detail(conversation.id)
 
     assert detail.turns[-1].history_summary_used == ""
+
+
+def test_handle_user_message_raises_when_model_call_fails(tmp_path):
+    repo = ConversationRepository(tmp_path / "conversations.db")
+    service = _build_service_with_chat_client(repo, chat_client=FailingChatClient())
+
+    conversation = service.conversation_service.create_conversation()
+
+    with pytest.raises(ChatCompletionError, match="模型调用失败"):
+        service.handle_user_message(conversation.id, "消防法关于消防安全责任制怎么规定？")

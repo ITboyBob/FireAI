@@ -4,7 +4,20 @@
 
 ## 当前摘要
 
+- 已按用户要求更新 `AGENTS.md` 的 Git 规则：当前仓库允许代理在当前任务范围内自主提交经过验证的本次改动，并可在提交后再同步提交范围、验证结果和提交说明，但 `push / merge / reset` 等高风险操作仍需用户单独要求。
 - 设计基线和实施计划已经落盘，可作为后续实现依据。
+- 已开始按 `docs/plans/2026-04-11-fire-qa-system-2.0-implementation.md` 执行消防问答系统 2.0 计划，并已在本地执行分支 `qa-system-2.0-exec` 开工，避免直接在 `main` 上实施。
+- `Task 1` 已按 TDD 完成会话配置扩展：当前 `Settings` 已提供本机 `SQLite` 会话库路径、上下文窗口轮数和摘要触发阈值，`.env.example` 也已补齐对应占位项。
+- `Task 2` 已按 TDD 建立 `SQLite` 会话仓库：当前已能持久化会话、消息、轮次和回答快照，并在 `var/task2-smoke.db` 上通过真实落库/重开验证。
+- `Task 3` 已按 TDD 落地会话服务层：当前新会话默认标题、首条用户消息自动标题、按最近消息排序、重命名、软删除和删除后禁写规则都已落到服务层，并在 `var/task3-smoke.db` 上完成真实验证。
+- `Task 4` 已按 TDD 落地追问判定与上下文窗口管理：当前系统已能识别基础指代追问，并把上下文裁剪为“最近 N 轮 + 可选历史摘要”，且已用真实 `data/chunks/xiaofangfa_2019.jsonl` 做过一次继承标题/条号验证。
+- `Task 5` 已按 TDD 落地确定性历史摘要和知识库版本解析：当前更早轮次可被压缩成稳定摘要文本，每轮也能附带基于真实 `data/index/` 产物生成的知识库版本串。
+- `Task 6` 已按 TDD 固定 2.0 对话展示契约：当前“回答 + 法律依据 + 条款原文 + 修正提示”的 schema 与 presenter 已落地，且已用真实 `data/chunks/` 验证“依据未变复用旧条文、依据变化切换新条文并提示修正”。
+- `Task 7` 已按 TDD 串起会话主链：当前“用户消息 -> 追问判定 -> 上下文裁剪/摘要 -> 查询改写 -> 重检索 -> 回答生成 -> 展示整理 -> 消息/轮次/快照落库”已存在，并已在真实 `data/index/` 上完成两轮对话烟雾验证。
+- `Task 8` 已按 TDD 暴露正式会话 API：当前 `/api/conversations` 已支持创建、列出、详情、重命名、删除与发消息，并已通过真实 `TestClient + data/index/` 烟雾验证。
+- `Task 9` 已按 TDD 切换到双栏会话界面：当前根页面已改为“会话列表 + 当前线程 + 输入区”结构，前端主链改走 `/api/conversations/*`，并已通过真实 `uvicorn + curl` 壳验证。
+- `Task 10` 已完成文档更新和最终验证批次：当前 README / 文档索引 / 状态文档已对齐 2.0 实现，自动化测试与真实建库验证通过；同时已修复“会话链路把模型失败伪装成证据不足”的缺陷。
+- 当前真实多轮回答的唯一阻塞点不在仓库代码，而在 `.env` 中现用 iFlow `CHAT_API_KEY` 已过期；现在系统会明确返回 `502` 和上游错误详情，而不再伪造空依据拒答。
 - 新开聊天窗口时的文档读取顺序已在 `AGENTS.md` 中固化，`docs/文档索引.md` 用于解释这套顺序。
 - `Task 1` 的代码骨架已经落地，包括基础配置、`/health` 接口和最小测试。
 - 仓库元数据和实施计划已对齐到 Python `3.14` 基线，`fire` 环境已完成 editable install。
@@ -69,6 +82,167 @@
 - 真实聊天前置检查已有结论：当前并非“依赖没装好”，而是“真实 `/api/chat` 请求能发出，但模型调用阶段返回 `502`”；因此前端网页已具备手工联调入口，但还不能宣称“真实聊天稳定可用”。
 
 ## 最新记录
+
+### 2026-04-11 执行 2.0 计划 Task 10
+
+- 执行内容：按 `executing-plans` 与 `systematic-debugging` 继续执行 [2.0 实施计划 Task 10](/Users/itboybob/Project/fire/docs/plans/2026-04-11-fire-qa-system-2.0-implementation.md)。先针对真实验收中暴露的“会话 API 返回 `证据不足，无法可靠回答。` 且 `legal_basis=[]`”现象做根因追踪，确认问题不在检索或会话编排，而在真实 iFlow 提供商返回了无 `choices` 的错误载荷；随后补红测锁住两类行为：一是 `OpenAIChatClient` 能识别 `status/msg` 形式的提供商错误，二是 `/api/conversations/{id}/messages` 在模型失败时必须返回 `502`，不能再把上游故障吞成普通拒答。最终补最小实现，保留模型失败明细，并让会话链路与 `/api/chat` 一样显式暴露 `502`。
+- 执行环境：`fire`
+- 依赖情况：无需新增依赖，沿用当前 `fire` 环境、现有真实索引产物和已配置的 OpenAI 兼容聊天提供商。
+- 验证结果：
+  - 根因探针：`conda run --no-capture-output -n fire python - <<'PY' ... PY` 直接调用真实聊天 SDK 后，返回对象为 `{'choices': None, 'status': '439', 'msg': '「Your API Token has expired. API Tokens have a validity period of 7 days. ...」'}`，已确认真实阻塞点是 iFlow token 过期，而不是检索缺证据。
+  - 红测确认：`conda run -n fire python -m pytest tests/unit/services/test_answer_service.py tests/unit/services/test_conversation_turn_service.py tests/integration/api/test_chat_api.py tests/integration/api/test_conversations_api.py -q` 初次结果为 `5 failed, 16 passed in 0.60s`，失败点正好对应“模型失败细节未保留 / conversations API 未返回 502 / chat_client 未识别提供商错误载荷”。
+  - 修复后回归：同一命令结果为 `21 passed in 0.39s`。
+  - 2.0 目标测试：`conda run -n fire python -m pytest tests/unit/core/test_settings.py tests/unit/services/test_conversation_repository.py tests/unit/services/test_conversation_service.py tests/unit/services/test_turn_classifier.py tests/unit/services/test_context_manager.py tests/unit/services/test_conversation_summary.py tests/unit/services/test_knowledge_version.py tests/unit/services/test_conversation_presenter.py tests/unit/services/test_query_normalizer.py tests/unit/services/test_conversation_turn_service.py tests/unit/api/test_chat_dependencies.py tests/unit/api/test_conversation_dependencies.py tests/integration/api/test_chat_api.py tests/integration/api/test_conversations_api.py -q` 结果为 `33 passed in 0.42s`。
+  - 全量回归：`conda run -n fire python -m pytest -q` 结果为 `75 passed, 1 xfailed in 0.70s`。
+  - 真实建库验证：
+    - `conda run -n fire python scripts/build_corpus.py` 成功重建全部 `data/chunks/*.jsonl`
+    - `conda run -n fire python scripts/build_index.py` 结果为 `chunks=328`，并成功输出 `data/index/retrieval.db`、`data/index/faiss.index`、`data/index/vector_map.json`
+  - 真实服务验证：启动 `conda run -n fire python -m uvicorn app.main:create_app --factory --port 8012` 后，用真实 HTTP 请求完成页面和 API 检查，输出为：
+    - 根页面命中 `conversation-list / conversation-thread / composer-form`
+    - 创建会话 `201`
+    - 首次真实发消息返回 `502`，详情为 `模型调用失败：提供商返回错误（status=439）：「Your API Token has expired...」`
+    - 重命名、列表、详情仍可用，失败后会话中只保留用户消息，不再伪造一条空依据助手回复
+    - 重启服务后再次读取 `/api/conversations`，历史会话仍然可见，说明本机持久化恢复正常
+- 当前阻塞点：代码侧主线任务已经完成，当前剩余唯一阻塞点是 `.env` 中现用 iFlow `CHAT_API_KEY` 已过期；在用户更新有效凭证前，无法把“消防法关于消防安全责任制怎么规定？ -> 它第二条怎么说？ -> 河北也适用吗？”这一整条真实多轮回答链路标记为通过，但系统已经改为准确暴露上游失败原因，不再误报成“证据不足”。
+
+### 2026-04-11 执行 2.0 计划 Task 9
+
+- 执行内容：按 `executing-plans` 与 TDD 执行 [2.0 实施计划 Task 9](/Users/itboybob/Project/fire/docs/plans/2026-04-11-fire-qa-system-2.0-implementation.md)。先把 [test_chat_api.py](/Users/itboybob/Project/fire/tests/integration/api/test_chat_api.py) 的根页面断言切到新壳标识，再整体替换 [index.html](/Users/itboybob/Project/fire/app/templates/index.html)、[app.js](/Users/itboybob/Project/fire/app/static/app.js)、[app.css](/Users/itboybob/Project/fire/app/static/app.css)，将旧的单轮验证面板改成双栏会话产品界面，并让前端主链改为加载/创建/切换/重命名/删除会话及发送 `/api/conversations/{id}/messages`。
+- 执行环境：`fire`
+- 依赖情况：无需新增依赖，沿用当前 `fire` 环境和现有静态资源链路。
+- 验证结果：
+  - 红测确认：`conda run -n fire python -m pytest tests/integration/api/test_chat_api.py -q` 初次结果为 `1 failed, 4 passed in 0.42s`，失败原因是根页面仍是旧的单轮壳
+  - Task 9 测试：`conda run -n fire python -m pytest tests/integration/api/test_chat_api.py tests/integration/api/test_conversations_api.py -q` 结果为 `7 passed in 0.33s`
+  - 浏览器自动化说明：尝试用 Playwright 做真实页面点击时，工具初始化被环境级只读根目录拦住，报错 `ENOENT: no such file or directory, mkdir '/.playwright-mcp'`；该问题属于当前会话工具运行环境，不是项目代码缺陷
+  - 真实壳验证：改用 `conda run -n fire python -m uvicorn app.main:create_app --factory --port 8010` 启动本地服务，再用 `curl` 命中真实页面与 API：
+    - `curl -s http://127.0.0.1:8010/ | rg 'conversation-list|conversation-thread|composer-form'` 成功命中新壳标识
+    - `curl -s -X POST http://127.0.0.1:8010/api/conversations -H 'Content-Type: application/json' -d '{}'` 成功返回新会话 JSON，说明前端主链依赖的新 API 已在真实服务进程下可用
+- 当前阻塞点：`Task 9` 已完成，当前无新的技术阻塞；下一步进入 `Task 10`，更新 README / 文档索引 / 状态文档并做最终全量验证。
+
+### 2026-04-11 执行 2.0 计划 Task 8
+
+- 执行内容：按 `executing-plans` 与 TDD 执行 [2.0 实施计划 Task 8](/Users/itboybob/Project/fire/docs/plans/2026-04-11-fire-qa-system-2.0-implementation.md)。先查阅 FastAPI 官方 `APIRouter` / `Depends` 文档并阅读现有聊天 API 测试风格，随后新增 [conversations.py](/Users/itboybob/Project/fire/app/api/conversations.py)、会话依赖测试与集成测试，在 [main.py](/Users/itboybob/Project/fire/app/main.py) 注册新 router，并把 dataclass/字典两类返回统一序列化成正式 2.0 schema。
+- 执行环境：`fire`
+- 依赖情况：无需新增依赖，沿用当前 `fire` 环境中的 `fastapi/httpx` 等现有测试依赖。
+- 验证结果：
+  - 官方文档核对：已通过 `Tavily` 检索 `fastapi.tiangolo.com` 官方文档，确认 `APIRouter`、`Depends()` 与测试覆写依赖的当前用法。
+  - 红测确认：`conda run -n fire python -m pytest tests/integration/api/test_conversations_api.py tests/unit/api/test_conversation_dependencies.py -q` 初次因路由与依赖模块尚未实现而无法通过
+  - Task 8 测试：`conda run -n fire python -m pytest tests/integration/api/test_conversations_api.py tests/unit/api/test_conversation_dependencies.py -q` 结果为 `4 passed in 0.39s`
+  - 真实上游验证：`conda run --no-capture-output -n fire python - <<'PY' ... PY` 使用 `TestClient(create_app())` 命中真实 `/api/conversations*` 路径，并复用真实 `data/index/` 检索产物完成两轮对话，输出为 `{'create_status': 201, 'first_status': 200, 'second_status': 200, 'detail_status': 200, 'conversation_title': '消防法关于消防安全责任制怎么规定', 'message_count': 4, 'latest_basis': ['《中华人民共和国消防法》第二条'], 'latest_correction_notice': '本轮已根据最新检索证据修正前文。'}`
+- 当前阻塞点：`Task 8` 已完成，当前无新的技术阻塞；下一步进入 `Task 9`，把前端网页壳切到双栏会话界面。
+
+### 2026-04-11 执行 2.0 计划 Task 7
+
+- 执行内容：按 `executing-plans` 与 TDD 执行 [2.0 实施计划 Task 7](/Users/itboybob/Project/fire/docs/plans/2026-04-11-fire-qa-system-2.0-implementation.md)。先读取现有 [query_normalizer.py](/Users/itboybob/Project/fire/app/services/query_normalizer.py)、[retriever.py](/Users/itboybob/Project/fire/app/services/retriever.py)、[answer_service.py](/Users/itboybob/Project/fire/app/services/answer_service.py) 与对应单测，确认当前单轮链路接口后，再扩展 `normalize_query(..., context_hints=...)`，新增 [conversation_turn_service.py](/Users/itboybob/Project/fire/app/services/conversation_turn_service.py) 与编排层单测，把自动标题、追问判定、摘要降级、知识库版本、重写查询、重检索、回答展示和快照落库串成正式会话主链。
+- 执行环境：`fire`
+- 依赖情况：无需新增依赖，沿用当前 `fire` 环境、既有真实索引产物与已安装嵌入模型依赖。
+- 验证结果：
+  - 红测确认：`conda run -n fire python -m pytest tests/unit/services/test_query_normalizer.py tests/unit/services/test_conversation_turn_service.py -q` 初次结果为 `ModuleNotFoundError: No module named 'app.services.conversation_turn_service'`
+  - Task 7 单测：`conda run -n fire python -m pytest tests/unit/services/test_query_normalizer.py tests/unit/services/test_conversation_turn_service.py -q` 结果为 `6 passed in 0.08s`
+  - 真实上游验证：`conda run --no-capture-output -n fire python - <<'PY' ... PY` 使用真实 `data/index/retrieval.db`、`data/index/faiss.index`、`data/index/vector_map.json` 与真实嵌入模型执行两轮会话烟雾，输出为 `{'title': '消防法关于消防安全责任制怎么规定', 'turns': 2, 'first_basis': ['《中华人民共和国消防法》第七十四条'], 'second_basis': ['《中华人民共和国消防法》第二条'], 'rewritten_query': '中华人民共和国消防法 第二条 它第二条怎么说？', 'knowledge_version': 'kb:f1f5874d0af3f4fd'}`；这说明追问轮确实重新检索并使用了改写后的查询，而不是直接复用首轮答案。
+- 当前阻塞点：`Task 7` 已完成，当前无新的技术阻塞；下一步进入 `Task 8`，暴露会话管理和消息执行 API。
+
+### 2026-04-11 执行 2.0 计划 Task 6
+
+- 执行内容：按 `executing-plans` 与 TDD 执行 [2.0 实施计划 Task 6](/Users/itboybob/Project/fire/docs/plans/2026-04-11-fire-qa-system-2.0-implementation.md)。先复核现有 [chat.py](/Users/itboybob/Project/fire/app/schemas/chat.py) 的 Pydantic v2 schema 风格，并补查 Pydantic 官方文档；随后新增 [conversation.py](/Users/itboybob/Project/fire/app/schemas/conversation.py) 与 [conversation_presenter.py](/Users/itboybob/Project/fire/app/services/conversation_presenter.py)，把 2.0 的会话列表项、会话详情、用户消息输入、助手消息展示结构和发送响应结构收敛成正式 schema，并实现“同依据复用上一轮条文，依据变化时切换到本轮条文并提示修正”的展示策略。
+- 执行环境：`fire`
+- 依赖情况：无需新增依赖，沿用当前 `fire` 环境中的 `pydantic 2.x`。
+- 验证结果：
+  - 官方文档核对：已通过 `Tavily` 检索 `docs.pydantic.dev` 官方文档，确认当前仓库应继续使用 Pydantic v2 的 `BaseModel/ConfigDict/Field` 风格。
+  - 红测确认：`conda run -n fire python -m pytest tests/unit/services/test_conversation_presenter.py -q` 初次结果为 `ModuleNotFoundError: No module named 'app.services.conversation_presenter'`
+  - Task 6 单测：`conda run -n fire python -m pytest tests/unit/services/test_conversation_presenter.py -q` 结果为 `2 passed in 0.06s`
+  - 真实上游验证：`conda run --no-capture-output -n fire python - <<'PY' ... PY` 直接读取真实 `data/chunks/xiaofangfa_2019.jsonl` 与 `data/chunks/hebei_xiaofang_tiaoli.jsonl` 组装两种场景，输出为 `{'reused_notice': '', 'reused_clause_texts': [{'path': '旧路径', 'text': '旧条文原文'}], 'corrected_notice': '本轮已根据最新检索证据修正前文。', 'corrected_basis': ['《河北省消防条例》第二十八条']}`
+- 当前阻塞点：`Task 6` 已完成，当前无新的技术阻塞；下一步进入 `Task 7`，把追问判定、上下文组装、重检索、回答生成和快照落库编排成完整会话主链。
+
+### 2026-04-11 执行 2.0 计划 Task 5
+
+- 执行内容：按 `executing-plans` 与 TDD 执行 [2.0 实施计划 Task 5](/Users/itboybob/Project/fire/docs/plans/2026-04-11-fire-qa-system-2.0-implementation.md)。先查阅 Python `3.14` 官方 `hashlib` 与文件哈希相关文档，确认稳定摘要算法和文件元数据组合方式的当前语义；随后新增 [conversation_summary.py](/Users/itboybob/Project/fire/app/services/conversation_summary.py)、[knowledge_version.py](/Users/itboybob/Project/fire/app/services/knowledge_version.py) 及对应单测，实现确定性历史摘要和基于 `retrieval.db/faiss.index/vector_map.json` 文件大小与修改时间的稳定知识库版本串。
+- 执行环境：`fire`
+- 依赖情况：无需新增依赖，沿用 Python 标准库 `hashlib/pathlib` 与当前真实索引产物。
+- 验证结果：
+  - 官方文档核对：已通过 `Tavily` 检索 `docs.python.org/3/library/hashlib.html`，确认 `sha256` 与文件摘要能力的当前官方语义。
+  - 红测确认：`conda run -n fire python -m pytest tests/unit/services/test_conversation_summary.py tests/unit/services/test_knowledge_version.py -q` 初次结果为 `2 errors`，失败原因是相关模块尚不存在
+  - Task 5 单测：`conda run -n fire python -m pytest tests/unit/services/test_conversation_summary.py tests/unit/services/test_knowledge_version.py -q` 结果为 `2 passed in 0.02s`
+  - 真实上游验证：`conda run --no-capture-output -n fire python - <<'PY' ... PY` 直接基于真实 `data/chunks/xiaofangfa_2019.jsonl` 和 `data/index/` 产物生成摘要与版本，输出为 `{'summary': '消防法关于消防安全责任制怎么规定？ -> 《中华人民共和国消防法》第二条\\n已修正前文：河北也适用吗？ -> 《河北省消防条例》第二十八条', 'knowledge_version': 'kb:f1f5874d0af3f4fd'}`
+- 当前阻塞点：`Task 5` 已完成，当前无新的技术阻塞；下一步进入 `Task 6`，定义 2.0 对话响应模型并实现修正提示策略。
+
+### 2026-04-11 执行 2.0 计划 Task 4
+
+- 执行内容：按 `executing-plans` 与 TDD 执行 [2.0 实施计划 Task 4](/Users/itboybob/Project/fire/docs/plans/2026-04-11-fire-qa-system-2.0-implementation.md)。新增 [turn_classifier.py](/Users/itboybob/Project/fire/app/services/turn_classifier.py)、[context_manager.py](/Users/itboybob/Project/fire/app/services/context_manager.py) 与对应单测，实现基础追问标记词识别、上一轮法规标题/条号继承，以及“最近 N 轮 + 更早历史摘要”的上下文窗口裁剪和无摘要降级。
+- 执行环境：`fire`
+- 依赖情况：无需新增依赖，沿用当前 `fire` 环境与现有真实 `data/chunks/` 产物。
+- 验证结果：
+  - 红测确认：`conda run -n fire python -m pytest tests/unit/services/test_turn_classifier.py tests/unit/services/test_context_manager.py -q` 初次结果为 `2 errors`，失败原因是相关模块尚不存在
+  - Task 4 单测：`conda run -n fire python -m pytest tests/unit/services/test_turn_classifier.py tests/unit/services/test_context_manager.py -q` 结果为 `3 passed in 0.02s`
+  - 真实上游验证：`conda run --no-capture-output -n fire python - <<'PY' ... PY` 直接读取真实 `data/chunks/xiaofangfa_2019.jsonl` 中 `第二条` 证据构造上一轮，输出为 `{'is_followup': True, 'canonical_title': '中华人民共和国消防法', 'article_no': '第二条', 'recent_turns': 1, 'history_summary': '更早轮次已聚焦消防法责任制。'}`，说明追问继承和上下文裁剪在真实法规标题上工作正常。
+- 当前阻塞点：`Task 4` 已完成，当前无新的技术阻塞；下一步进入 `Task 5`，实现确定性历史摘要和知识库版本解析。
+
+### 2026-04-11 执行 2.0 计划 Task 3
+
+- 执行内容：按 `executing-plans` 与 TDD 执行 [2.0 实施计划 Task 3](/Users/itboybob/Project/fire/docs/plans/2026-04-11-fire-qa-system-2.0-implementation.md)。基于上一任务的仓库层能力新增 [conversation_service.py](/Users/itboybob/Project/fire/app/services/conversation_service.py) 与服务层单测，把“新会话默认标题”“首条用户消息触发自动标题”“按最近消息排序”“重命名”“软删除”“删除后不可继续写入”等产品规则从存储层之上收拢到应用服务层。
+- 执行环境：`fire`
+- 依赖情况：无需新增依赖，沿用当前 `fire` 环境与现有 `sqlite3` 仓库实现。
+- 验证结果：
+  - 红测确认：`conda run -n fire python -m pytest tests/unit/services/test_conversation_service.py -q` 初次结果为 `ModuleNotFoundError: No module named 'app.services.conversation_service'`
+  - Task 3 单测：`conda run -n fire python -m pytest tests/unit/services/test_conversation_service.py -q` 结果为 `3 passed in 0.02s`
+  - 真实服务验证：`conda run --no-capture-output -n fire python - <<'PY' ... PY` 在 `var/task3-smoke.db` 上完成真实创建、自动标题、重命名、软删除与删除后禁写验证，输出为 `{'db': 'var/task3-smoke.db', 'renamed_title': '消防法责任制', 'remaining': 0, 'write_blocked': True}`
+- 当前阻塞点：`Task 3` 已完成，当前无新的技术阻塞；下一步进入 `Task 4`，实现追问判定和上下文窗口管理。
+
+### 2026-04-11 执行 2.0 计划 Task 2
+
+- 执行内容：按 `executing-plans` 与 TDD 执行 [2.0 实施计划 Task 2](/Users/itboybob/Project/fire/docs/plans/2026-04-11-fire-qa-system-2.0-implementation.md)。先查阅 Python `3.14` 官方 `sqlite3` 文档，确认 `connect()` 仍支持路径对象、`Row` 工厂、`lastrowid` 语义与参数化查询约束；随后新增 [conversation_repository.py](/Users/itboybob/Project/fire/app/services/conversation_repository.py) 和对应单测，落地 `conversations/messages/turns/answer_snapshots` 四表、父目录自动创建、会话详情读取，以及后续任务会复用的排序/重命名/软删除基础能力。
+- 执行环境：`fire`
+- 依赖情况：无需新增依赖，沿用 Python 标准库 `sqlite3` 与当前 `fire` 环境。
+- 验证结果：
+  - 官方文档核对：已通过 `Tavily` 检索 `docs.python.org/3/library/sqlite3.html`，确认参数化查询、`sqlite3.Row` 与 `lastrowid`/连接行为的当前官方语义。
+  - 红测确认：`conda run -n fire python -m pytest tests/unit/services/test_conversation_repository.py -q` 初次结果为 `ModuleNotFoundError: No module named 'app.services.conversation_repository'`
+  - Task 2 单测：`conda run -n fire python -m pytest tests/unit/services/test_conversation_repository.py -q` 结果为 `1 passed in 0.03s`
+  - 真实落库验证：`conda run --no-capture-output -n fire python - <<'PY' ... PY` 在 `var/task2-smoke.db` 上完成真实 SQLite 建库、写入、重开读取，输出为 `{'db': 'var/task2-smoke.db', 'messages': 2, 'snapshots': 1, 'title': '真实验证会话'}`
+- 当前阻塞点：`Task 2` 已完成，当前无新的技术阻塞；下一步进入 `Task 3`，把会话生命周期和自动标题规则上移到服务层。
+
+### 2026-04-11 执行 2.0 计划 Task 1
+
+- 执行内容：按 `executing-plans` 与 TDD 执行 [2.0 实施计划 Task 1](/Users/itboybob/Project/fire/docs/plans/2026-04-11-fire-qa-system-2.0-implementation.md)。先读取文档索引、状态文档、PRD 与实施计划，审查到当前工作树存在未提交文档改动且当前分支为 `main`，因此先切出本地执行分支 `qa-system-2.0-exec`；随后查阅 `pydantic-settings` 官方文档，确认 `BaseSettings + SettingsConfigDict(env_file='.env', extra='ignore')` 仍是当前兼容写法，并按红绿测试补齐会话配置默认值与 `.env.example` 占位项。
+- 执行环境：`fire`
+- 依赖情况：无需新增依赖，沿用当前 `fire` 环境内已安装的 `pydantic-settings 2.13.x`。
+- 验证结果：
+  - 官方文档核对：已通过 `Tavily` 检索 `docs.pydantic.dev` 官方文档，确认 `BaseSettings` 默认值、`.env` 支持与 `extra='ignore'` 的当前推荐写法仍有效。
+  - 红测确认：`conda run -n fire python -m pytest tests/unit/core/test_settings.py -q` 初次结果为 `1 failed, 2 passed in 0.11s`，失败原因是 `Settings` 尚不存在 `conversation_db_path`
+  - 绿测结果：修正实现与测试导入后，`conda run -n fire python -m pytest tests/unit/core/test_settings.py -q` 结果为 `3 passed in 0.05s`
+- 当前阻塞点：`Task 1` 已完成，当前无新的技术阻塞；下一步进入 `Task 2`，建立 `SQLite` 会话仓库并补齐持久化读写测试。
+
+### 2026-04-11 调整 Git 提交通知时机
+
+- 执行内容：按用户最新要求再次修改 [AGENTS.md](/Users/itboybob/Project/fire/AGENTS.md)，将“代理提交前必须先向用户同步提交范围、已完成验证结果与拟使用的提交说明”调整为“代理提交后必须尽快同步本次提交范围、已完成验证结果与实际使用的提交说明”；同时保留“不得夹带无关改动”和“不得擅自执行高风险 Git 操作”的约束。
+- 执行环境：本轮仅修改文档并复核文本差异；未执行 Python、pytest、脚本或服务启动命令，因此无需 `fire` 环境代码验证。
+- 依赖情况：无需新增依赖，沿用现有环境。
+- 验证结果：
+  - [AGENTS.md](/Users/itboybob/Project/fire/AGENTS.md) 已完成同步时机调整，当前仓库级口径允许代理先提交、后同步
+  - 提交范围约束与高风险 Git 操作禁令仍保留，避免规则被放宽成“任意 Git 操作均可自主执行”
+  - 本轮未执行代码，因此不存在“非 `fire` 环境代码验证”的合规缺口
+- 当前阻塞点：本次规则调整已完成，仓库级规则无新阻塞；但实际会话是否执行 Git 操作，仍受当次会话的更高优先级系统约束控制。
+
+### 2026-04-11 调整仓库级 Git 提交权限
+
+- 执行内容：按用户要求修改 [AGENTS.md](/Users/itboybob/Project/fire/AGENTS.md)，将原“代理不得擅自提交代码”的绝对禁止规则，收敛为“允许代理在当前任务范围内自主执行受控 `git add` / `git commit`”；同时补充提交前同步范围、验证结果与提交说明，以及禁止擅自 `push / merge / rebase / reset / checkout --` 和避开无关改动的约束。
+- 执行环境：本轮仅修改文档并复核文本差异；未执行 Python、pytest、脚本或服务启动命令，因此无需 `fire` 环境代码验证。
+- 依赖情况：无需新增依赖，沿用现有环境。
+- 验证结果：
+  - [AGENTS.md](/Users/itboybob/Project/fire/AGENTS.md) 已完成规则更新，当前仓库级口径不再禁止代理自主 `commit`
+  - 风险控制条款已同时落盘，避免把“允许提交”扩大为“允许任意 Git 操作”
+  - 本轮未执行代码，因此不存在“非 `fire` 环境代码验证”的合规缺口
+- 当前阻塞点：本次文档规则调整已完成，仓库级规则无新阻塞；但实际会话是否执行 Git 操作，仍受当次会话的更高优先级系统约束控制。
+
+### 2026-04-11 增量建库机制设计前勘察
+
+- 执行内容：按新会话读取顺序先检查 [文档索引](/Users/itboybob/Project/fire/docs/文档索引.md) 与 [项目状态](/Users/itboybob/Project/fire/docs/status.md)，随后复核 [设计文档](/Users/itboybob/Project/fire/docs/plans/2026-03-28-fire-law-rag-design.md)、[实施计划](/Users/itboybob/Project/fire/docs/plans/2026-03-28-fire-law-rag-implementation.md)、[README.md](/Users/itboybob/Project/fire/README.md)、[corpus_ingestor.py](/Users/itboybob/Project/fire/app/services/corpus_ingestor.py)、[normalizer.py](/Users/itboybob/Project/fire/app/services/normalizer.py)、[structure_parser.py](/Users/itboybob/Project/fire/app/services/structure_parser.py)、[chunk_builder.py](/Users/itboybob/Project/fire/app/services/chunk_builder.py)、[build_corpus.py](/Users/itboybob/Project/fire/scripts/build_corpus.py)、[build_index.py](/Users/itboybob/Project/fire/scripts/build_index.py)、[test_corpus_ingestor.py](/Users/itboybob/Project/fire/tests/unit/services/test_corpus_ingestor.py) 与最近提交历史，评估“新增法规后的增量处理机制”应落在哪一层。
+- 执行环境：本轮以只读勘察为主；目录计数已通过 `conda run -n fire python -c ...` 在 `fire` 环境补做一次合规探针。勘察早期曾误执行过一次**未走 `fire` 环境的只读 Python 目录计数探针**，该探针不计入任何验证结论，仅作为过程失误留痕。
+- 验证结果：
+  - 当前离线链路的真实入口仍是“扫描 `法律文本/` 后全量执行 `normalize -> parse -> chunk`”，[build_corpus.py](/Users/itboybob/Project/fire/scripts/build_corpus.py) 不区分新增、变更、删除，也不会保存任何上次构建状态。
+  - 当前索引链路的真实入口仍是“读取 `data/chunks/*.jsonl` 后全量执行关键词索引与向量索引构建”，[build_index.py](/Users/itboybob/Project/fire/scripts/build_index.py) 也没有文档级增量更新能力。
+  - [设计文档](/Users/itboybob/Project/fire/docs/plans/2026-03-28-fire-law-rag-design.md) 和 [实施计划](/Users/itboybob/Project/fire/docs/plans/2026-03-28-fire-law-rag-implementation.md) 都提到 `data/manifests/`，但当前仓库实际不存在该目录；合规探针确认当前 `data/normalized=6`、`data/structured=6`、`data/chunks=6`、`data/index=3`、`data/manifests=0`。
+  - 当前 [CorpusIngestor](/Users/itboybob/Project/fire/app/services/corpus_ingestor.py) 只负责生成稳定 `document_id` 与输入清单，不负责内容摘要、源文件指纹、构建批次号或依赖关系记录；这意味着系统目前没有足够状态去判断“哪些法规需要重建、哪些索引可以复用”。
+- 当前阻塞点：在给增量机制出正式设计前，需要先澄清未来语料变更模型究竟是“只会新增新法规”，还是还会出现“同名法规替换修订版 / 原文件覆盖更新 / 删除旧法规”等场景；这会直接决定清单模型、失效传播和索引更新策略。
 
 ### 2026-03-29 Task 11 完成后的依赖与真实聊天前置条件复核
 

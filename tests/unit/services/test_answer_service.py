@@ -8,12 +8,15 @@ from app.services.chat_client import ChatCompletionError, OpenAIChatClient
 
 
 class FakeChatClient:
-    def __init__(self, payload):
+    def __init__(self, payload, *, error: Exception | None = None):
         self.payload = payload
+        self.error = error
         self.calls: list[list[dict[str, str]]] = []
 
     def complete(self, messages):
         self.calls.append(messages)
+        if self.error is not None:
+            raise self.error
         return self.payload
 
 
@@ -94,6 +97,26 @@ def test_build_answer_refuses_when_citation_is_not_in_evidence():
     assert result["conclusion"] == "证据不足，无法可靠回答。"
     assert result["citations"] == []
     assert result["uncertainty"] == "模型返回的引文无法在当前证据中验证。"
+
+
+def test_build_answer_preserves_chat_completion_error_detail():
+    evidence = [
+        {
+            "chunk_id": "xiaofangfa_2019#article-2",
+            "document_id": "xiaofangfa_2019",
+            "title": "中华人民共和国消防法",
+            "path": "中华人民共和国消防法 > 第一章 总则 > 第二条",
+            "text": "国家实行消防安全责任制。",
+            "article_no": "第二条",
+        }
+    ]
+    client = FakeChatClient(None, error=ChatCompletionError("Your API Token has expired."))
+
+    result = build_answer(evidence, question="消防法关于职责怎么规定？", client=client)
+
+    assert result["conclusion"] == "证据不足，无法可靠回答。"
+    assert result["citations"] == []
+    assert result["uncertainty"] == "模型调用失败：Your API Token has expired."
 
 
 def test_openai_chat_client_uses_json_schema_response_format():
@@ -229,4 +252,34 @@ def test_openai_chat_client_raises_when_model_output_is_not_valid_json():
     )
 
     with pytest.raises(ChatCompletionError, match="JSON"):
+        client.complete([{"role": "system", "content": "请严格输出 JSON。"}])
+
+
+def test_openai_chat_client_raises_provider_error_when_iflow_returns_status_message():
+    class FakeSdkClient:
+        def __init__(self, **kwargs):
+            del kwargs
+            self.chat = SimpleNamespace(
+                completions=SimpleNamespace(
+                    create=lambda **kwargs: SimpleNamespace(
+                        choices=None,
+                        status="439",
+                        msg="Your API Token has expired.",
+                        model_dump=lambda: {
+                            "choices": None,
+                            "status": "439",
+                            "msg": "Your API Token has expired.",
+                        },
+                    )
+                )
+            )
+
+    client = OpenAIChatClient(
+        api_key="test-key",
+        base_url="https://apis.iflow.cn/v1",
+        model="qwen3-32b",
+        client_factory=lambda **kwargs: FakeSdkClient(**kwargs),
+    )
+
+    with pytest.raises(ChatCompletionError, match="Your API Token has expired"):
         client.complete([{"role": "system", "content": "请严格输出 JSON。"}])

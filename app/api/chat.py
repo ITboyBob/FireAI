@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from app.core.settings import Settings, get_settings
 from app.schemas.chat import ChatRequest, ChatResponse
-from app.services.answer_service import MODEL_FAILURE_UNCERTAINTY, build_answer
+from app.services.answer_service import build_answer, is_model_failure_uncertainty
 from app.services.chat_client import OpenAIChatClient
 from app.services.embedder import MissingEmbeddingDependencyError, SentenceTransformerEmbedder
 from app.services.retriever import Retriever
@@ -74,8 +74,8 @@ async def chat(
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
     result = build_answer(evidence, client=client, question=payload.message)
-    if result["uncertainty"] == MODEL_FAILURE_UNCERTAINTY:
-        raise HTTPException(status_code=502, detail=MODEL_FAILURE_UNCERTAINTY)
+    if is_model_failure_uncertainty(result["uncertainty"]):
+        raise HTTPException(status_code=502, detail=result["uncertainty"])
 
     return ChatResponse.model_validate(result)
 

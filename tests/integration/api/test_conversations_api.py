@@ -2,6 +2,7 @@ from fastapi.testclient import TestClient
 
 from app.api.conversations import get_conversation_service, get_conversation_turn_service
 from app.main import create_app
+from app.services.chat_client import ChatCompletionError
 
 
 class FakeConversationService:
@@ -59,6 +60,13 @@ class FakeConversationTurnService:
         }
 
 
+class FailingConversationTurnService:
+    def handle_user_message(self, conversation_id: str, message: str):
+        assert conversation_id == "conv-1"
+        assert message == "消防法第二条怎么说？"
+        raise ChatCompletionError("模型调用失败：Your API Token has expired.")
+
+
 def test_create_conversation_then_send_message_returns_assistant_payload():
     app = create_app()
     app.dependency_overrides[get_conversation_service] = lambda: FakeConversationService()
@@ -102,3 +110,18 @@ def test_conversation_management_endpoints_round_trip():
     assert renamed.status_code == 200
     assert renamed.json()["title"] == "河北消防条例"
     assert deleted.status_code == 204
+
+
+def test_send_message_returns_502_when_model_call_fails():
+    app = create_app()
+    app.dependency_overrides[get_conversation_service] = lambda: FakeConversationService()
+    app.dependency_overrides[get_conversation_turn_service] = lambda: FailingConversationTurnService()
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/conversations/conv-1/messages",
+        json={"message": "消防法第二条怎么说？"},
+    )
+
+    assert response.status_code == 502
+    assert response.json() == {"detail": "模型调用失败：Your API Token has expired."}

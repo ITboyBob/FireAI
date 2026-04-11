@@ -4,12 +4,14 @@ from typing import Any, Protocol
 from pydantic import ValidationError
 
 from app.schemas.chat import ChatResponse, EvidenceItem, ModelAnswer
+from app.services.chat_client import ChatCompletionError
 
 
 REFUSAL_CONCLUSION = "证据不足，无法可靠回答。"
 EMPTY_EVIDENCE_UNCERTAINTY = "当前检索结果不足以支持结论。"
 INVALID_CITATION_UNCERTAINTY = "模型返回的引文无法在当前证据中验证。"
 MODEL_FAILURE_UNCERTAINTY = "模型调用失败，当前无法基于证据生成稳定结论。"
+MODEL_FAILURE_PREFIX = "模型调用失败："
 
 
 class ChatClient(Protocol):
@@ -31,6 +33,8 @@ def build_answer(
 
     try:
         answer = ModelAnswer.model_validate(client.complete(messages))
+    except ChatCompletionError as exc:
+        return _build_refusal(evidence_items, _format_model_failure_uncertainty(str(exc)))
     except ValidationError:
         return _build_refusal(evidence_items, MODEL_FAILURE_UNCERTAINTY)
     except Exception:
@@ -116,3 +120,18 @@ def _build_refusal(
         evidence=list(evidence),
     )
     return response.model_dump(mode="json")
+
+
+def is_model_failure_uncertainty(uncertainty: str | None) -> bool:
+    if not uncertainty:
+        return False
+    return uncertainty == MODEL_FAILURE_UNCERTAINTY or uncertainty.startswith(MODEL_FAILURE_PREFIX)
+
+
+def _format_model_failure_uncertainty(detail: str) -> str:
+    text = detail.strip()
+    if not text:
+        return MODEL_FAILURE_UNCERTAINTY
+    if text.startswith(MODEL_FAILURE_PREFIX):
+        return text
+    return f"{MODEL_FAILURE_PREFIX}{text}"
