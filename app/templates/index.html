@@ -7,77 +7,144 @@
     <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}">
     <script defer src="{{ url_for('static', path='/app.js') }}"></script>
   </head>
-  <body>
-    <main class="workspace" data-conversation-endpoint="{{ conversation_endpoint }}">
-      <aside class="conversation-sidebar">
-        <div class="sidebar-head">
-          <p class="eyebrow">消防问答系统 2.0</p>
-          <h1>历史会话</h1>
-          <p class="sidebar-copy">
-            每一轮都重新检索最新证据，但会保留你和系统当时的真实对话轨迹。
-          </p>
-          <button id="new-conversation-button" class="primary-button" type="button">新建会话</button>
+  <body data-view="home">
+    <main
+      class="workspace"
+      data-conversation-endpoint="{{ conversation_endpoint }}"
+      data-initial-conversation-id="{{ initial_conversation_id }}"
+    >
+      <aside class="shell-sidebar">
+        <div class="sidebar-top">
+          <div class="brand-lockup">
+            <div class="brand-mark" aria-hidden="true">FQ</div>
+            <div>
+              <p class="brand-title">FIRE-QA 2.0</p>
+              <p class="brand-subtitle">COMMAND CENTER</p>
+            </div>
+          </div>
+
+          <button id="new-conversation-button" class="accent-button" type="button">
+            <span class="button-mark" aria-hidden="true">+</span>
+            <span>新建会话</span>
+          </button>
         </div>
 
-        <section class="sidebar-panel">
-          <div class="panel-title-row">
-            <p class="panel-title">会话列表</p>
-            <span id="conversation-count" class="counter">0</span>
+        <section class="sidebar-section">
+          <div class="sidebar-section-head">
+            <p class="sidebar-label">最近会话</p>
+            <span id="conversation-count" class="sidebar-counter">0</span>
           </div>
           <ul id="conversation-list" class="conversation-list" aria-label="会话列表"></ul>
         </section>
+
+        <footer class="sidebar-footer">
+          <p class="sidebar-footer-copy">本机会话模式</p>
+          <div class="operator-card">
+            <div class="operator-avatar" aria-hidden="true">指</div>
+            <div>
+              <p class="operator-name">消防问答终端</p>
+              <p class="operator-role">证据优先 / 单机会话</p>
+            </div>
+          </div>
+        </footer>
       </aside>
 
-      <section class="conversation-main">
-        <header class="thread-header">
+      <section class="shell-main">
+        <header class="topbar">
           <div>
-            <p class="eyebrow">当前会话</p>
-            <h2 id="conversation-title">请选择会话</h2>
-            <p id="conversation-subtitle" class="thread-subtitle">会话详情、法律依据和修正提示会显示在这里。</p>
+            <p class="topbar-kicker">消防问答系统 2.0</p>
+            <h1 id="page-heading" class="topbar-title">消防问答指挥台</h1>
           </div>
-          <div class="thread-actions">
-            <button id="rename-conversation-button" class="ghost-button" type="button">重命名</button>
-            <button id="delete-conversation-button" class="danger-button" type="button">删除</button>
+          <div class="status-pill">
+            <span class="status-dot" aria-hidden="true"></span>
+            <span>系统正常</span>
           </div>
         </header>
 
-        <section id="error-panel" class="feedback feedback-error" hidden aria-live="polite"></section>
+        <section id="error-panel" class="error-panel" hidden aria-live="polite"></section>
 
-        <section id="conversation-thread" class="conversation-thread" aria-live="polite">
-          <div class="thread-empty">
-            <p class="empty-title">还没有打开任何会话。</p>
-            <p>你可以先新建一个会话，或者直接在下方输入问题，系统会自动为你建立当前会话。</p>
-            <div class="starter-grid">
-              <button type="button" class="starter-card" data-prompt="消防法关于消防安全责任制怎么规定？">
-                <span>责任制</span>
-                <small>从消防法切入</small>
-              </button>
-              <button type="button" class="starter-card" data-prompt="河北省消防条例第二十八条怎么规定？">
-                <span>河北条例</span>
-                <small>直接命中地方条文</small>
-              </button>
-              <button type="button" class="starter-card" data-prompt="它第二条怎么说？">
-                <span>追问</span>
-                <small>测试上下文承接</small>
-              </button>
-            </div>
+        <section id="home-view" class="view home-view" aria-labelledby="page-heading">
+          <div class="hero-panel">
+            <div class="hero-icon" aria-hidden="true">FQ</div>
+            <p class="hero-kicker">Command Dispatch</p>
+            <h2 class="hero-title">今天要调查什么消防问题？</h2>
+            <p class="hero-copy">
+              输入法规问题后，系统会立即建立会话、跳转到对话页，并基于最新检索证据生成回答。
+            </p>
           </div>
+
+          <form id="home-composer-form" class="composer-shell composer-shell--hero">
+            <label class="composer-label" for="home-composer-input">提出问题</label>
+            <textarea
+              id="home-composer-input"
+              name="message"
+              rows="4"
+              placeholder="例如：消防法关于消防安全责任制怎么规定？"
+              required
+            ></textarea>
+            <div class="composer-footer">
+              <p id="home-request-status" class="request-status" aria-live="polite">
+                Enter 发送，Shift+Enter 换行。
+              </p>
+              <button id="home-send-button" class="accent-button" type="submit">发送问题</button>
+            </div>
+          </form>
+
+          <section class="starter-section" aria-label="预设问题">
+            <button type="button" class="starter-card" data-prompt="消防法关于消防安全责任制怎么规定？">
+              <span class="starter-title">责任制核查</span>
+              <span class="starter-copy">从消防法直接切入责任配置</span>
+            </button>
+            <button type="button" class="starter-card" data-prompt="高层建筑的消防安全职责有哪些？">
+              <span class="starter-title">高层建筑</span>
+              <span class="starter-copy">查看职责边界与检查重点</span>
+            </button>
+            <button type="button" class="starter-card" data-prompt="河北也适用吗？">
+              <span class="starter-title">地方适用性</span>
+              <span class="starter-copy">测试追问和地方规范切换</span>
+            </button>
+          </section>
         </section>
 
-        <form id="composer-form" class="composer-form">
-          <label class="composer-label" for="composer-input">继续提问</label>
-          <textarea
-            id="composer-input"
-            name="message"
-            rows="4"
-            placeholder="例如：消防法关于消防安全责任制怎么规定？"
-            required
-          ></textarea>
-          <div class="composer-footer">
-            <p id="request-status" class="request-status" aria-live="polite">等待输入。</p>
-            <button id="send-button" class="primary-button" type="submit">发送问题</button>
+        <section id="thread-view" class="view thread-view" hidden aria-labelledby="conversation-title">
+          <div class="thread-header">
+            <div>
+              <p class="thread-kicker">当前会话</p>
+              <h2 id="conversation-title" class="thread-title">请选择会话</h2>
+              <p id="conversation-subtitle" class="thread-subtitle">
+                当前会话的回答、法律依据和证据区会显示在这里。
+              </p>
+            </div>
+            <div class="thread-actions">
+              <button id="rename-conversation-button" class="ghost-button" type="button">重命名</button>
+              <button id="delete-conversation-button" class="danger-button" type="button">删除</button>
+            </div>
           </div>
-        </form>
+
+          <section id="conversation-thread" class="conversation-thread" aria-live="polite"></section>
+
+          <form id="thread-composer-form" class="composer-shell composer-shell--thread">
+            <label class="composer-label" for="thread-composer-input">继续追问</label>
+            <textarea
+              id="thread-composer-input"
+              name="message"
+              rows="3"
+              placeholder="继续追问当前法规问题，例如：它第二条怎么说？"
+              required
+            ></textarea>
+            <div class="composer-footer">
+              <p id="thread-request-status" class="request-status" aria-live="polite">
+                每次提交都会重新检索最新证据。
+              </p>
+              <button id="thread-send-button" class="accent-button" type="submit">发送</button>
+            </div>
+          </form>
+
+          <footer class="thread-footnote">
+            <span>证据区仅展示当前回答所依赖的条文原文</span>
+            <span>非流式模式下仍会立即显示处理中状态</span>
+          </footer>
+        </section>
       </section>
     </main>
   </body>

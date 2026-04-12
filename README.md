@@ -63,12 +63,22 @@ conda run -n fire python scripts/build_index.py
 
 ## 运行
 
+后端启动命令：
+
 ```bash
 conda run -n fire python -m uvicorn app.main:create_app --factory --reload
 ```
 
+若需要显式指定端口，可使用：
+
+```bash
+conda run -n fire python -m uvicorn app.main:create_app --factory --reload --port 8000
+```
+
 启动后可访问：
 
+- 网站首页：<http://127.0.0.1:8000/>
+- 网站首页（等价地址）：<http://localhost:8000/>
 - `/`：双栏网页会话界面
 - `/health`：健康检查
 - `/docs`：FastAPI 文档页

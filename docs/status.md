@@ -86,6 +86,66 @@
 
 ## 最新记录
 
+### 2026-04-12 诊断“后端已启动但首页仍显示旧视觉”问题
+
+- 执行内容：针对“访问 <http://127.0.0.1:8000/> 仍显示旧页面”的反馈，直接检查正在运行的本地服务返回内容，而不是凭截图猜测。通过 `curl http://127.0.0.1:8000/` 确认根页面 HTML 已是新版前端壳，包含 `home-view`、`thread-view`、`shell-sidebar` 等新结构；随后通过 `curl -i http://127.0.0.1:8000/static/app.css` 确认服务端返回的也是新版 CSS，内容已是深色首页 / 浅色对话页的变量体系，而不是旧版米色网格主题。
+- 执行环境：本地 shell；未修改应用代码或重启服务。
+- 依赖情况：无需新增依赖，沿用当前本地运行中的后端服务。
+- 验证结果：
+  - HTML 侧：服务端已返回新版模板，不是旧 HTML
+  - CSS 侧：服务端也已返回新版 `app.css`，HTTP `200`，`content-length=16716`
+  - 诊断结论：用户截图中“新 HTML 结构 + 旧米色网格背景”这一组合只能说明浏览器正在使用**旧缓存的 CSS**，而不是后端仍在提供旧页面
+- 当前阻塞点：仓库内模板与静态文件已经是新版；若浏览器继续显示旧视觉，需要清理浏览器缓存或在模板中引入静态资源版本戳来强制缓存失效。
+
+### 2026-04-12 补充 README 的后端启动命令说明
+
+- 执行内容：按用户要求检查当前机器上是否已有后端进程运行，并补充 [README.md](/Users/itboybob/Project/fire/README.md) 的后端启动说明。通过 `ps -ef | rg 'uvicorn app\.main:create_app|python -m uvicorn app\.main:create_app'` 检查后，当前未发现正在运行的 FastAPI / `uvicorn` 后端进程；随后在 README 的“运行”章节把现有启动命令显式标注为“后端启动命令”，并补充了一个带 `--port 8000` 的显式端口示例，方便直接复制执行。
+- 执行环境：命令检查未依赖 Python 运行时；文档修改未运行服务或测试。
+- 依赖情况：无需新增依赖，沿用当前仓库环境。
+- 验证结果：
+  - 进程检查：未匹配到 `python -m uvicorn app.main:create_app --factory ...` 相关进程，说明**当前后端未启动**
+  - 文档结果：README 已包含清晰的后端启动命令和显式端口示例
+- 当前阻塞点：无新的代码阻塞；若要实际启动后端，直接执行 README 中的 `conda run -n fire python -m uvicorn app.main:create_app --factory --reload` 即可。
+
+### 2026-04-12 盘点 `docs/plans/` 并分析可合并文档
+
+- 执行内容：按仓库文档顺序先读取 [文档索引](/Users/itboybob/Project/fire/docs/文档索引.md) 与 [状态文档](/Users/itboybob/Project/fire/docs/status.md)，随后盘点并审读 [2026-03-28-fire-law-rag-design.md](/Users/itboybob/Project/fire/docs/plans/2026-03-28-fire-law-rag-design.md)、[2026-03-28-fire-law-rag-implementation.md](/Users/itboybob/Project/fire/docs/plans/2026-03-28-fire-law-rag-implementation.md)、[2026-03-28-normalization-and-chunking-refactor-design.md](/Users/itboybob/Project/fire/docs/plans/2026-03-28-normalization-and-chunking-refactor-design.md)、[2026-03-28-normalization-and-chunking-refactor.md](/Users/itboybob/Project/fire/docs/plans/2026-03-28-normalization-and-chunking-refactor.md)、[2026-04-11-fire-qa-system-2.0-prd.md](/Users/itboybob/Project/fire/docs/plans/2026-04-11-fire-qa-system-2.0-prd.md) 与 [2026-04-11-fire-qa-system-2.0-implementation.md](/Users/itboybob/Project/fire/docs/plans/2026-04-11-fire-qa-system-2.0-implementation.md)，并调用 `doc-updater` 子代理做一轮独立静态交叉审读。当前已确认：最适合合并的是“标准化与切块重构”的设计文档与实施计划；基础 RAG 设计/实施、2.0 PRD/实施计划都不应直接合并，真正的问题是阶段标识不够强，以及 2.0 实施计划已落后于 `2026-04-12` 修订版 PRD。
+- 执行环境：未运行 Python、pytest 或服务进程；本轮仅使用本地 shell 读取文档与子代理静态审读。
+- 依赖情况：无需新增依赖，沿用当前仓库环境。
+- 验证结果：
+  - 本地盘点：已确认 `docs/plans/` 当前共有 `6` 篇主文档，总计约 `2571` 行；其中 [2026-03-28-fire-law-rag-implementation.md](/Users/itboybob/Project/fire/docs/plans/2026-03-28-fire-law-rag-implementation.md) 约 `820` 行、[2026-04-11-fire-qa-system-2.0-implementation.md](/Users/itboybob/Project/fire/docs/plans/2026-04-11-fire-qa-system-2.0-implementation.md) 约 `901` 行，说明当前问题不是单篇太短，而是历史主线与当前主线并列堆放。
+  - 结构交叉核对：本地阅读与 `doc-updater` 子代理结论一致，均认为 [2026-03-28-normalization-and-chunking-refactor-design.md](/Users/itboybob/Project/fire/docs/plans/2026-03-28-normalization-and-chunking-refactor-design.md) 与 [2026-03-28-normalization-and-chunking-refactor.md](/Users/itboybob/Project/fire/docs/plans/2026-03-28-normalization-and-chunking-refactor.md) 的重叠最高，具备合并为单篇“专项方案”文档的条件。
+  - 规范审查：已识别两类文档债务需要后续处理，一是两份 `2026-03-28` 实施类文档仍保留过时的 Git 规则；二是 [2026-04-11-fire-qa-system-2.0-implementation.md](/Users/itboybob/Project/fire/docs/plans/2026-04-11-fire-qa-system-2.0-implementation.md) 仍混用英文标题与章节名，不符合仓库中文文档约束。
+- 当前阻塞点：分析已完成，当前没有新的技术阻塞；下一步取决于用户是否要我继续把这份结论落成“最小文档重组方案”或直接执行合并/归档/重写。
+
+### 2026-04-12 按新首页与对话页模板重构前端页面
+
+- 执行内容：开始按用户新增的 [首页代码.html](/Users/itboybob/Project/fire/首页代码.html) 与 [对话页面代码.html](/Users/itboybob/Project/fire/对话页面代码.html) 重构前端页面。先按 TDD 修改 [test_chat_api.py](/Users/itboybob/Project/fire/tests/integration/api/test_chat_api.py)，把页面契约收紧为“根页面必须同时具备首页态与对话态骨架”“`/conversations/{conversation_id}` 必须可返回同一前端壳并注入初始会话 id”“首页必须存在预设问题卡片和独立首页/对话页输入表单”，以避免继续在旧单壳上打补丁。
+- 执行环境：`fire`
+- 依赖情况：无需新增依赖，沿用当前 `fire` 环境与现有 `pytest/FastAPI` 依赖。
+- 验证结果：
+  - 红测确认：`conda run -n fire python -m pytest tests/integration/api/test_chat_api.py -q` 结果为 `2 failed, 5 passed in 0.45s`
+  - 失败点 1：根页面仍是旧的单壳，没有 `home-view` / `thread-view` 双页面骨架
+  - 失败点 2：`/conversations/conv-123` 当前返回 `404`，说明前端页面路由尚未支持会话详情 URL
+- 二次验证结果：
+  - 定向回归：`conda run -n fire python -m pytest tests/integration/api/test_chat_api.py tests/integration/api/test_conversations_api.py -q` 结果为 `11 passed in 0.40s`
+  - 当前已确认：新增首页态 / 对话态骨架与 `/conversations/{id}` 页面入口没有打断现有会话 API 契约
+  - 全量回归：`conda run -n fire python -m pytest -q` 结果为 `87 passed, 1 xfailed in 0.71s`
+  - 真实 HTTP smoke：使用带假检索器 / 假聊天客户端的本地 `uvicorn` smoke server，验证 `GET /` 可返回 `home-view / thread-view / home-composer-form / Starter Cards`，`GET /conversations/conv-demo` 可注入 `data-initial-conversation-id=\"conv-demo\"`，并通过真实 `POST /api/conversations` + `POST /api/conversations/{id}/messages` 验证页面所依赖的会话 API 仍能创建会话并返回结构化回答
+  - Playwright MCP：已按用户要求尝试 `browser_navigate` 做前端页面点击验证，但工具初始化即失败，错误为 `ENOENT: no such file or directory, mkdir '/.playwright-mcp'`；根因是当前运行环境的根目录只读，不是项目代码错误
+- 当前阻塞点：仓库内代码与 HTTP 烟雾验证已通过；唯一未闭环项是 **Playwright MCP 环境级不可用**，因此本轮无法在该工具中完成真实浏览器点击回归。
+
+### 2026-04-12 修订 2.0 PRD 的前端页面与交互约束
+
+- 执行内容：按仓库文档顺序读取 [文档索引](/Users/itboybob/Project/fire/docs/文档索引.md)、[状态文档](/Users/itboybob/Project/fire/docs/status.md)、[设计文档](/Users/itboybob/Project/fire/docs/plans/2026-03-28-fire-law-rag-design.md)、[旧实施计划](/Users/itboybob/Project/fire/docs/plans/2026-03-28-fire-law-rag-implementation.md)、[2.0 实施计划](/Users/itboybob/Project/fire/docs/plans/2026-04-11-fire-qa-system-2.0-implementation.md) 与原 [2.0 PRD](/Users/itboybob/Project/fire/docs/plans/2026-04-11-fire-qa-system-2.0-prd.md)，并审查当前 [index.html](/Users/itboybob/Project/fire/app/templates/index.html)、[app.js](/Users/itboybob/Project/fire/app/static/app.js)、[app.css](/Users/itboybob/Project/fire/app/static/app.css) 的实际前端壳。确认本轮不是“单纯样式问题”，而是前端页面模型缺失：当前首页态和对话态没有被产品定义分开，`Starter Cards` 被挂在线程空态中，`buildThreadEmptyState()` 会直接吞掉首页卡片；`textarea` 没有正式键盘契约；无流式架构也没有最小等待态。随后已重写 [2.0 PRD](/Users/itboybob/Project/fire/docs/plans/2026-04-11-fire-qa-system-2.0-prd.md)，将“首页 `/` / 对话页 `/conversations/{id}`、Enter 发送 / `Shift+Enter` 换行、输入法组合态保护、非流式立即跳转与占位、首页深色启动台 / 对话页浅色证据台、未实现能力不得伪装入口”等前端页面与交互约束正式落盘。
+- 执行环境：未运行 Python、pytest 或服务进程；本轮为文档修订与现状审查，命令仅涉及文件读取、文本检索和本地图片查看。
+- 依赖情况：无需新增依赖，沿用当前仓库和本地图片参考。
+- 验证结果：
+  - 代码现状核对：已确认 [app/static/app.js](/Users/itboybob/Project/fire/app/static/app.js) 当前仅监听 `form submit`，没有 `keydown` 级别的 `Enter` / `Shift+Enter` 规则；同时 `buildThreadEmptyState()` 不再渲染首页 `Starter Cards`，与模板首屏意图不一致。
+  - 视觉参考核对：已直接读取用户提供的“旧首页”“对话页面”图片，确认目标不是继续放大“历史会话管理页”，而是拆成“深色首页启动台”和“浅色对话证据台”两种正式页面态。
+  - 官方文档核对：已通过 `Tavily` 检索 `developer.mozilla.org` 官方文档，确认 `KeyboardEvent.isComposing` 的当前语义和 `History.pushState()` / `popstate` 的当前用法，可支撑 PRD 中“输入法组合态下 Enter 不发送”和“首页/对话页 URL 同步”两条前端契约。
+- 当前阻塞点：产品约束已补齐，但 [2.0 实施计划](/Users/itboybob/Project/fire/docs/plans/2026-04-11-fire-qa-system-2.0-implementation.md) 还没有同步到这版前端重构边界；若继续实现，应先更新实施计划，再按 TDD 落地首页态、对话态、键盘交互和非流式等待态。
+
 ### 2026-04-11 审查并修复 2.0 计划 Task 7-10 当前实现
 
 - 执行内容：按 `requesting-code-review` 工作流审查 [2.0 实施计划 Task 7-10](/Users/itboybob/Project/fire/docs/plans/2026-04-11-fire-qa-system-2.0-implementation.md) 的当前实现，并对照 [2.0 PRD](/Users/itboybob/Project/fire/docs/plans/2026-04-11-fire-qa-system-2.0-prd.md) 检查“会话编排、会话 API、依赖注入、双栏前端壳、最终验证契约”是否真的落地。由于当前会话未暴露 `Task`/子代理调度工具，本轮改为按 `requesting-code-review/code-reviewer.md` 模板手工执行同等审查，结合 `git diff 0b78870..8d1441d`、当前工作树与真实运行行为一起复核。审查中确认并修复了 5 个真实缺陷：范围延伸追问现在会继承上一轮法规标题；当前历史摘要会写回 [conversation_summaries](/Users/itboybob/Project/fire/app/services/conversation_repository.py) 并从详情 API 返回；追问拒答不会再误报“本轮已根据最新检索证据修正前文”；软删除后的会话不再允许继续写 `answer_snapshots`；`turns` 也不能再引用其他会话的消息。

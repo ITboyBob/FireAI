@@ -19,17 +19,24 @@ def create_app() -> FastAPI:
     app = FastAPI(title="消防问答系统 2.0")
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
-    @app.get("/", response_class=HTMLResponse, tags=["web"])
-    async def index(request: Request) -> HTMLResponse:
+    def render_shell(request: Request, *, initial_conversation_id: str = "") -> HTMLResponse:
         return TEMPLATES.TemplateResponse(
             request=request,
             name="index.html",
             context={
                 "page_title": "消防问答系统 2.0",
-                "chat_endpoint": "/api/chat",
                 "conversation_endpoint": "/api/conversations",
+                "initial_conversation_id": initial_conversation_id,
             },
         )
+
+    @app.get("/", response_class=HTMLResponse, tags=["web"])
+    async def index(request: Request) -> HTMLResponse:
+        return render_shell(request)
+
+    @app.get("/conversations/{conversation_id}", response_class=HTMLResponse, tags=["web"])
+    async def conversation_page(request: Request, conversation_id: str) -> HTMLResponse:
+        return render_shell(request, initial_conversation_id=conversation_id)
 
     app.include_router(health_router)
     app.include_router(chat_router)

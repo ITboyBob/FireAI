@@ -13,9 +13,23 @@ def test_root_page_renders_conversation_shell():
     response = client.get("/")
 
     assert response.status_code == 200
+    assert 'id="home-view"' in response.text
+    assert 'id="thread-view"' in response.text
     assert 'id="conversation-list"' in response.text
-    assert 'id="conversation-thread"' in response.text
-    assert 'id="composer-form"' in response.text
+    assert 'id="home-composer-form"' in response.text
+    assert 'id="thread-composer-form"' in response.text
+    assert 'data-prompt="消防法关于消防安全责任制怎么规定？"' in response.text
+
+
+def test_conversation_page_route_renders_same_shell_with_initial_conversation_id():
+    client = TestClient(create_app())
+
+    response = client.get("/conversations/conv-123")
+
+    assert response.status_code == 200
+    assert 'data-initial-conversation-id="conv-123"' in response.text
+    assert 'id="home-view"' in response.text
+    assert 'id="thread-view"' in response.text
 
 
 class FakeRetriever:

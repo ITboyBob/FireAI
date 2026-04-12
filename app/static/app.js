@@ -1,32 +1,60 @@
 const workspace = document.querySelector(".workspace");
 const apiBase = workspace?.dataset.conversationEndpoint || "/api/conversations";
+const initialConversationId = workspace?.dataset.initialConversationId || "";
 
 const elements = {
+  errorPanel: document.getElementById("error-panel"),
+  pageHeading: document.getElementById("page-heading"),
   conversationList: document.getElementById("conversation-list"),
   conversationCount: document.getElementById("conversation-count"),
+  newConversationButton: document.getElementById("new-conversation-button"),
+  homeView: document.getElementById("home-view"),
+  threadView: document.getElementById("thread-view"),
   conversationTitle: document.getElementById("conversation-title"),
   conversationSubtitle: document.getElementById("conversation-subtitle"),
   conversationThread: document.getElementById("conversation-thread"),
-  newConversationButton: document.getElementById("new-conversation-button"),
   renameConversationButton: document.getElementById("rename-conversation-button"),
   deleteConversationButton: document.getElementById("delete-conversation-button"),
-  composerForm: document.getElementById("composer-form"),
-  composerInput: document.getElementById("composer-input"),
-  sendButton: document.getElementById("send-button"),
-  requestStatus: document.getElementById("request-status"),
-  errorPanel: document.getElementById("error-panel"),
+  homeComposerForm: document.getElementById("home-composer-form"),
+  homeComposerInput: document.getElementById("home-composer-input"),
+  homeSendButton: document.getElementById("home-send-button"),
+  homeRequestStatus: document.getElementById("home-request-status"),
+  threadComposerForm: document.getElementById("thread-composer-form"),
+  threadComposerInput: document.getElementById("thread-composer-input"),
+  threadSendButton: document.getElementById("thread-send-button"),
+  threadRequestStatus: document.getElementById("thread-request-status"),
 };
 
 const state = {
   conversations: [],
-  activeConversationId: null,
+  activeConversationId: initialConversationId || null,
   activeDetail: null,
   loading: false,
+  threadLoading: false,
+  view: initialConversationId ? "thread" : "home",
 };
 
+function setView(view) {
+  state.view = view;
+  document.body.dataset.view = view;
+  if (elements.homeView) {
+    elements.homeView.hidden = view !== "home";
+  }
+  if (elements.threadView) {
+    elements.threadView.hidden = view !== "thread";
+  }
+  if (elements.pageHeading) {
+    elements.pageHeading.textContent =
+      view === "home" ? "消防问答指挥台" : "消防法规对话窗口";
+  }
+}
+
 function setStatus(text) {
-  if (elements.requestStatus) {
-    elements.requestStatus.textContent = text;
+  if (elements.homeRequestStatus) {
+    elements.homeRequestStatus.textContent = text;
+  }
+  if (elements.threadRequestStatus) {
+    elements.threadRequestStatus.textContent = text;
   }
 }
 
@@ -48,12 +76,45 @@ function hideError() {
 
 function setLoading(isLoading) {
   state.loading = isLoading;
-  if (elements.sendButton) {
-    elements.sendButton.disabled = isLoading;
-    elements.sendButton.textContent = isLoading ? "发送中..." : "发送问题";
+  for (const button of [
+    elements.homeSendButton,
+    elements.threadSendButton,
+    elements.newConversationButton,
+    elements.renameConversationButton,
+    elements.deleteConversationButton,
+  ]) {
+    if (button) {
+      button.disabled = isLoading;
+    }
   }
-  if (elements.newConversationButton) {
-    elements.newConversationButton.disabled = isLoading;
+}
+
+function getRouteConversationId(pathname = window.location.pathname) {
+  const matched = pathname.match(/^\/conversations\/([^/]+)$/);
+  return matched ? decodeURIComponent(matched[1]) : null;
+}
+
+function updateUrl(conversationId, { replace = false } = {}) {
+  const url = conversationId ? `/conversations/${encodeURIComponent(conversationId)}` : "/";
+  const method = replace ? "replaceState" : "pushState";
+  window.history[method]({ conversationId }, "", url);
+}
+
+function formatDateTime(value) {
+  if (!value) {
+    return "";
+  }
+  try {
+    const date = new Date(value);
+    return new Intl.DateTimeFormat("zh-CN", {
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(date);
+  } catch {
+    return value.slice(5, 16).replace("T", " ");
   }
 }
 
@@ -71,11 +132,31 @@ async function requestJson(url, options = {}) {
     return null;
   }
 
-  const payload = await response.json();
+  const contentType = response.headers.get("content-type") || "";
+  const payload = contentType.includes("application/json")
+    ? await response.json()
+    : { detail: await response.text() };
+
   if (!response.ok) {
     throw new Error(payload.detail || `请求失败，状态码 ${response.status}`);
   }
   return payload;
+}
+
+function buildConversationPlaceholder(conversationId) {
+  const summary = state.conversations.find((item) => item.id === conversationId);
+  return {
+    conversation:
+      summary || {
+        id: conversationId,
+        title: "新会话",
+        auto_title: true,
+        updated_at: new Date().toISOString(),
+        last_message_at: null,
+      },
+    messages: [],
+    history_summary: "",
+  };
 }
 
 function renderConversationList() {
@@ -89,37 +170,101 @@ function renderConversationList() {
   if (state.conversations.length === 0) {
     const empty = document.createElement("li");
     empty.className = "conversation-list-empty";
-    empty.textContent = "暂时还没有会话。";
+    empty.textContent = "还没有历史会话，可以直接从首页发起第一轮提问。";
     elements.conversationList.appendChild(empty);
     return;
   }
 
   for (const conversation of state.conversations) {
-    const item = document.createElement("li");
-    const button = document.createElement("button");
-    const title = document.createElement("span");
-    const meta = document.createElement("small");
+    const row = document.createElement("li");
+    row.className = "sidebar-row";
 
-    item.className = "conversation-item";
+    const button = document.createElement("button");
     button.type = "button";
-    button.className = "conversation-button";
+    button.className = "sidebar-item";
     if (conversation.id === state.activeConversationId) {
       button.classList.add("is-active");
     }
 
-    title.className = "conversation-button-title";
+    const title = document.createElement("span");
+    title.className = "sidebar-item-title";
     title.textContent = conversation.title || "未命名会话";
 
-    meta.className = "conversation-button-meta";
+    const meta = document.createElement("small");
+    meta.className = "sidebar-item-meta";
     meta.textContent = conversation.last_message_at
-      ? `最近更新 ${conversation.last_message_at.slice(0, 16).replace("T", " ")}`
+      ? `最近更新 ${formatDateTime(conversation.last_message_at)}`
       : "尚无消息";
 
     button.append(title, meta);
-    button.addEventListener("click", () => void loadConversationDetail(conversation.id));
-    item.appendChild(button);
-    elements.conversationList.appendChild(item);
+    button.addEventListener("click", () => {
+      void openConversation(conversation.id);
+    });
+
+    const actions = document.createElement("div");
+    actions.className = "sidebar-row-actions";
+
+    const renameButton = document.createElement("button");
+    renameButton.type = "button";
+    renameButton.className = "sidebar-action";
+    renameButton.textContent = "改";
+    renameButton.title = "重命名";
+    renameButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+      void renameConversation(conversation.id);
+    });
+
+    const deleteButton = document.createElement("button");
+    deleteButton.type = "button";
+    deleteButton.className = "sidebar-action";
+    deleteButton.textContent = "删";
+    deleteButton.title = "删除";
+    deleteButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+      void deleteConversation(conversation.id);
+    });
+
+    actions.append(renameButton, deleteButton);
+    row.append(button, actions);
+    elements.conversationList.appendChild(row);
   }
+}
+
+function buildThreadState(title, copy) {
+  const panel = document.createElement("article");
+  panel.className = "thread-state";
+  panel.innerHTML = `
+    <h3 class="thread-state-title"></h3>
+    <p class="thread-state-copy"></p>
+  `;
+  panel.querySelector(".thread-state-title").textContent = title;
+  panel.querySelector(".thread-state-copy").textContent = copy;
+  return panel;
+}
+
+function buildPendingAssistant(createdAt) {
+  return {
+    id: `pending-${Date.now()}`,
+    role: "assistant",
+    content: "",
+    created_at: createdAt,
+    legal_basis: [],
+    clause_texts: [],
+    correction_notice: "",
+    isPending: true,
+  };
+}
+
+function buildUserDraftMessage(message) {
+  return {
+    id: `local-user-${Date.now()}`,
+    role: "user",
+    content: message,
+    created_at: new Date().toISOString(),
+    legal_basis: [],
+    clause_texts: [],
+    correction_notice: "",
+  };
 }
 
 function renderThread() {
@@ -132,183 +277,322 @@ function renderThread() {
 
   if (!detail) {
     elements.conversationTitle.textContent = "请选择会话";
-    elements.conversationSubtitle.textContent = "会话详情、法律依据和修正提示会显示在这里。";
-    elements.conversationThread.appendChild(buildThreadEmptyState());
+    elements.conversationSubtitle.textContent = "打开历史会话或从首页发送第一条问题。";
+    elements.conversationThread.appendChild(
+      buildThreadState("还没有打开会话", "当前页用于展示会话消息、修正提示、法律依据和证据区。")
+    );
     return;
   }
 
-  elements.conversationTitle.textContent = detail.conversation.title || "未命名会话";
-  elements.conversationSubtitle.textContent =
-    detail.messages.length > 0
-      ? `共 ${detail.messages.length} 条消息，继续追问时系统仍会重新检索。`
+  const title = detail.conversation?.title || "未命名会话";
+  elements.conversationTitle.textContent = title;
+  elements.conversationSubtitle.textContent = state.threadLoading
+    ? "正在加载会话详情。"
+    : detail.messages.length > 0
+      ? `当前共 ${detail.messages.length} 条消息，继续追问时系统会重新检索最新证据。`
       : "当前会话还没有消息，直接在下方输入即可。";
 
   if (detail.history_summary) {
-    const summary = document.createElement("article");
-    summary.className = "history-summary";
-    summary.innerHTML = `
-      <p class="history-summary-label">更早历史摘要</p>
-      <p class="history-summary-text"></p>
-    `;
-    summary.querySelector(".history-summary-text").textContent = detail.history_summary;
-    elements.conversationThread.appendChild(summary);
+    elements.conversationThread.appendChild(
+      buildThreadState("更早历史摘要", detail.history_summary)
+    );
+  }
+
+  if (state.threadLoading) {
+    elements.conversationThread.appendChild(
+      buildThreadState("正在读取历史会话", "会话消息、证据区和修正提示正在恢复。")
+    );
+    return;
   }
 
   if (!detail.messages.length) {
-    elements.conversationThread.appendChild(buildThreadEmptyState("当前会话还没有消息。"));
+    elements.conversationThread.appendChild(
+      buildThreadState("当前会话为空", "在下方输入问题后，系统会立即写入用户消息并显示处理中状态。")
+    );
     return;
   }
 
   for (const message of detail.messages) {
     elements.conversationThread.appendChild(buildMessageCard(message));
   }
+
   elements.conversationThread.scrollTop = elements.conversationThread.scrollHeight;
 }
 
-function buildThreadEmptyState(message = "还没有打开任何会话。") {
-  const empty = document.createElement("div");
-  empty.className = "thread-empty";
-  empty.innerHTML = `
-    <p class="empty-title"></p>
-    <p>可以先新建会话，也可以直接使用下方输入框发起提问。</p>
-  `;
-  empty.querySelector(".empty-title").textContent = message;
-  return empty;
-}
-
 function buildMessageCard(message) {
-  const card = document.createElement("article");
-  card.className = `message-card message-card--${message.role}`;
+  const row = document.createElement("article");
+  row.className = `message-row message-row--${message.role}`;
 
-  const header = document.createElement("div");
-  header.className = "message-header";
-  header.innerHTML = `
-    <span class="message-role">${message.role === "user" ? "你" : "助手"}</span>
-    <span class="message-time">${message.created_at ? message.created_at.slice(0, 16).replace("T", " ") : ""}</span>
-  `;
-
-  const body = document.createElement("p");
-  body.className = "message-body";
-  body.textContent = message.content;
-  card.append(header, body);
-
-  if (message.role === "assistant") {
-    if (message.correction_notice) {
-      const correction = document.createElement("p");
-      correction.className = "message-correction";
-      correction.textContent = message.correction_notice;
-      card.appendChild(correction);
-    }
-
-    if (message.legal_basis?.length) {
-      const basis = document.createElement("ul");
-      basis.className = "basis-list";
-      for (const item of message.legal_basis) {
-        const row = document.createElement("li");
-        row.textContent = item;
-        basis.appendChild(row);
-      }
-      card.appendChild(basis);
-    }
-
-    if (message.clause_texts?.length) {
-      const evidence = document.createElement("div");
-      evidence.className = "clause-stack";
-      for (const item of message.clause_texts) {
-        const block = document.createElement("article");
-        const path = document.createElement("p");
-        const text = document.createElement("p");
-        block.className = "clause-block";
-        path.className = "clause-path";
-        path.textContent = item.path;
-        text.className = "clause-text";
-        text.textContent = item.text;
-        block.append(path, text);
-        evidence.appendChild(block);
-      }
-      card.appendChild(evidence);
-    }
+  if (message.role === "user") {
+    const bubble = document.createElement("div");
+    bubble.className = "user-bubble";
+    bubble.innerHTML = `
+      <p class="user-copy"></p>
+      <small class="bubble-meta"></small>
+    `;
+    bubble.querySelector(".user-copy").textContent = message.content;
+    bubble.querySelector(".bubble-meta").textContent = formatDateTime(message.created_at) || "刚刚";
+    row.appendChild(bubble);
+    return row;
   }
 
-  return card;
+  const panel = document.createElement("div");
+  panel.className = "assistant-panel";
+
+  const rail = document.createElement("div");
+  rail.className = "assistant-rail";
+
+  if (message.correction_notice) {
+    const hint = document.createElement("div");
+    hint.className = "assistant-hint";
+    hint.innerHTML = `
+      <span class="assistant-eyebrow">Correction Hint</span>
+      <span class="assistant-hint-copy"></span>
+    `;
+    hint.querySelector(".assistant-hint-copy").textContent = message.correction_notice;
+    rail.appendChild(hint);
+  }
+
+  const title = document.createElement("h3");
+  title.className = "assistant-title";
+  title.textContent = message.isPending ? "正在检索与生成回答" : "回答";
+  rail.appendChild(title);
+
+  if (message.isPending) {
+    const pending = document.createElement("div");
+    pending.className = "assistant-pending";
+    pending.innerHTML = `
+      <div class="pending-line"></div>
+      <div class="pending-line pending-line--mid"></div>
+      <div class="pending-line pending-line--short"></div>
+      <div class="pending-card"></div>
+    `;
+    rail.appendChild(pending);
+  } else {
+    const copy = document.createElement("p");
+    copy.className = "assistant-copy";
+    copy.textContent = message.content;
+    rail.appendChild(copy);
+  }
+
+  if (message.isError) {
+    const error = document.createElement("div");
+    error.className = "assistant-error";
+    error.textContent = message.errorText || "本轮发送失败。";
+    rail.appendChild(error);
+  }
+
+  if (!message.isPending && message.legal_basis?.length) {
+    const basis = document.createElement("ul");
+    basis.className = "basis-list";
+    for (const item of message.legal_basis) {
+      const rowItem = document.createElement("li");
+      rowItem.textContent = item;
+      basis.appendChild(rowItem);
+    }
+    rail.appendChild(basis);
+  }
+
+  if (!message.isPending && message.clause_texts?.length) {
+    const evidence = document.createElement("section");
+    evidence.className = "evidence-panel";
+    evidence.innerHTML = `
+      <div class="evidence-head">
+        <h4 class="evidence-title">证据区</h4>
+        <span class="evidence-tag">SOURCE VERIFIED</span>
+      </div>
+      <div class="evidence-grid"></div>
+    `;
+    const grid = evidence.querySelector(".evidence-grid");
+    for (const item of message.clause_texts) {
+      const card = document.createElement("article");
+      card.className = "evidence-card";
+      card.innerHTML = `
+        <p class="evidence-path"></p>
+        <p class="evidence-copy"></p>
+      `;
+      card.querySelector(".evidence-path").textContent = item.path;
+      card.querySelector(".evidence-copy").textContent = item.text;
+      grid.appendChild(card);
+    }
+    rail.appendChild(evidence);
+  }
+
+  const meta = document.createElement("small");
+  meta.className = "bubble-meta";
+  meta.textContent = formatDateTime(message.created_at) || "刚刚";
+  rail.appendChild(meta);
+
+  panel.appendChild(rail);
+  row.appendChild(panel);
+  return row;
 }
 
-async function loadConversationList(preferredConversationId = state.activeConversationId) {
+async function loadConversationList() {
   state.conversations = await requestJson(apiBase);
-  if (!state.conversations.some((item) => item.id === preferredConversationId)) {
-    state.activeConversationId = state.conversations[0]?.id || null;
-  } else {
-    state.activeConversationId = preferredConversationId;
+  if (state.activeConversationId && !state.conversations.some((item) => item.id === state.activeConversationId)) {
+    state.activeConversationId = null;
+    state.activeDetail = null;
   }
   renderConversationList();
 }
 
 async function loadConversationDetail(conversationId) {
-  hideError();
+  state.threadLoading = true;
   state.activeConversationId = conversationId;
+  state.activeDetail = buildConversationPlaceholder(conversationId);
+  setView("thread");
   renderConversationList();
-  state.activeDetail = await requestJson(`${apiBase}/${conversationId}`);
   renderThread();
+
+  try {
+    state.activeDetail = await requestJson(`${apiBase}/${conversationId}`);
+    state.threadLoading = false;
+    renderConversationList();
+    renderThread();
+  } catch (error) {
+    state.threadLoading = false;
+    throw error;
+  }
 }
 
-async function createConversation() {
+async function openConversation(conversationId, { push = true } = {}) {
+  hideError();
+  if (push) {
+    updateUrl(conversationId);
+  }
+  try {
+    await loadConversationDetail(conversationId);
+    setStatus("已恢复历史会话。");
+  } catch (error) {
+    const messageText = error instanceof Error ? error.message : "读取会话失败。";
+    showError(messageText);
+    state.activeConversationId = null;
+    state.activeDetail = null;
+    setView("home");
+    updateUrl(null, { replace: true });
+    renderConversationList();
+    renderThread();
+    setStatus("会话读取失败，已返回首页。");
+  }
+}
+
+async function createConversation({ push = true } = {}) {
   const created = await requestJson(apiBase, {
     method: "POST",
     body: JSON.stringify({}),
   });
-  await loadConversationList(created.id);
-  await loadConversationDetail(created.id);
+  state.activeConversationId = created.id;
+  state.activeDetail = {
+    conversation: created,
+    messages: [],
+    history_summary: "",
+  };
+  setView("thread");
+  if (push) {
+    updateUrl(created.id);
+  }
+  await loadConversationList();
+  renderThread();
   return created.id;
 }
 
-async function renameConversation() {
-  if (!state.activeConversationId || !state.activeDetail) {
+async function renameConversation(conversationId = state.activeConversationId) {
+  if (!conversationId) {
     showError("请先选择要重命名的会话。");
     return;
   }
 
-  const title = window.prompt("输入新的会话标题", state.activeDetail.conversation.title || "新会话");
+  const currentTitle =
+    state.activeDetail?.conversation?.id === conversationId
+      ? state.activeDetail.conversation.title
+      : state.conversations.find((item) => item.id === conversationId)?.title || "新会话";
+  const title = window.prompt("输入新的会话标题", currentTitle || "新会话");
   if (!title) {
     return;
   }
 
   hideError();
-  await requestJson(`${apiBase}/${state.activeConversationId}`, {
+  await requestJson(`${apiBase}/${conversationId}`, {
     method: "PATCH",
     body: JSON.stringify({ title }),
   });
-  await loadConversationList(state.activeConversationId);
-  await loadConversationDetail(state.activeConversationId);
+  await loadConversationList();
+  if (state.activeConversationId === conversationId) {
+    await openConversation(conversationId, { push: false });
+  }
   setStatus("会话标题已更新。");
 }
 
-async function deleteConversation() {
-  if (!state.activeConversationId || !state.activeDetail) {
+async function deleteConversation(conversationId = state.activeConversationId) {
+  if (!conversationId) {
     showError("请先选择要删除的会话。");
     return;
   }
 
-  const confirmed = window.confirm(`确认删除“${state.activeDetail.conversation.title}”吗？`);
-  if (!confirmed) {
+  const currentTitle =
+    state.activeDetail?.conversation?.id === conversationId
+      ? state.activeDetail.conversation.title
+      : state.conversations.find((item) => item.id === conversationId)?.title || "当前会话";
+  if (!window.confirm(`确认删除“${currentTitle}”吗？`)) {
     return;
   }
 
   hideError();
-  await requestJson(`${apiBase}/${state.activeConversationId}`, { method: "DELETE" });
-  state.activeDetail = null;
-  state.activeConversationId = null;
-  await loadConversationList();
-  if (state.activeConversationId) {
-    await loadConversationDetail(state.activeConversationId);
-  } else {
+  await requestJson(`${apiBase}/${conversationId}`, { method: "DELETE" });
+  const wasActive = state.activeConversationId === conversationId;
+  if (wasActive) {
+    state.activeConversationId = null;
+    state.activeDetail = null;
+    setView("home");
+    updateUrl(null);
     renderThread();
   }
+  await loadConversationList();
   setStatus("会话已删除。");
 }
 
-async function sendMessage(message) {
+function updateComposerValues(value) {
+  if (elements.homeComposerInput) {
+    elements.homeComposerInput.value = value;
+  }
+  if (elements.threadComposerInput) {
+    elements.threadComposerInput.value = value;
+  }
+}
+
+function clearComposerValues() {
+  updateComposerValues("");
+}
+
+function replacePendingAssistantWithError(messageText) {
+  if (!state.activeDetail) {
+    return;
+  }
+  const messages = [...state.activeDetail.messages];
+  const lastIndex = messages.findLastIndex((item) => item.isPending);
+  if (lastIndex === -1) {
+    return;
+  }
+  messages[lastIndex] = {
+    id: `error-${Date.now()}`,
+    role: "assistant",
+    content: "本轮发送失败。",
+    created_at: new Date().toISOString(),
+    legal_basis: [],
+    clause_texts: [],
+    correction_notice: "",
+    isError: true,
+    errorText: messageText,
+  };
+  state.activeDetail = { ...state.activeDetail, messages };
+  renderThread();
+}
+
+async function sendMessage(message, source) {
   hideError();
   setLoading(true);
+  updateComposerValues(message);
 
   try {
     let conversationId = state.activeConversationId;
@@ -316,75 +600,143 @@ async function sendMessage(message) {
       conversationId = await createConversation();
     }
 
+    if (!state.activeDetail || state.activeDetail.conversation.id !== conversationId) {
+      state.activeDetail = buildConversationPlaceholder(conversationId);
+    }
+
+    const draftMessages = [...state.activeDetail.messages, buildUserDraftMessage(message)];
+    draftMessages.push(buildPendingAssistant(new Date().toISOString()));
+    state.activeDetail = {
+      ...state.activeDetail,
+      messages: draftMessages,
+    };
+    setView("thread");
+    renderConversationList();
+    renderThread();
+    setStatus("正在检索最新证据并生成回答。");
+
     await requestJson(`${apiBase}/${conversationId}/messages`, {
       method: "POST",
       body: JSON.stringify({ message }),
     });
 
-    if (elements.composerInput) {
-      elements.composerInput.value = "";
-    }
-    await loadConversationList(conversationId);
+    clearComposerValues();
+    await loadConversationList();
     await loadConversationDetail(conversationId);
-    setStatus("已收到新的会话回答。");
+    setStatus(source === "home" ? "已进入会话并收到回答。" : "已收到新的会话回答。");
   } catch (error) {
     const messageText = error instanceof Error ? error.message : "请求失败。";
     showError(messageText);
-    setStatus("请求失败。");
+    replacePendingAssistantWithError(messageText);
+    setStatus("请求失败，请检查错误信息后重试。");
   } finally {
     setLoading(false);
   }
 }
 
-elements.newConversationButton?.addEventListener("click", () => {
-  void createConversation().catch((error) => {
-    showError(error instanceof Error ? error.message : "创建会话失败。");
-  });
-});
-
-elements.renameConversationButton?.addEventListener("click", () => {
-  void renameConversation().catch((error) => {
-    showError(error instanceof Error ? error.message : "重命名会话失败。");
-  });
-});
-
-elements.deleteConversationButton?.addEventListener("click", () => {
-  void deleteConversation().catch((error) => {
-    showError(error instanceof Error ? error.message : "删除会话失败。");
-  });
-});
-
-elements.composerForm?.addEventListener("submit", (event) => {
-  event.preventDefault();
-  const message = elements.composerInput?.value.trim() || "";
+function handleComposerSubmit(source) {
+  const input = source === "home" ? elements.homeComposerInput : elements.threadComposerInput;
+  const message = input?.value.trim() || "";
   if (!message) {
     showError("请输入问题后再发送。");
     return;
   }
-  void sendMessage(message);
+  void sendMessage(message, source);
+}
+
+function bindComposerKeyboard(input, source) {
+  input?.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") {
+      return;
+    }
+    if (event.shiftKey || event.isComposing || event.keyCode === 229) {
+      return;
+    }
+    event.preventDefault();
+    if (state.loading) {
+      return;
+    }
+    handleComposerSubmit(source);
+  });
+}
+
+elements.homeComposerForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  handleComposerSubmit("home");
+});
+
+elements.threadComposerForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  handleComposerSubmit("thread");
+});
+
+bindComposerKeyboard(elements.homeComposerInput, "home");
+bindComposerKeyboard(elements.threadComposerInput, "thread");
+
+elements.newConversationButton?.addEventListener("click", () => {
+  void (async () => {
+    hideError();
+    setLoading(true);
+    try {
+      await createConversation();
+      setStatus("已创建新会话，可以直接继续提问。");
+    } catch (error) {
+      showError(error instanceof Error ? error.message : "创建会话失败。");
+      setStatus("创建会话失败。");
+    } finally {
+      setLoading(false);
+    }
+  })();
+});
+
+elements.renameConversationButton?.addEventListener("click", () => {
+  void renameConversation();
+});
+
+elements.deleteConversationButton?.addEventListener("click", () => {
+  void deleteConversation();
 });
 
 for (const trigger of document.querySelectorAll("[data-prompt]")) {
   trigger.addEventListener("click", () => {
     const prompt = trigger.getAttribute("data-prompt") || "";
-    if (elements.composerInput) {
-      elements.composerInput.value = prompt;
-      elements.composerInput.focus();
-    }
+    updateComposerValues(prompt);
+    elements.homeComposerInput?.focus();
   });
 }
 
+window.addEventListener("popstate", () => {
+  const routeConversationId = getRouteConversationId();
+  if (!routeConversationId) {
+    hideError();
+    state.activeConversationId = null;
+    state.activeDetail = null;
+    setView("home");
+    renderConversationList();
+    renderThread();
+    setStatus("已返回首页。");
+    return;
+  }
+  void openConversation(routeConversationId, { push: false });
+});
+
 async function bootstrap() {
-  setStatus("正在加载历史会话。");
+  setView(state.view);
+  setStatus("正在加载页面。");
   try {
     await loadConversationList();
-    if (state.activeConversationId) {
-      await loadConversationDetail(state.activeConversationId);
-      setStatus("已恢复最近一次会话。");
-    } else {
-      renderThread();
-      setStatus("暂无历史会话，可直接新建。");
+    const routeConversationId = getRouteConversationId() || initialConversationId || null;
+    if (routeConversationId) {
+      await openConversation(routeConversationId, { push: false });
+      updateUrl(routeConversationId, { replace: true });
+      return;
     }
+    state.activeConversationId = null;
+    state.activeDetail = null;
+    setView("home");
+    renderConversationList();
+    renderThread();
+    setStatus("首页已就绪，可以直接提问。");
   } catch (error) {
     showError(error instanceof Error ? error.message : "初始化失败。");
     setStatus("初始化失败。");
