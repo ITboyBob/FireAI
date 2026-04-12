@@ -19,7 +19,7 @@ def test_classify_followup_detects_pronoun_and_inherits_title():
     assert result.context_hints["article_no"] == "第二条"
 
 
-def test_classify_scope_extension_followup_without_forcing_previous_article():
+def test_classify_scope_extension_followup_keeps_previous_title_without_forcing_previous_article():
     classifier = TurnClassifier()
     previous_turns = [
         {
@@ -33,4 +33,4 @@ def test_classify_scope_extension_followup_without_forcing_previous_article():
     result = classifier.classify("河北也适用吗？", previous_turns=previous_turns)
 
     assert result.is_followup is True
-    assert result.context_hints == {}
+    assert result.context_hints == {"canonical_title": "中华人民共和国消防法"}

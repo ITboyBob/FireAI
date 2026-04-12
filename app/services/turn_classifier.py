@@ -17,11 +17,22 @@ class TurnClassifier:
             previous = previous_turns[-1]
             return ClassifiedTurn(
                 is_followup=True,
-                context_hints={
-                    "canonical_title": previous.get("canonical_title", "") or "",
-                    "article_no": previous.get("article_no", "") or "",
-                },
+                context_hints=self._inherit_context(previous),
             )
         if previous_turns and any(marker in message for marker in self.SCOPE_EXTENSION_MARKERS):
-            return ClassifiedTurn(is_followup=True, context_hints={})
+            return ClassifiedTurn(
+                is_followup=True,
+                context_hints=self._inherit_context(previous_turns[-1], include_article=False),
+            )
         return ClassifiedTurn(is_followup=False, context_hints={})
+
+    def _inherit_context(self, previous: dict[str, Any], *, include_article: bool = True) -> dict[str, str]:
+        context_hints: dict[str, str] = {}
+        canonical_title = str(previous.get("canonical_title", "") or "").strip()
+        if canonical_title:
+            context_hints["canonical_title"] = canonical_title
+
+        article_no = str(previous.get("article_no", "") or "").strip()
+        if include_article and article_no:
+            context_hints["article_no"] = article_no
+        return context_hints

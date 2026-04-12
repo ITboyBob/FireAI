@@ -22,7 +22,7 @@ class ConversationPresenter:
             evidence=list(self._get(answer, "evidence", [])),
         )
 
-        if is_followup and previous_snapshot is not None:
+        if is_followup and previous_snapshot is not None and legal_basis:
             previous_legal_basis = list(self._get(previous_snapshot, "legal_basis", []))
             previous_clause_texts = list(self._get(previous_snapshot, "clause_texts", []))
             if previous_legal_basis == legal_basis:

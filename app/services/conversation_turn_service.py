@@ -1,4 +1,5 @@
 from collections.abc import Mapping
+from dataclasses import replace
 import re
 from typing import Any
 
@@ -7,7 +8,7 @@ from app.services.answer_service import build_answer, is_model_failure_uncertain
 from app.services.chat_client import ChatCompletionError
 from app.services.conversation_repository import ConversationDetail, ConversationRepository, StoredAnswerSnapshot
 from app.services.conversation_service import ConversationService
-from app.services.query_normalizer import normalize_query
+from app.services.query_normalizer import NormalizedQuery, normalize_query
 
 
 CITATION_PATTERN = re.compile(r"《(?P<title>[^》]+)》(?P<article>第[^》]+条)?")
@@ -53,7 +54,10 @@ class ConversationTurnService:
         classification = self.turn_classifier.classify(message, previous_turns=previous_turns)
         history_summary = self._build_history_summary(previous_turns)
         context = self.context_manager.build(previous_turns, history_summary=history_summary)
-        normalized = normalize_query(message, context_hints=classification.context_hints)
+        normalized = self._apply_context_to_query(
+            normalize_query(message, context_hints=classification.context_hints),
+            context,
+        )
         evidence = self.retriever.search(normalized, top_k=self.retrieval_top_k)
         answer = build_answer(evidence, client=self.chat_client, question=message)
         if is_model_failure_uncertainty(answer.get("uncertainty")):
@@ -86,6 +90,17 @@ class ConversationTurnService:
             legal_basis=assistant_payload.legal_basis,
             clause_texts=assistant_payload.clause_texts,
         )
+        current_history_summary = self._build_history_summary(
+            [
+                *previous_turns,
+                self._build_turn_context(
+                    question=user_message.content,
+                    legal_basis=assistant_payload.legal_basis,
+                    correction_notice=assistant_payload.correction_notice,
+                ),
+            ]
+        )
+        self.repository.save_history_summary(conversation_id, current_history_summary)
 
         payload = self.presenter.build(
             answer=answer,
@@ -142,3 +157,69 @@ class ConversationTurnService:
         if match is None:
             return "", ""
         return match.group("title") or "", match.group("article") or ""
+
+    def _build_turn_context(
+        self,
+        *,
+        question: str,
+        legal_basis: list[str],
+        correction_notice: str,
+    ) -> dict[str, Any]:
+        title, article_no = self._extract_citation_context_from_basis(legal_basis)
+        return {
+            "question": question,
+            "legal_basis": legal_basis,
+            "canonical_title": title,
+            "article_no": article_no,
+            "correction_notice": correction_notice,
+        }
+
+    def _extract_citation_context_from_basis(self, legal_basis: list[str]) -> tuple[str, str]:
+        if not legal_basis:
+            return "", ""
+        match = CITATION_PATTERN.match(legal_basis[0])
+        if match is None:
+            return "", ""
+        return match.group("title") or "", match.group("article") or ""
+
+    def _apply_context_to_query(self, normalized: NormalizedQuery, context: Any) -> NormalizedQuery:
+        recent_fragments: list[str] = []
+        for turn in context.recent_turns:
+            question = str(turn.get("question", "") or "").strip()
+            if question:
+                recent_fragments.append(question)
+            recent_fragments.extend(
+                citation
+                for citation in (str(item).strip() for item in turn.get("legal_basis", []))
+                if citation
+            )
+
+        if not recent_fragments and not context.history_summary:
+            return normalized
+
+        rewritten_terms = self._unique_terms([normalized.rewritten_query or normalized.cleaned, *recent_fragments])
+        vector_terms = self._unique_terms(
+            [
+                normalized.vector_query or normalized.cleaned,
+                *recent_fragments,
+                context.history_summary,
+            ]
+        )
+        keyword_terms = self._unique_terms([*normalized.keyword_terms, *recent_fragments, context.history_summary])
+        return replace(
+            normalized,
+            rewritten_query=" ".join(rewritten_terms),
+            vector_query=" ".join(vector_terms),
+            keyword_terms=keyword_terms,
+        )
+
+    def _unique_terms(self, values: list[str]) -> list[str]:
+        terms: list[str] = []
+        seen: set[str] = set()
+        for value in values:
+            text = str(value).strip()
+            if not text or text in seen:
+                continue
+            seen.add(text)
+            terms.append(text)
+        return terms

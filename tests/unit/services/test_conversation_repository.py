@@ -1,9 +1,43 @@
 from pathlib import Path
 
-from app.services.conversation_repository import ConversationRepository
+import pytest
+
+from app.services.conversation_repository import ConversationNotFoundError, ConversationRepository
 
 
 def test_repository_round_trips_conversation_and_snapshot(tmp_path: Path):
+    repo = ConversationRepository(tmp_path / "conversations.db")
+
+    conversation = repo.create_conversation(title="新会话", auto_title=True)
+    user_message = repo.append_message(conversation.id, role="user", content="消防法第二条是什么？")
+    assistant_message = repo.append_message(conversation.id, role="assistant", content="国家实行消防安全责任制。")
+    turn = repo.create_turn(
+        conversation_id=conversation.id,
+        user_message_id=user_message.id,
+        assistant_message_id=assistant_message.id,
+        is_followup=False,
+        rewritten_query="消防法 第二条 消防法第二条是什么？",
+        history_summary_used="更早历史摘要",
+        knowledge_version="kb:test",
+        correction_notice="",
+    )
+    repo.save_answer_snapshot(
+        turn_id=turn.id,
+        answer="国家实行消防安全责任制。",
+        legal_basis=["《中华人民共和国消防法》第二条"],
+        clause_texts=[{"path": "中华人民共和国消防法 > 第一章 总则 > 第二条", "text": "国家实行消防安全责任制。"}],
+    )
+    repo.save_history_summary(conversation.id, "更早历史摘要")
+
+    detail = repo.get_conversation_detail(conversation.id)
+
+    assert detail.conversation.id == conversation.id
+    assert detail.messages[0].content == "消防法第二条是什么？"
+    assert detail.snapshots[0].legal_basis == ["《中华人民共和国消防法》第二条"]
+    assert detail.history_summary == "更早历史摘要"
+
+
+def test_repository_blocks_snapshot_write_after_soft_delete(tmp_path: Path):
     repo = ConversationRepository(tmp_path / "conversations.db")
 
     conversation = repo.create_conversation(title="新会话", auto_title=True)
@@ -19,15 +53,34 @@ def test_repository_round_trips_conversation_and_snapshot(tmp_path: Path):
         knowledge_version="kb:test",
         correction_notice="",
     )
-    repo.save_answer_snapshot(
-        turn_id=turn.id,
-        answer="国家实行消防安全责任制。",
-        legal_basis=["《中华人民共和国消防法》第二条"],
-        clause_texts=[{"path": "中华人民共和国消防法 > 第一章 总则 > 第二条", "text": "国家实行消防安全责任制。"}],
-    )
 
-    detail = repo.get_conversation_detail(conversation.id)
+    repo.soft_delete_conversation(conversation.id)
 
-    assert detail.conversation.id == conversation.id
-    assert detail.messages[0].content == "消防法第二条是什么？"
-    assert detail.snapshots[0].legal_basis == ["《中华人民共和国消防法》第二条"]
+    with pytest.raises(ConversationNotFoundError):
+        repo.save_answer_snapshot(
+            turn_id=turn.id,
+            answer="国家实行消防安全责任制。",
+            legal_basis=["《中华人民共和国消防法》第二条"],
+            clause_texts=[{"path": "中华人民共和国消防法 > 第一章 总则 > 第二条", "text": "国家实行消防安全责任制。"}],
+        )
+
+
+def test_repository_rejects_turns_that_reference_messages_from_other_conversations(tmp_path: Path):
+    repo = ConversationRepository(tmp_path / "conversations.db")
+
+    source = repo.create_conversation(title="源会话", auto_title=True)
+    target = repo.create_conversation(title="目标会话", auto_title=True)
+    foreign_user = repo.append_message(source.id, role="user", content="源问题")
+    foreign_assistant = repo.append_message(source.id, role="assistant", content="源回答")
+
+    with pytest.raises(ValueError, match="same conversation"):
+        repo.create_turn(
+            conversation_id=target.id,
+            user_message_id=foreign_user.id,
+            assistant_message_id=foreign_assistant.id,
+            is_followup=False,
+            rewritten_query="目标问题",
+            history_summary_used="",
+            knowledge_version="kb:test",
+            correction_notice="",
+        )

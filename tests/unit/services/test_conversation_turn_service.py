@@ -139,6 +139,20 @@ def test_handle_user_message_requeries_with_context_hints(tmp_path):
     assert "中华人民共和国消防法" in latest_turn.rewritten_query
 
 
+def test_handle_user_message_scope_extension_keeps_prior_title_context(tmp_path):
+    repo = ConversationRepository(tmp_path / "conversations.db")
+    service = _build_service(repo)
+
+    conversation = service.conversation_service.create_conversation()
+    _seed_previous_turn(repo, service.conversation_service, conversation.id)
+
+    service.handle_user_message(conversation.id, "河北也适用吗？")
+    rewritten_query = service.retriever.calls[0].rewritten_query
+
+    assert "中华人民共和国消防法" in rewritten_query
+    assert "河北也适用吗？" in rewritten_query
+
+
 def test_handle_user_message_sets_auto_title_and_saves_turn_metadata(tmp_path):
     repo = ConversationRepository(tmp_path / "conversations.db")
     service = _build_service(repo)
@@ -170,6 +184,36 @@ def test_handle_user_message_degrades_when_summary_unavailable(tmp_path):
     detail = repo.get_conversation_detail(conversation.id)
 
     assert detail.turns[-1].history_summary_used == ""
+
+
+def test_handle_user_message_persists_current_history_summary_for_detail_reads(tmp_path):
+    repo = ConversationRepository(tmp_path / "conversations.db")
+    service = _build_service(repo, summary_trigger_turns=2)
+
+    conversation = service.conversation_service.create_conversation()
+    _seed_previous_turn(repo, service.conversation_service, conversation.id)
+
+    service.handle_user_message(conversation.id, "它第二条怎么说？")
+    detail = repo.get_conversation_detail(conversation.id)
+
+    assert "消防法关于消防安全责任制怎么规定？" in detail.history_summary
+    assert "《中华人民共和国消防法》第二条" in detail.history_summary
+
+
+def test_handle_user_message_feeds_history_summary_into_live_retrieval(tmp_path):
+    repo = ConversationRepository(tmp_path / "conversations.db")
+    service = _build_service(repo, summary_trigger_turns=2)
+
+    conversation = service.conversation_service.create_conversation()
+    _seed_previous_turn(repo, service.conversation_service, conversation.id)
+    service.handle_user_message(conversation.id, "它第二条怎么说？")
+    service.retriever.calls.clear()
+
+    service.handle_user_message(conversation.id, "继续说明重点")
+
+    latest_query = service.retriever.calls[0]
+    assert "消防法关于消防安全责任制怎么规定？" in latest_query.vector_query
+    assert "《中华人民共和国消防法》第二条" in latest_query.rewritten_query
 
 
 def test_handle_user_message_raises_when_model_call_fails(tmp_path):

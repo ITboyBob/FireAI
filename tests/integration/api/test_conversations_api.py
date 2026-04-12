@@ -1,6 +1,8 @@
 from fastapi.testclient import TestClient
 
+from app.api.chat import get_chat_client, get_retriever
 from app.api.conversations import get_conversation_service, get_conversation_turn_service
+from app.core.settings import Settings, get_settings
 from app.main import create_app
 from app.services.chat_client import ChatCompletionError
 
@@ -67,6 +69,32 @@ class FailingConversationTurnService:
         raise ChatCompletionError("模型调用失败：Your API Token has expired.")
 
 
+class RealFlowRetriever:
+    def search(self, query, *, top_k: int):
+        del query, top_k
+        return [
+            {
+                "chunk_id": "xiaofangfa_2019#article-2",
+                "document_id": "xiaofangfa_2019",
+                "title": "中华人民共和国消防法",
+                "path": "中华人民共和国消防法 > 第一章 总则 > 第二条",
+                "text": "国家实行消防安全责任制。",
+                "article_no": "第二条",
+            }
+        ]
+
+
+class RealFlowChatClient:
+    def complete(self, messages):
+        del messages
+        return {
+            "conclusion": "国家实行消防安全责任制。",
+            "citations": ["《中华人民共和国消防法》第二条"],
+            "scope": "适用于一般消防安全责任制说明。",
+            "uncertainty": "",
+        }
+
+
 def test_create_conversation_then_send_message_returns_assistant_payload():
     app = create_app()
     app.dependency_overrides[get_conversation_service] = lambda: FakeConversationService()
@@ -125,3 +153,34 @@ def test_send_message_returns_502_when_model_call_fails():
 
     assert response.status_code == 502
     assert response.json() == {"detail": "模型调用失败：Your API Token has expired."}
+
+
+def test_conversation_detail_returns_history_summary_from_real_turn_flow(tmp_path):
+    settings = Settings.model_validate(
+        {
+            "conversation_db_path": tmp_path / "conversations.db",
+            "conversation_context_window_turns": 1,
+            "conversation_summary_trigger_turns": 2,
+        }
+    )
+    app = create_app()
+    app.dependency_overrides[get_settings] = lambda: settings
+    app.dependency_overrides[get_retriever] = lambda: RealFlowRetriever()
+    app.dependency_overrides[get_chat_client] = lambda: RealFlowChatClient()
+    client = TestClient(app)
+
+    conversation_id = client.post("/api/conversations", json={}).json()["id"]
+    first = client.post(
+        f"/api/conversations/{conversation_id}/messages",
+        json={"message": "消防法关于消防安全责任制怎么规定？"},
+    )
+    second = client.post(
+        f"/api/conversations/{conversation_id}/messages",
+        json={"message": "它第二条怎么说？"},
+    )
+    detail = client.get(f"/api/conversations/{conversation_id}")
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert detail.status_code == 200
+    assert "消防法关于消防安全责任制怎么规定？" in detail.json()["history_summary"]

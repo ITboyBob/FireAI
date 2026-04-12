@@ -4,6 +4,7 @@
 
 ## 当前摘要
 
+- 已按 `requesting-code-review` + TDD 完成 QA System 2.0 `Task 7-10` 的现状审查与缺陷修复，并补齐审查过程中暴露出的仓库层一致性问题；当前已修复“范围延伸追问丢失上一轮法规标题”“当前历史摘要未写回详情 API”“追问拒答误报修正提示”“软删除后仍可写 `answer_snapshots`”“`turns` 可引用其他会话消息”5 个真实缺陷，并在 `fire` 环境完成定向回归、全量测试与真实 `data/chunks/` 烟雾验证。
 - 已按用户要求更新 `AGENTS.md` 的 Git 规则：当前仓库允许代理在当前任务范围内自主提交经过验证的本次改动，并可在提交后再同步提交范围、验证结果和提交说明，但 `push / merge / reset` 等高风险操作仍需用户单独要求。
 - 设计基线和实施计划已经落盘，可作为后续实现依据。
 - 已开始按 `docs/plans/2026-04-11-fire-qa-system-2.0-implementation.md` 执行消防问答系统 2.0 计划，并已在本地执行分支 `qa-system-2.0-exec` 开工，避免直接在 `main` 上实施。
@@ -17,6 +18,7 @@
 - `Task 8` 已按 TDD 暴露正式会话 API：当前 `/api/conversations` 已支持创建、列出、详情、重命名、删除与发消息，并已通过真实 `TestClient + data/index/` 烟雾验证。
 - `Task 9` 已按 TDD 切换到双栏会话界面：当前根页面已改为“会话列表 + 当前线程 + 输入区”结构，前端主链改走 `/api/conversations/*`，并已通过真实 `uvicorn + curl` 壳验证。
 - `Task 10` 已完成并通过真实多轮验收：当前 README / 文档索引 / 状态文档已对齐 2.0 实现，自动化测试、真实建库验证和真实多轮会话验收均已通过。
+- QA System 2.0 `Task 7-10` 的本轮专项代码审查已收敛完成；当前仓库内已无新的代码级阻塞，剩余风险重新回到外部聊天提供商的可用性与限流策略。
 - 在用户提供新的 iFlow `CHAT_API_KEY` 后，已继续修复 4 个真实链路问题：Markdown 代码块包裹 JSON 导致 schema 校验失败、限流错误未重试、证据区混入无关条文原文、范围延伸追问未触发修正提示。
 - 当前主线已无新的代码阻塞；剩余风险主要是外部聊天提供商的可用性和限流策略，属于运行时依赖而非仓库内逻辑缺陷。
 - 新开聊天窗口时的文档读取顺序已在 `AGENTS.md` 中固化，`docs/文档索引.md` 用于解释这套顺序。
@@ -83,6 +85,47 @@
 - 真实聊天前置检查已有结论：当前并非“依赖没装好”，而是“真实 `/api/chat` 请求能发出，但模型调用阶段返回 `502`”；因此前端网页已具备手工联调入口，但还不能宣称“真实聊天稳定可用”。
 
 ## 最新记录
+
+### 2026-04-11 审查并修复 2.0 计划 Task 7-10 当前实现
+
+- 执行内容：按 `requesting-code-review` 工作流审查 [2.0 实施计划 Task 7-10](/Users/itboybob/Project/fire/docs/plans/2026-04-11-fire-qa-system-2.0-implementation.md) 的当前实现，并对照 [2.0 PRD](/Users/itboybob/Project/fire/docs/plans/2026-04-11-fire-qa-system-2.0-prd.md) 检查“会话编排、会话 API、依赖注入、双栏前端壳、最终验证契约”是否真的落地。由于当前会话未暴露 `Task`/子代理调度工具，本轮改为按 `requesting-code-review/code-reviewer.md` 模板手工执行同等审查，结合 `git diff 0b78870..8d1441d`、当前工作树与真实运行行为一起复核。审查中确认并修复了 5 个真实缺陷：范围延伸追问现在会继承上一轮法规标题；当前历史摘要会写回 [conversation_summaries](/Users/itboybob/Project/fire/app/services/conversation_repository.py) 并从详情 API 返回；追问拒答不会再误报“本轮已根据最新检索证据修正前文”；软删除后的会话不再允许继续写 `answer_snapshots`；`turns` 也不能再引用其他会话的消息。
+- 执行环境：`fire`
+- 依赖情况：无需新增依赖，沿用当前 `fire` 环境、现有 FastAPI/Pydantic/pytest 依赖与仓库内真实 `data/chunks/` 产物。
+- 验证结果：
+  - 定向回归：`conda run --no-capture-output -n fire python -m pytest tests/unit/services/test_turn_classifier.py tests/unit/services/test_conversation_presenter.py tests/unit/services/test_conversation_repository.py tests/unit/services/test_conversation_turn_service.py tests/unit/api/test_conversation_dependencies.py tests/integration/api/test_conversations_api.py tests/integration/api/test_chat_api.py -q` 结果为 `27 passed in 0.54s`
+  - 全量回归：`conda run --no-capture-output -n fire python -m pytest -q` 结果为 `86 passed, 1 xfailed in 0.71s`
+  - 真实上游烟雾验证：`conda run --no-capture-output -n fire python - <<'PY' ... PY` 使用真实 [data/chunks/xiaofangfa_2019.jsonl](/Users/itboybob/Project/fire/data/chunks/xiaofangfa_2019.jsonl) 构造两轮会话，输出 `{'conversation_title': '消防法关于消防安全责任制怎么规定', 'history_summary': '消防法关于消防安全责任制怎么规定？ -> 《中华人民共和国消防法》第二条', 'latest_rewritten_query': '中华人民共和国消防法 河北也适用吗？ 消防法关于消防安全责任制怎么规定？ 《中华人民共和国消防法》第二条', 'latest_correction_notice': '', 'latest_knowledge_version': 'kb:real-chunk-smoke', 'latest_clause_path': '中华人民共和国消防法 > 第一章 总则 > 第二条'}`，已确认真实 chunk 产物下的摘要写回、范围延伸追问继承与详情读取都按预期工作。
+- 当前阻塞点：`Task 7-10` 本轮审查发现的仓库内代码缺陷已全部修复并验证通过；当前无新的仓库内技术阻塞，剩余风险仍主要来自外部聊天提供商的可用性与限流策略。
+
+### 2026-04-11 修复 Task 1-3 审查发现的仓库层缺陷
+
+- 执行内容：在完成 `Task 1-3` review 并锁定根因后，按 `systematic-debugging` + `tdd-workflow` 先补红测，再修复 [conversation_repository.py](/Users/itboybob/Project/fire/app/services/conversation_repository.py) 的仓库层写路径。具体把 `append_message`、`create_turn`、`save_answer_snapshot`、`update_conversation_title` 和 `save_history_summary` 从“先检查、再写入”的非原子流程收敛为单事务条件写入，并在失败时抛出可区分异常；同时把 [test_conversation_service.py](/Users/itboybob/Project/fire/tests/unit/services/test_conversation_service.py) 中“按最近消息排序”的伪覆盖改成真实消息时间排序覆盖。
+- 执行环境：`fire`
+- 依赖情况：无需新增依赖，沿用当前 `fire` 环境、Python 标准库 `sqlite3` 与现有测试依赖。
+- 验证结果：
+  - 官方文档核对：已通过 `Tavily` 检索 `docs.python.org/3/library/sqlite3.html` 与 `sqlite.org/foreignkeys.html`，确认 Python `sqlite3` 连接上下文管理器的提交/回滚语义、DML 触发事务行为，以及 SQLite 复合/即时外键约束的当前官方说明，再据此决定用“单事务条件写入 + 仓库层验证”修复，而不是继续依赖分离的预检查。
+  - 红测确认：
+    - `conda run -n fire python -m pytest tests/unit/services/test_conversation_repository.py -q` 初次结果为 `1 passed, 2 failed in 0.05s`，失败点正好对应“软删除后仍能写 snapshot”“跨会话消息仍能建 turn”
+    - `conda run -n fire python -m pytest tests/unit/services/test_conversation_service.py -q` 在调整排序测试为真实消息排序后保持通过
+  - 修复后回归：`conda run -n fire python -m pytest tests/unit/core/test_settings.py tests/unit/services/test_conversation_repository.py tests/unit/services/test_conversation_service.py tests/unit/services/test_conversation_summary.py tests/unit/services/test_conversation_turn_service.py tests/integration/api/test_conversations_api.py -q` 结果为 `21 passed in 0.47s`
+  - 复现脚本回归：
+    - `conda run --no-capture-output -n fire python - <<'PY' ... PY` 现输出 `{'saved_after_delete': False, 'blocked': True}`，确认已删除会话不再接受 `answer_snapshots` 写入
+    - `conda run --no-capture-output -n fire python - <<'PY' ... PY` 现输出 `{'cross_conversation_turn_blocked': True, 'message': 'turn messages must belong to the same conversation'}`，确认 `turns` 已不能再引用其他会话消息
+- 当前阻塞点：`Task 1-3` 本轮 review 发现的代码级阻塞已解除；当前无新的仓库内技术阻塞，后续可继续按同样方式审查 `Task 4+`。
+
+### 2026-04-11 审查 2.0 计划 Task 1-3 当前实现
+
+- 执行内容：按 `requesting-code-review` 工作流审查 [2.0 实施计划 Task 1-3](/Users/itboybob/Project/fire/docs/plans/2026-04-11-fire-qa-system-2.0-implementation.md) 的当前实现，而不是只看原始提交。先按仓库规则读取 [文档索引](/Users/itboybob/Project/fire/docs/文档索引.md)、[状态文档](/Users/itboybob/Project/fire/docs/status.md)、[2.0 PRD](/Users/itboybob/Project/fire/docs/plans/2026-04-11-fire-qa-system-2.0-prd.md) 与实施计划，再检查 [settings.py](/Users/itboybob/Project/fire/app/core/settings.py)、[conversation_repository.py](/Users/itboybob/Project/fire/app/services/conversation_repository.py)、[conversation_service.py](/Users/itboybob/Project/fire/app/services/conversation_service.py) 及对应测试。由于当前会话未暴露 `Task`/子代理调度工具，本轮改为按 `requesting-code-review/code-reviewer.md` 模板手工执行同等审查，并补做最小 SQLite 复现脚本确认边界行为。
+- 执行环境：代码执行均使用 `fire`；源码阅读、`git diff` 与文本检索未依赖 Python 运行时。
+- 依赖情况：无需新增依赖，沿用当前 `fire` 环境与标准库 `sqlite3`。
+- 验证结果：
+  - `conda run -n fire python -m pytest tests/unit/core/test_settings.py -q` 结果为 `3 passed in 0.11s`
+  - `conda run -n fire python -m pytest tests/unit/services/test_conversation_repository.py -q` 结果为 `1 passed in 0.03s`
+  - `conda run -n fire python -m pytest tests/unit/services/test_conversation_service.py -q` 结果为 `3 passed in 0.03s`
+  - `conda run -n fire python -m pytest tests/integration/api/test_conversations_api.py -q` 结果为 `3 passed in 0.53s`
+  - `conda run --no-capture-output -n fire python - <<'PY' ... PY` 复现“先建 turn、再软删除、最后写 snapshot”后，输出 `{'saved_after_delete': True, 'turn_id': '...'}`，已确认当前仓库仍允许在已删除会话上继续写入 `answer_snapshots`
+  - `conda run --no-capture-output -n fire python - <<'PY' ... PY` 复现“用会话 A 的消息为会话 B 建 turn”后，输出 `{'detail_turns': 1, 'detail_messages': ['...']}`，已确认当前仓库允许 `turns` 引用其他会话的消息，破坏会话内数据一致性
+- 当前阻塞点：`Task 1-3` 的自动化测试虽然仍全绿，但当前实现存在两个新的代码级阻塞点：`ConversationRepository.save_answer_snapshot()` 未兑现“已删除会话不可继续写入”，`ConversationRepository.create_turn()` / schema 也未保证 turn 只能引用本会话消息；在补齐约束和回归测试前，`Task 2-3` 不应被视为审查通过。
 
 ### 2026-04-11 使用新 API Key 完成 2.0 最终真实验收
 
@@ -203,6 +246,19 @@
 - 当前阻塞点：`Task 4` 已完成，当前无新的技术阻塞；下一步进入 `Task 5`，实现确定性历史摘要和知识库版本解析。
 
 ### 2026-04-11 执行 2.0 计划 Task 3
+
+### 2026-04-11 审查 QA System 2.0 Task 4-6（进行中）
+
+- 执行内容：按 `requesting-code-review` 流程读取 `docs/文档索引.md`、`docs/status.md`、[2.0 实施计划](/Users/itboybob/Project/fire/docs/plans/2026-04-11-fire-qa-system-2.0-implementation.md) 与 [PRD](/Users/itboybob/Project/fire/docs/plans/2026-04-11-fire-qa-system-2.0-prd.md)，随后对 `Task 4-6` 相关实现、测试和集成接入点展开专项 review，当前已完成目标文件、`conversation_turn_service`、会话 API 与 git 范围 `0b78870..8d1441d` 的首轮核查。
+- 执行环境：`fire`
+- 依赖情况：无需新增依赖，沿用当前 `fire` 环境与现有测试依赖。
+- 验证结果：
+  - 定向回归：`conda run -n fire python -m pytest tests/unit/services/test_turn_classifier.py tests/unit/services/test_context_manager.py tests/unit/services/test_conversation_summary.py tests/unit/services/test_knowledge_version.py tests/unit/services/test_conversation_presenter.py tests/unit/services/test_conversation_turn_service.py tests/unit/api/test_conversation_dependencies.py tests/integration/api/test_conversations_api.py -q` 结果为 `18 passed in 0.52s`
+  - 当前已确认：基础单测和已落地的编排/API 契约没有立即红测，说明问题更可能藏在未覆盖边界和模块接线，而不是显式主路径崩溃
+  - 追问边界复现：`conda run --no-capture-output -n fire python - <<'PY' ... PY` 直接调用 `TurnClassifier + normalize_query`，对上一轮已含 `中华人民共和国消防法 / 第二条` 的场景输入“河北也适用吗？”，输出为 `{'is_followup': True, 'context_hints': {}, 'rewritten_query': '河北也适用吗？', 'vector_query': '河北也适用吗？'}`，已确认范围延伸追问会丢失上一轮法规上下文
+  - 修正提示复现：`conda run --no-capture-output -n fire python - <<'PY' ... PY` 直接调用 `ConversationPresenter.build()`，对“上一轮有依据、本轮拒答且 `citations=[]`”的场景输出为 `{'correction_notice': '本轮已根据最新检索证据修正前文。', ...}`，已确认拒答也会被误标为“修正前文”
+  - 摘要接线复现：`conda run --no-capture-output -n fire python - <<'PY' ... PY` 构造 3 轮历史后调用 `ConversationTurnService.handle_user_message()`，输出为 `{'saved_history_summary_used': 'SUMMARY:前文问题0|前文问题1', 'retriever_vector_query': '中华人民共和国消防法 第二条 继续说明 中华人民共和国消防法', 'chat_prompt_contains_summary': False}`，已确认摘要会被保存到轮次元数据，但不会进入当前轮检索或答案生成输入
+- 当前阻塞点：专项审查阶段已确认至少 3 个当前测试未覆盖的实现缺口；下一步整理正式 review 结论，并按用户要求决定是否继续进入修复。
 
 - 执行内容：按 `executing-plans` 与 TDD 执行 [2.0 实施计划 Task 3](/Users/itboybob/Project/fire/docs/plans/2026-04-11-fire-qa-system-2.0-implementation.md)。基于上一任务的仓库层能力新增 [conversation_service.py](/Users/itboybob/Project/fire/app/services/conversation_service.py) 与服务层单测，把“新会话默认标题”“首条用户消息触发自动标题”“按最近消息排序”“重命名”“软删除”“删除后不可继续写入”等产品规则从存储层之上收拢到应用服务层。
 - 执行环境：`fire`

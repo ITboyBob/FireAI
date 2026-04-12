@@ -162,7 +162,9 @@ def _serialize_detail(detail: Any) -> ConversationDetail:
     for message in message_items:
         payload = ConversationMessage.model_validate(message, from_attributes=True)
         if payload.id in assistant_metadata:
-            payload = payload.model_copy(update=assistant_metadata[payload.id])
+            payload = ConversationMessage.model_validate(
+                payload.model_dump(mode="json") | assistant_metadata[payload.id]
+            )
         messages.append(payload)
 
     return ConversationDetail(

@@ -11,6 +11,13 @@ class ConversationListItem(BaseModel):
     last_message_at: str | None = None
 
 
+class ClauseTextPayload(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    path: str
+    text: str
+
+
 class ConversationMessage(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -19,7 +26,7 @@ class ConversationMessage(BaseModel):
     content: str
     created_at: str
     legal_basis: list[str] = Field(default_factory=list)
-    clause_texts: list[dict[str, str]] = Field(default_factory=list)
+    clause_texts: list[ClauseTextPayload] = Field(default_factory=list)
     correction_notice: str = ""
 
 
@@ -29,7 +36,7 @@ class AssistantMessagePayload(BaseModel):
     message_id: str = ""
     answer: str = Field(min_length=1)
     legal_basis: list[str] = Field(default_factory=list)
-    clause_texts: list[dict[str, str]] = Field(default_factory=list)
+    clause_texts: list[ClauseTextPayload] = Field(default_factory=list)
     correction_notice: str = ""
     created_at: str = ""
 

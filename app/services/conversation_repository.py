@@ -61,6 +61,7 @@ class ConversationDetail:
     messages: list[StoredMessage]
     turns: list[StoredTurn]
     snapshots: list[StoredAnswerSnapshot]
+    history_summary: str = ""
 
 
 class ConversationNotFoundError(ValueError):
@@ -110,7 +111,6 @@ class ConversationRepository:
         return conversation
 
     def append_message(self, conversation_id: str, *, role: str, content: str) -> StoredMessage:
-        self._require_active_conversation(conversation_id)
         message = StoredMessage(
             id=str(uuid.uuid4()),
             conversation_id=conversation_id,
@@ -119,10 +119,12 @@ class ConversationRepository:
             created_at=_utc_now(),
         )
         with self._connect() as connection:
-            connection.execute(
+            inserted = connection.execute(
                 """
                 INSERT INTO messages (id, conversation_id, role, content, created_at)
-                VALUES (?, ?, ?, ?, ?)
+                SELECT ?, ?, ?, ?, ?
+                FROM conversations
+                WHERE id = ? AND deleted_at IS NULL
                 """,
                 (
                     message.id,
@@ -130,16 +132,22 @@ class ConversationRepository:
                     message.role,
                     message.content,
                     message.created_at,
+                    conversation_id,
                 ),
             )
-            connection.execute(
+            if inserted.rowcount == 0:
+                raise ConversationNotFoundError(conversation_id)
+
+            updated = connection.execute(
                 """
                 UPDATE conversations
                 SET updated_at = ?, last_message_at = ?
-                WHERE id = ?
+                WHERE id = ? AND deleted_at IS NULL
                 """,
                 (message.created_at, message.created_at, conversation_id),
             )
+            if updated.rowcount == 0:
+                raise ConversationNotFoundError(conversation_id)
         return message
 
     def create_turn(
@@ -154,7 +162,6 @@ class ConversationRepository:
         knowledge_version: str,
         correction_notice: str,
     ) -> StoredTurn:
-        self._require_active_conversation(conversation_id)
         turn = StoredTurn(
             id=str(uuid.uuid4()),
             conversation_id=conversation_id,
@@ -168,7 +175,7 @@ class ConversationRepository:
             created_at=_utc_now(),
         )
         with self._connect() as connection:
-            connection.execute(
+            inserted = connection.execute(
                 """
                 INSERT INTO turns (
                     id,
@@ -181,7 +188,20 @@ class ConversationRepository:
                     knowledge_version,
                     correction_notice,
                     created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                )
+                SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                FROM conversations
+                WHERE id = ? AND deleted_at IS NULL
+                  AND EXISTS (
+                      SELECT 1
+                      FROM messages
+                      WHERE id = ? AND conversation_id = ? AND role = 'user'
+                  )
+                  AND EXISTS (
+                      SELECT 1
+                      FROM messages
+                      WHERE id = ? AND conversation_id = ? AND role = 'assistant'
+                  )
                 """,
                 (
                     turn.id,
@@ -194,8 +214,20 @@ class ConversationRepository:
                     turn.knowledge_version,
                     turn.correction_notice,
                     turn.created_at,
+                    conversation_id,
+                    user_message_id,
+                    conversation_id,
+                    assistant_message_id,
+                    conversation_id,
                 ),
             )
+            if inserted.rowcount == 0:
+                self._raise_turn_insert_error(
+                    connection,
+                    conversation_id=conversation_id,
+                    user_message_id=user_message_id,
+                    assistant_message_id=assistant_message_id,
+                )
         return turn
 
     def save_answer_snapshot(
@@ -206,16 +238,17 @@ class ConversationRepository:
         legal_basis: list[str],
         clause_texts: list[dict[str, str]],
     ) -> StoredAnswerSnapshot:
+        normalized_clause_texts = [self._normalize_clause_text(item) for item in clause_texts]
         snapshot = StoredAnswerSnapshot(
             id=str(uuid.uuid4()),
             turn_id=turn_id,
             answer=answer,
             legal_basis=legal_basis,
-            clause_texts=clause_texts,
+            clause_texts=normalized_clause_texts,
             created_at=_utc_now(),
         )
         with self._connect() as connection:
-            connection.execute(
+            inserted = connection.execute(
                 """
                 INSERT INTO answer_snapshots (
                     id,
@@ -224,7 +257,11 @@ class ConversationRepository:
                     legal_basis_json,
                     clause_texts_json,
                     created_at
-                ) VALUES (?, ?, ?, ?, ?, ?)
+                )
+                SELECT ?, ?, ?, ?, ?, ?
+                FROM turns
+                JOIN conversations ON conversations.id = turns.conversation_id
+                WHERE turns.id = ? AND conversations.deleted_at IS NULL
                 """,
                 (
                     snapshot.id,
@@ -233,8 +270,11 @@ class ConversationRepository:
                     json.dumps(snapshot.legal_basis, ensure_ascii=False),
                     json.dumps(snapshot.clause_texts, ensure_ascii=False),
                     snapshot.created_at,
+                    turn_id,
                 ),
             )
+            if inserted.rowcount == 0:
+                self._raise_snapshot_insert_error(connection, turn_id=turn_id)
         return snapshot
 
     def get_conversation_detail(self, conversation_id: str) -> ConversationDetail:
@@ -245,6 +285,14 @@ class ConversationRepository:
             ).fetchone()
             if conversation_row is None:
                 raise ConversationNotFoundError(conversation_id)
+            summary_row = connection.execute(
+                """
+                SELECT summary_text
+                FROM conversation_summaries
+                WHERE conversation_id = ?
+                """,
+                (conversation_id,),
+            ).fetchone()
 
             message_rows = connection.execute(
                 """
@@ -273,18 +321,19 @@ class ConversationRepository:
                 (conversation_id,),
             ).fetchall()
 
+        turns = [self._build_turn(row) for row in turn_rows]
         return ConversationDetail(
             conversation=self._build_conversation(conversation_row),
             messages=[self._build_message(row) for row in message_rows],
-            turns=[self._build_turn(row) for row in turn_rows],
+            turns=turns,
             snapshots=[self._build_snapshot(row) for row in snapshot_rows],
+            history_summary=summary_row["summary_text"] if summary_row else "",
         )
 
     def update_conversation_title(self, conversation_id: str, *, title: str, auto_title: bool) -> StoredConversation:
-        self._require_active_conversation(conversation_id)
         updated_at = _utc_now()
         with self._connect() as connection:
-            connection.execute(
+            result = connection.execute(
                 """
                 UPDATE conversations
                 SET title = ?, auto_title = ?, updated_at = ?
@@ -292,6 +341,8 @@ class ConversationRepository:
                 """,
                 (title, int(auto_title), updated_at, conversation_id),
             )
+            if result.rowcount == 0:
+                raise ConversationNotFoundError(conversation_id)
             row = connection.execute(
                 "SELECT * FROM conversations WHERE id = ? AND deleted_at IS NULL",
                 (conversation_id,),
@@ -334,6 +385,43 @@ class ConversationRepository:
         if row is None:
             raise ConversationNotFoundError(conversation_id)
         return self._build_conversation(row)
+
+    def save_history_summary(self, conversation_id: str, summary_text: str) -> None:
+        with self._connect() as connection:
+            if summary_text.strip():
+                result = connection.execute(
+                    """
+                    INSERT INTO conversation_summaries (
+                        conversation_id,
+                        summary_text,
+                        updated_at
+                    )
+                    SELECT ?, ?, ?
+                    FROM conversations
+                    WHERE id = ? AND deleted_at IS NULL
+                    ON CONFLICT(conversation_id) DO UPDATE SET
+                        summary_text = excluded.summary_text,
+                        updated_at = excluded.updated_at
+                    """,
+                    (conversation_id, summary_text, _utc_now(), conversation_id),
+                )
+                if result.rowcount == 0:
+                    self._require_active_conversation(conversation_id)
+                return
+            result = connection.execute(
+                """
+                DELETE FROM conversation_summaries
+                WHERE conversation_id = ?
+                  AND EXISTS (
+                      SELECT 1
+                      FROM conversations
+                      WHERE id = ? AND deleted_at IS NULL
+                  )
+                """,
+                (conversation_id, conversation_id),
+            )
+            if result.rowcount == 0:
+                self._require_active_conversation(conversation_id)
 
     def _ensure_schema(self) -> None:
         with self._connect() as connection:
@@ -383,6 +471,13 @@ class ConversationRepository:
                     created_at TEXT NOT NULL,
                     FOREIGN KEY (turn_id) REFERENCES turns(id)
                 );
+
+                CREATE TABLE IF NOT EXISTS conversation_summaries (
+                    conversation_id TEXT PRIMARY KEY,
+                    summary_text TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    FOREIGN KEY (conversation_id) REFERENCES conversations(id)
+                );
                 """
             )
 
@@ -400,6 +495,65 @@ class ConversationRepository:
             ).fetchone()
         if row is None:
             raise ConversationNotFoundError(conversation_id)
+
+    def _require_active_turn(self, turn_id: str) -> None:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT turns.id
+                FROM turns
+                JOIN conversations ON conversations.id = turns.conversation_id
+                WHERE turns.id = ? AND conversations.deleted_at IS NULL
+                """,
+                (turn_id,),
+            ).fetchone()
+        if row is None:
+            raise ConversationNotFoundError(turn_id)
+
+    def _raise_turn_insert_error(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        conversation_id: str,
+        user_message_id: str,
+        assistant_message_id: str,
+    ) -> None:
+        conversation_row = connection.execute(
+            "SELECT id FROM conversations WHERE id = ? AND deleted_at IS NULL",
+            (conversation_id,),
+        ).fetchone()
+        if conversation_row is None:
+            raise ConversationNotFoundError(conversation_id)
+
+        user_row = connection.execute(
+            "SELECT conversation_id, role FROM messages WHERE id = ?",
+            (user_message_id,),
+        ).fetchone()
+        assistant_row = connection.execute(
+            "SELECT conversation_id, role FROM messages WHERE id = ?",
+            (assistant_message_id,),
+        ).fetchone()
+        if user_row is None or assistant_row is None:
+            raise ValueError("turn messages must belong to the same conversation")
+        if user_row["conversation_id"] != conversation_id or assistant_row["conversation_id"] != conversation_id:
+            raise ValueError("turn messages must belong to the same conversation")
+        if user_row["role"] != "user" or assistant_row["role"] != "assistant":
+            raise ValueError("turn messages must use user/assistant roles")
+        raise ValueError("turn messages must belong to the same conversation")
+
+    def _raise_snapshot_insert_error(self, connection: sqlite3.Connection, *, turn_id: str) -> None:
+        turn_row = connection.execute(
+            """
+            SELECT turns.conversation_id
+            FROM turns
+            JOIN conversations ON conversations.id = turns.conversation_id
+            WHERE turns.id = ?
+            """,
+            (turn_id,),
+        ).fetchone()
+        if turn_row is None:
+            raise ValueError("turn does not exist")
+        raise ConversationNotFoundError(turn_row["conversation_id"])
 
     def _build_conversation(self, row: sqlite3.Row) -> StoredConversation:
         return StoredConversation(
@@ -444,3 +598,20 @@ class ConversationRepository:
             clause_texts=list(json.loads(row["clause_texts_json"])),
             created_at=row["created_at"],
         )
+
+    def _normalize_clause_text(self, value: Any) -> dict[str, str]:
+        if hasattr(value, "model_dump"):
+            dumped = value.model_dump(mode="json")
+            return {
+                "path": str(dumped.get("path", "")),
+                "text": str(dumped.get("text", "")),
+            }
+        if isinstance(value, dict):
+            return {
+                "path": str(value.get("path", "")),
+                "text": str(value.get("text", "")),
+            }
+        return {
+            "path": str(getattr(value, "path", "")),
+            "text": str(getattr(value, "text", "")),
+        }

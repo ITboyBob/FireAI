@@ -22,8 +22,8 @@ def test_list_conversations_orders_by_last_message_at_desc(tmp_path):
     older = service.create_conversation()
     newer = service.create_conversation()
 
-    service.note_first_user_message(older.id, "第一个会话")
-    service.note_first_user_message(newer.id, "第二个会话")
+    repo.append_message(older.id, role="user", content="第一个会话")
+    repo.append_message(newer.id, role="user", content="第二个会话")
 
     conversations = service.list_conversations()
 
