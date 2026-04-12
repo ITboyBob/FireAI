@@ -97,6 +97,19 @@
   - 诊断结论：用户截图中“新 HTML 结构 + 旧米色网格背景”这一组合只能说明浏览器正在使用**旧缓存的 CSS**，而不是后端仍在提供旧页面
 - 当前阻塞点：仓库内模板与静态文件已经是新版；若浏览器继续显示旧视觉，需要清理浏览器缓存或在模板中引入静态资源版本戳来强制缓存失效。
 
+### 2026-04-12 为前端静态资源补齐规范缓存失效方案
+
+- 执行内容：针对“新版 HTML 已返回，但浏览器仍可能混用旧 CSS/JS 缓存”的问题，没有继续依赖用户手工强刷，而是按 TDD 在 [test_chat_api.py](/Users/itboybob/Project/fire/tests/integration/api/test_chat_api.py) 先把页面契约收紧为“根页面和会话页都必须返回 `Cache-Control: no-store`，且模板中引用的 `/static/app.css`、`/static/app.js` 必须带版本参数”。随后在 [app/main.py](/Users/itboybob/Project/fire/app/main.py) 新增基于静态文件内容哈希的版本 URL 构造函数，并将 [index.html](/Users/itboybob/Project/fire/app/templates/index.html) 改为消费后端注入的 `static_css_url / static_js_url`，同时为页面响应补上 `Cache-Control: no-store`。
+- 执行环境：`fire`
+- 依赖情况：无需新增依赖，沿用当前 `fire` 环境与 Python 标准库 `hashlib`。
+- 验证结果：
+  - 红测确认：`conda run -n fire python -m pytest tests/integration/api/test_chat_api.py -q` 初次结果为 `2 failed, 5 passed in 0.50s`，失败点集中在根页面和会话页都还没有返回 `cache-control: no-store`
+  - 定向绿测：完成后端版本戳与模板接线后，`conda run -n fire python -m pytest tests/integration/api/test_chat_api.py -q` 结果为 `7 passed in 0.36s`
+  - 全量回归：`conda run -n fire python -m pytest -q` 结果为 `87 passed, 1 xfailed in 0.80s`
+  - 真实 HTTP 验证：启动 `conda run -n fire python -m uvicorn app.main:create_app --factory --port 8013` 后，`curl -i http://127.0.0.1:8013/` 已返回 `cache-control: no-store`，且根页面实际引用 `app.css?v=7ece6e89df0e`、`app.js?v=489980400e33`
+  - 工程效果：后续只要 [app/static/app.css](/Users/itboybob/Project/fire/app/static/app.css) 或 [app/static/app.js](/Users/itboybob/Project/fire/app/static/app.js) 内容发生变化，页面引用 URL 中的 `?v=` 哈希就会随之变化，浏览器不会再把新 HTML 与旧静态资源混用
+- 当前阻塞点：仓库内缓存失效方案已落地并通过回归；当前无新的代码级阻塞。
+
 ### 2026-04-12 补充 README 的后端启动命令说明
 
 - 执行内容：按用户要求检查当前机器上是否已有后端进程运行，并补充 [README.md](/Users/itboybob/Project/fire/README.md) 的后端启动说明。通过 `ps -ef | rg 'uvicorn app\.main:create_app|python -m uvicorn app\.main:create_app'` 检查后，当前未发现正在运行的 FastAPI / `uvicorn` 后端进程；随后在 README 的“运行”章节把现有启动命令显式标注为“后端启动命令”，并补充了一个带 `--port 8000` 的显式端口示例，方便直接复制执行。

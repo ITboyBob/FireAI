@@ -13,6 +13,9 @@ def test_root_page_renders_conversation_shell():
     response = client.get("/")
 
     assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store"
+    assert '/static/app.css?v=' in response.text
+    assert '/static/app.js?v=' in response.text
     assert 'id="home-view"' in response.text
     assert 'id="thread-view"' in response.text
     assert 'id="conversation-list"' in response.text
@@ -27,6 +30,7 @@ def test_conversation_page_route_renders_same_shell_with_initial_conversation_id
     response = client.get("/conversations/conv-123")
 
     assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store"
     assert 'data-initial-conversation-id="conv-123"' in response.text
     assert 'id="home-view"' in response.text
     assert 'id="thread-view"' in response.text

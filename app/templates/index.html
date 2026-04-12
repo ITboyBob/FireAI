@@ -4,8 +4,8 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ page_title }}</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}">
-    <script defer src="{{ url_for('static', path='/app.js') }}"></script>
+    <link rel="stylesheet" href="{{ static_css_url }}">
+    <script defer src="{{ static_js_url }}"></script>
   </head>
   <body data-view="home">
     <main

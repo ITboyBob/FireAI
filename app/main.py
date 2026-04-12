@@ -1,3 +1,4 @@
+import hashlib
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -15,20 +16,30 @@ TEMPLATES = Jinja2Templates(directory=str(APP_DIR / "templates"))
 STATIC_DIR = APP_DIR / "static"
 
 
+def build_static_asset_url(request: Request, asset_name: str) -> str:
+    asset_path = STATIC_DIR / asset_name
+    version = hashlib.sha256(asset_path.read_bytes()).hexdigest()[:12]
+    return f"{request.url_for('static', path=f'/{asset_name}')}?v={version}"
+
+
 def create_app() -> FastAPI:
     app = FastAPI(title="消防问答系统 2.0")
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
     def render_shell(request: Request, *, initial_conversation_id: str = "") -> HTMLResponse:
-        return TEMPLATES.TemplateResponse(
+        response = TEMPLATES.TemplateResponse(
             request=request,
             name="index.html",
             context={
                 "page_title": "消防问答系统 2.0",
                 "conversation_endpoint": "/api/conversations",
                 "initial_conversation_id": initial_conversation_id,
+                "static_css_url": build_static_asset_url(request, "app.css"),
+                "static_js_url": build_static_asset_url(request, "app.js"),
             },
         )
+        response.headers["Cache-Control"] = "no-store"
+        return response
 
     @app.get("/", response_class=HTMLResponse, tags=["web"])
     async def index(request: Request) -> HTMLResponse:
