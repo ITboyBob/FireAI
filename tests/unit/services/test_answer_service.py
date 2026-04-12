@@ -232,6 +232,43 @@ def test_openai_chat_client_uses_text_response_format_for_iflow():
     assert result["citations"] == ["《中华人民共和国消防法》第二条"]
 
 
+def test_openai_chat_client_parses_markdown_fenced_json():
+    class FakeCompletions:
+        def create(self, **kwargs):
+            del kwargs
+            message = SimpleNamespace(
+                content=(
+                    "```json\n"
+                    "{\n"
+                    '  "conclusion": "国家实行消防安全责任制。",\n'
+                    '  "citations": ["《中华人民共和国消防法》第二条"],\n'
+                    '  "scope": "适用于一般消防安全责任制说明。",\n'
+                    '  "uncertainty": "证据充分。"\n'
+                    "}\n"
+                    "```"
+                ),
+                refusal=None,
+            )
+            return SimpleNamespace(choices=[SimpleNamespace(message=message)])
+
+    class FakeSdkClient:
+        def __init__(self, **kwargs):
+            del kwargs
+            self.chat = SimpleNamespace(completions=FakeCompletions())
+
+    client = OpenAIChatClient(
+        api_key="test-key",
+        base_url="https://apis.iflow.cn/v1",
+        model="qwen3-32b",
+        client_factory=lambda **kwargs: FakeSdkClient(**kwargs),
+    )
+
+    result = client.complete([{"role": "system", "content": "请严格输出 JSON。"}])
+
+    assert result["citations"] == ["《中华人民共和国消防法》第二条"]
+    assert result["conclusion"] == "国家实行消防安全责任制。"
+
+
 def test_openai_chat_client_raises_when_model_output_is_not_valid_json():
     class FakeCompletions:
         def create(self, **kwargs):
@@ -283,3 +320,52 @@ def test_openai_chat_client_raises_provider_error_when_iflow_returns_status_mess
 
     with pytest.raises(ChatCompletionError, match="Your API Token has expired"):
         client.complete([{"role": "system", "content": "请严格输出 JSON。"}])
+
+
+def test_openai_chat_client_retries_when_provider_rate_limits():
+    class FakeCompletions:
+        def __init__(self):
+            self.calls = 0
+
+        def create(self, **kwargs):
+            del kwargs
+            self.calls += 1
+            if self.calls == 1:
+                return SimpleNamespace(
+                    choices=None,
+                    status="449",
+                    msg="You exceeded your current rate limit",
+                )
+            message = SimpleNamespace(
+                content=json.dumps(
+                    {
+                        "conclusion": "国家实行消防安全责任制。",
+                        "citations": ["《中华人民共和国消防法》第二条"],
+                        "scope": "适用于一般消防安全责任制说明。",
+                        "uncertainty": "证据充分。",
+                    },
+                    ensure_ascii=False,
+                ),
+                refusal=None,
+            )
+            return SimpleNamespace(choices=[SimpleNamespace(message=message)])
+
+    class FakeSdkClient:
+        def __init__(self, **kwargs):
+            del kwargs
+            self.chat = SimpleNamespace(completions=FakeCompletions())
+
+    sleeps: list[float] = []
+
+    client = OpenAIChatClient(
+        api_key="test-key",
+        base_url="https://apis.iflow.cn/v1",
+        model="qwen3-32b",
+        client_factory=lambda **kwargs: FakeSdkClient(**kwargs),
+        sleep_fn=lambda seconds: sleeps.append(seconds),
+    )
+
+    result = client.complete([{"role": "system", "content": "请严格输出 JSON。"}])
+
+    assert result["conclusion"] == "国家实行消防安全责任制。"
+    assert sleeps == [2.0]

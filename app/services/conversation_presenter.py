@@ -17,10 +17,10 @@ class ConversationPresenter:
         created_at: str = "",
     ) -> AssistantMessagePayload:
         legal_basis = list(self._get(answer, "citations", []))
-        current_clause_texts = [
-            {"path": item["path"], "text": item["text"]}
-            for item in list(self._get(answer, "evidence", []))
-        ]
+        current_clause_texts = self._select_clause_texts(
+            legal_basis=legal_basis,
+            evidence=list(self._get(answer, "evidence", [])),
+        )
 
         if is_followup and previous_snapshot is not None:
             previous_legal_basis = list(self._get(previous_snapshot, "legal_basis", []))
@@ -48,3 +48,41 @@ class ConversationPresenter:
         if isinstance(payload, Mapping):
             return payload.get(key, default)
         return getattr(payload, key, default)
+
+    def _select_clause_texts(
+        self,
+        *,
+        legal_basis: list[str],
+        evidence: list[Mapping[str, Any] | Any],
+    ) -> list[dict[str, str]]:
+        if not legal_basis:
+            return []
+
+        matched: list[dict[str, str]] = []
+        seen: set[str] = set()
+        for citation in legal_basis:
+            for item in evidence:
+                if self._build_citation(item) != citation:
+                    continue
+                key = f"{self._get(item, 'path', '')}|{self._get(item, 'text', '')}"
+                if key in seen:
+                    continue
+                seen.add(key)
+                matched.append(
+                    {
+                        "path": str(self._get(item, "path", "")),
+                        "text": str(self._get(item, "text", "")),
+                    }
+                )
+                break
+        return matched
+
+    def _build_citation(self, evidence: Mapping[str, Any] | Any) -> str:
+        title = str(self._get(evidence, "title", "")).strip()
+        article_no = str(self._get(evidence, "article_no", "")).strip()
+        path = str(self._get(evidence, "path", "")).strip()
+        if title and article_no:
+            return f"《{title}》{article_no}"
+        if title:
+            return f"《{title}》"
+        return path

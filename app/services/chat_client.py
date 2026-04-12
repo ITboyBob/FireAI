@@ -1,6 +1,8 @@
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 import json
+import re
+import time
 from typing import Any
 
 from openai import OpenAI
@@ -21,24 +23,38 @@ class OpenAIChatClient:
     timeout: float = 30.0
     temperature: float = 0.0
     client_factory: Callable[..., Any] = OpenAI
+    max_retries: int = 1
+    retry_backoff_seconds: float = 2.0
+    sleep_fn: Callable[[float], None] = time.sleep
     _client: Any | None = field(default=None, init=False, repr=False)
 
     def complete(self, messages: Sequence[dict[str, str]]) -> dict[str, Any]:
         if not messages:
             raise ValueError("messages must not be empty")
 
-        response = self._get_client().chat.completions.create(
-            model=self.model,
-            messages=[{"role": item["role"], "content": item["content"]} for item in messages],
-            temperature=self.temperature,
-            response_format=_build_response_format(self.base_url),
-        )
+        last_error: ChatCompletionError | None = None
+        for attempt in range(self.max_retries + 1):
+            try:
+                response = self._get_client().chat.completions.create(
+                    model=self.model,
+                    messages=[{"role": item["role"], "content": item["content"]} for item in messages],
+                    temperature=self.temperature,
+                    response_format=_build_response_format(self.base_url),
+                )
+                payload = _normalize_json_payload(_extract_message_payload(response))
+                return ModelAnswer.model_validate_json(payload).model_dump(mode="json")
+            except ValidationError as exc:
+                raise ChatCompletionError("模型返回了无法通过 schema 校验的 JSON。") from exc
+            except ChatCompletionError as exc:
+                last_error = exc
+                if attempt < self.max_retries and _is_retryable_provider_error(str(exc)):
+                    self.sleep_fn(self.retry_backoff_seconds * (attempt + 1))
+                    continue
+                raise
 
-        payload = _extract_message_payload(response)
-        try:
-            return ModelAnswer.model_validate_json(payload).model_dump(mode="json")
-        except ValidationError as exc:
-            raise ChatCompletionError("模型返回了无法通过 schema 校验的 JSON。") from exc
+        if last_error is not None:
+            raise last_error
+        raise ChatCompletionError("模型调用失败。")
 
     def _get_client(self) -> Any:
         if self._client is None:
@@ -135,3 +151,24 @@ def _extract_provider_error(response: Any) -> str:
     if status_text:
         return f"提供商返回错误（status={status_text}）：{message_text}"
     return message_text
+
+
+def _normalize_json_payload(payload: str) -> str:
+    text = payload.strip()
+    fenced_match = re.search(r"```(?:json)?\s*(\{.*\})\s*```", text, flags=re.IGNORECASE | re.DOTALL)
+    if fenced_match:
+        return fenced_match.group(1).strip()
+
+    if text.startswith("{") and text.endswith("}"):
+        return text
+
+    start = text.find("{")
+    end = text.rfind("}")
+    if start != -1 and end > start:
+        return text[start : end + 1].strip()
+    return text
+
+
+def _is_retryable_provider_error(message: str) -> bool:
+    lowered = message.lower()
+    return "rate limit" in lowered or "status=429" in lowered or "status=449" in lowered

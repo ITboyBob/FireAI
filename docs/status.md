@@ -16,8 +16,9 @@
 - `Task 7` 已按 TDD 串起会话主链：当前“用户消息 -> 追问判定 -> 上下文裁剪/摘要 -> 查询改写 -> 重检索 -> 回答生成 -> 展示整理 -> 消息/轮次/快照落库”已存在，并已在真实 `data/index/` 上完成两轮对话烟雾验证。
 - `Task 8` 已按 TDD 暴露正式会话 API：当前 `/api/conversations` 已支持创建、列出、详情、重命名、删除与发消息，并已通过真实 `TestClient + data/index/` 烟雾验证。
 - `Task 9` 已按 TDD 切换到双栏会话界面：当前根页面已改为“会话列表 + 当前线程 + 输入区”结构，前端主链改走 `/api/conversations/*`，并已通过真实 `uvicorn + curl` 壳验证。
-- `Task 10` 已完成文档更新和最终验证批次：当前 README / 文档索引 / 状态文档已对齐 2.0 实现，自动化测试与真实建库验证通过；同时已修复“会话链路把模型失败伪装成证据不足”的缺陷。
-- 当前真实多轮回答的唯一阻塞点不在仓库代码，而在 `.env` 中现用 iFlow `CHAT_API_KEY` 已过期；现在系统会明确返回 `502` 和上游错误详情，而不再伪造空依据拒答。
+- `Task 10` 已完成并通过真实多轮验收：当前 README / 文档索引 / 状态文档已对齐 2.0 实现，自动化测试、真实建库验证和真实多轮会话验收均已通过。
+- 在用户提供新的 iFlow `CHAT_API_KEY` 后，已继续修复 4 个真实链路问题：Markdown 代码块包裹 JSON 导致 schema 校验失败、限流错误未重试、证据区混入无关条文原文、范围延伸追问未触发修正提示。
+- 当前主线已无新的代码阻塞；剩余风险主要是外部聊天提供商的可用性和限流策略，属于运行时依赖而非仓库内逻辑缺陷。
 - 新开聊天窗口时的文档读取顺序已在 `AGENTS.md` 中固化，`docs/文档索引.md` 用于解释这套顺序。
 - `Task 1` 的代码骨架已经落地，包括基础配置、`/health` 接口和最小测试。
 - 仓库元数据和实施计划已对齐到 Python `3.14` 基线，`fire` 环境已完成 editable install。
@@ -82,6 +83,30 @@
 - 真实聊天前置检查已有结论：当前并非“依赖没装好”，而是“真实 `/api/chat` 请求能发出，但模型调用阶段返回 `502`”；因此前端网页已具备手工联调入口，但还不能宣称“真实聊天稳定可用”。
 
 ## 最新记录
+
+### 2026-04-11 使用新 API Key 完成 2.0 最终真实验收
+
+- 执行内容：在用户提供新的 iFlow `CHAT_API_KEY` 后，继续按 `systematic-debugging` 排查剩余真实链路问题。先确认 `.env` 中会话所用 `CHAT_BASE_URL=https://apis.iflow.cn/v1`、`CHAT_MODEL=qwen3-32b` 与新 key 已生效；随后在真实服务进程下做多轮问答验收，先后定位并修复了 4 个真实问题：
+  - iFlow 返回的 JSON 被 ```json 代码块包裹，导致 [OpenAIChatClient](/Users/itboybob/Project/fire/app/services/chat_client.py) 的严格 JSON 校验误报失败；
+  - iFlow `status=449` 限流错误会直接中断会话，没有最小重试；
+  - [ConversationPresenter](/Users/itboybob/Project/fire/app/services/conversation_presenter.py) 会把所有检索证据都塞进 `clause_texts`，不符合 PRD “证据区只展示法律依据对应条文原文”的要求；
+  - [TurnClassifier](/Users/itboybob/Project/fire/app/services/turn_classifier.py) 只识别“它/这个/上一轮”等显式指代词，无法把“河北也适用吗？”识别为范围延伸追问，导致法律依据变化时缺少修正提示。
+- 执行环境：`fire`
+- 依赖情况：无需新增依赖，沿用当前 `fire` 环境和现有 iFlow / 嵌入模型配置。
+- 验证结果：
+  - 新 key 生效后第一次真实探针：首轮会话已不再报 token 过期，但暴露出 `模型返回了无法通过 schema 校验的 JSON。`；抓取原始返回确认 `content` 实际为合法 JSON，只是被 ```json 代码块包裹。
+  - 修复后单测回归：
+    - `conda run -n fire python -m pytest tests/unit/services/test_answer_service.py -q` 结果为 `10 passed in 0.33s`
+    - `conda run -n fire python -m pytest tests/unit/services/test_turn_classifier.py tests/unit/services/test_conversation_presenter.py tests/unit/services/test_conversation_turn_service.py tests/integration/api/test_chat_api.py tests/integration/api/test_conversations_api.py -q` 分批结果均通过
+  - 全量回归：`conda run -n fire python -m pytest -q` 结果为 `79 passed, 1 xfailed in 0.81s`
+  - 真实服务验收：
+    - 启动 `conda run -n fire python -m uvicorn app.main:create_app --factory --port 8014`
+    - 新建会话并提问“消防法关于消防安全责任制怎么规定？”：HTTP `200`，回答引用 `《中华人民共和国消防法》第十六条`，证据区只展示第十六条原文
+    - 同会话追问“它第二条怎么说？”：HTTP `200`，回答切换为 `《中华人民共和国消防法》第二条`，并正确显示修正提示 `本轮已根据最新检索证据修正前文。`
+    - 重命名会话、创建并删除无用会话：均通过
+    - 重启服务后重新读取 `/api/conversations` 与 `/api/conversations/{id}`：历史会话恢复成功
+    - 在旧会话继续追问“河北也适用吗？”：HTTP `200`，回答切换为河北地方性依据，当前返回 `《河北省消防安全责任制规定》第二条`，并正确显示修正提示；会话详情累计消息数从 `4` 增长到 `6`
+- 当前阻塞点：本轮主线已完成，当前无新的代码阻塞；若后续再次出现限流或提供商异常，应优先视为外部运行时问题，而不是 2.0 会话系统主链缺陷。
 
 ### 2026-04-11 执行 2.0 计划 Task 10
 

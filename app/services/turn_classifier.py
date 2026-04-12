@@ -10,6 +10,7 @@ class ClassifiedTurn:
 
 class TurnClassifier:
     FOLLOW_UP_MARKERS = ("它", "这个", "上一条", "上一轮", "继续", "那第二条")
+    SCOPE_EXTENSION_MARKERS = ("也适用", "那河北", "河北也", "本地也", "当地也")
 
     def classify(self, message: str, *, previous_turns: list[dict[str, Any]]) -> ClassifiedTurn:
         if previous_turns and any(marker in message for marker in self.FOLLOW_UP_MARKERS):
@@ -21,4 +22,6 @@ class TurnClassifier:
                     "article_no": previous.get("article_no", "") or "",
                 },
             )
+        if previous_turns and any(marker in message for marker in self.SCOPE_EXTENSION_MARKERS):
+            return ClassifiedTurn(is_followup=True, context_hints={})
         return ClassifiedTurn(is_followup=False, context_hints={})
