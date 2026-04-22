@@ -13,8 +13,6 @@ const elements = {
   conversationTitle: document.getElementById("conversation-title"),
   conversationSubtitle: document.getElementById("conversation-subtitle"),
   conversationThread: document.getElementById("conversation-thread"),
-  renameConversationButton: document.getElementById("rename-conversation-button"),
-  deleteConversationButton: document.getElementById("delete-conversation-button"),
   homeComposerForm: document.getElementById("home-composer-form"),
   homeComposerInput: document.getElementById("home-composer-input"),
   homeSendButton: document.getElementById("home-send-button"),
@@ -80,8 +78,6 @@ function setLoading(isLoading) {
     elements.homeSendButton,
     elements.threadSendButton,
     elements.newConversationButton,
-    elements.renameConversationButton,
-    elements.deleteConversationButton,
   ]) {
     if (button) {
       button.disabled = isLoading;
@@ -687,14 +683,6 @@ elements.newConversationButton?.addEventListener("click", () => {
       setLoading(false);
     }
   })();
-});
-
-elements.renameConversationButton?.addEventListener("click", () => {
-  void renameConversation();
-});
-
-elements.deleteConversationButton?.addEventListener("click", () => {
-  void deleteConversation();
 });
 
 for (const trigger of document.querySelectorAll("[data-prompt]")) {

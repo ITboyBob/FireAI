@@ -39,6 +39,9 @@ def test_conversation_page_route_renders_same_shell_with_initial_conversation_id
     assert 'data-initial-conversation-id="conv-123"' in response.text
     assert 'id="home-view"' in response.text
     assert 'id="thread-view"' in response.text
+    assert 'class="thread-actions"' not in response.text
+    assert 'id="rename-conversation-button"' not in response.text
+    assert 'id="delete-conversation-button"' not in response.text
 
 
 class FakeRetriever:

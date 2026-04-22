@@ -181,8 +181,6 @@ button {
 }
 
 .accent-button,
-.ghost-button,
-.danger-button,
 .sidebar-item,
 .starter-card {
   transition:
@@ -194,8 +192,6 @@ button {
 }
 
 .accent-button,
-.ghost-button,
-.danger-button,
 .starter-card,
 .sidebar-item,
 .sidebar-action {
@@ -216,8 +212,6 @@ button {
 }
 
 .accent-button:hover,
-.ghost-button:hover,
-.danger-button:hover,
 .starter-card:hover,
 .sidebar-item:hover,
 .sidebar-item:focus-visible {
@@ -225,9 +219,7 @@ button {
   box-shadow: 0 14px 24px rgba(15, 15, 15, 0.14);
 }
 
-.accent-button:disabled,
-.ghost-button:disabled,
-.danger-button:disabled {
+.accent-button:disabled {
   cursor: not-allowed;
   opacity: 0.6;
   transform: none;
@@ -548,30 +540,6 @@ button {
   line-height: 1.7;
 }
 
-.thread-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.7rem;
-}
-
-.ghost-button,
-.danger-button {
-  padding: 0.82rem 1.05rem;
-  border-radius: 999px;
-  font-weight: 700;
-  border: 1px solid var(--line);
-}
-
-.ghost-button {
-  background: var(--panel-soft);
-  color: var(--page-text);
-}
-
-.danger-button {
-  background: rgba(227, 93, 80, 0.12);
-  color: var(--danger);
-}
-
 .conversation-thread {
   min-height: 0;
   overflow-y: auto;
@@ -873,9 +841,7 @@ button:focus-visible,
     grid-template-columns: 1fr;
   }
 
-  .accent-button,
-  .ghost-button,
-  .danger-button {
+  .accent-button {
     width: 100%;
   }
 
