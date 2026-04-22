@@ -31,5 +31,6 @@ hf_cache/
 .vscode/
 .idea/
 
-# Claude Code local configuration
-.claude/settings.local.json
+# Claude Code configuration (generated rules, not source code)
+.claude/
+CLAUDE.md
