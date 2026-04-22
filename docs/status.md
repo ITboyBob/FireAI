@@ -7,7 +7,7 @@
 - 已按用户要求将 `docs/status.md` 更新规则调整为按需更新：状态文档仍是唯一项目状态源，但不再要求每次任务结束或每次代码执行后自动写入。
 - 已按 `requesting-code-review` + TDD 完成 QA System 2.0 `Task 7-10` 的现状审查与缺陷修复，并补齐审查过程中暴露出的仓库层一致性问题；当前已修复“范围延伸追问丢失上一轮法规标题”“当前历史摘要未写回详情 API”“追问拒答误报修正提示”“软删除后仍可写 `answer_snapshots`”“`turns` 可引用其他会话消息”5 个真实缺陷，并在 `fire` 环境完成定向回归、全量测试与真实 `data/chunks/` 烟雾验证。
 - 已按用户要求更新 `AGENTS.md` 的 Git 规则：当前仓库允许代理在当前任务范围内自主提交经过验证的本次改动，并可在提交后再同步提交范围、验证结果和提交说明，但 `push / merge / reset` 等高风险操作仍需用户单独要求。
-- 2.0 产品基线与当前技术标准已经落盘；实施计划仍需按最新 PRD 与 README 边界同步后，再作为后续实现依据。
+- 2.0 产品基线、当前技术标准和实施计划已同步到“后端 NDJSON 状态流，最终可信结果由前端逐字呈现”的新设计边界；新增设计文档为 [2026-04-23-fire-qa-ndjson-status-stream-design.md](/Users/itboybob/Project/fire/docs/plans/2026-04-23-fire-qa-ndjson-status-stream-design.md)，当前尚未进入代码实现。
 - 已开始按 `docs/plans/2026-04-11-fire-qa-system-2.0-implementation.md` 执行消防问答系统 2.0 计划，并已在本地执行分支 `qa-system-2.0-exec` 开工，避免直接在 `main` 上实施。
 - `Task 1` 已按 TDD 完成会话配置扩展：当前 `Settings` 已提供本机 `SQLite` 会话库路径、上下文窗口轮数和摘要触发阈值，`.env.example` 也已补齐对应占位项。
 - `Task 2` 已按 TDD 建立 `SQLite` 会话仓库：当前已能持久化会话、消息、轮次和回答快照，并在 `var/task2-smoke.db` 上通过真实落库/重开验证。
@@ -19,6 +19,7 @@
 - `Task 8` 已按 TDD 暴露正式会话 API：当前 `/api/conversations` 已支持创建、列出、详情、重命名、删除与发消息，并已通过真实 `TestClient + data/index/` 烟雾验证。
 - `Task 9` 已按 TDD 切换到双栏会话界面：当前根页面已改为“会话列表 + 当前线程 + 输入区”结构，前端主链改走 `/api/conversations/*`，并已通过真实 `uvicorn + curl` 壳验证。
 - `Task 10` 已完成并通过真实多轮验收：当前 README / 文档索引 / 状态文档已对齐 2.0 实现，自动化测试、真实建库验证和真实多轮会话验收均已通过。
+- 流式状态专项已完成文档设计与实施计划补充：后续应新增 `POST /api/conversations/{conversation_id}/messages/stream`，响应 `application/x-ndjson; charset=utf-8`，事件固定为 `received/retrieving/generating/organizing_evidence/completed/error`；一次性 `/messages` 接口保留兼容。当前无代码实现、无测试结果。
 - QA System 2.0 `Task 7-10` 的本轮专项代码审查已收敛完成；当前仓库内已无新的代码级阻塞，剩余风险重新回到外部聊天提供商的可用性与限流策略。
 - 在用户提供新的 iFlow `CHAT_API_KEY` 后，已继续修复 4 个真实链路问题：Markdown 代码块包裹 JSON 导致 schema 校验失败、限流错误未重试、证据区混入无关条文原文、范围延伸追问未触发修正提示。
 - 当前主线已无新的代码阻塞；剩余风险主要是外部聊天提供商的可用性和限流策略，属于运行时依赖而非仓库内逻辑缺陷。
@@ -86,6 +87,14 @@
 - 真实聊天前置检查已有结论：当前并非“依赖没装好”，而是“真实 `/api/chat` 请求能发出，但模型调用阶段返回 `502`”；因此前端网页已具备手工联调入口，但还不能宣称“真实聊天稳定可用”。
 
 ## 最新记录
+
+### 2026-04-23 更新 NDJSON 状态流设计与文档基线
+
+- 执行内容：按用户已确认的最终设计，新增 [NDJSON 状态流设计](/Users/itboybob/Project/fire/docs/plans/2026-04-23-fire-qa-ndjson-status-stream-design.md)，并同步更新 [2.0 PRD](/Users/itboybob/Project/fire/docs/plans/2026-04-11-fire-qa-system-2.0-prd.md)、[2.0 实施计划](/Users/itboybob/Project/fire/docs/plans/2026-04-11-fire-qa-system-2.0-implementation.md)、[README](/Users/itboybob/Project/fire/README.md) 与 [文档索引](/Users/itboybob/Project/fire/docs/文档索引.md)。统一口径为“后端 NDJSON 状态流，最终可信结果由前端逐字呈现”；明确这不是模型 token 原生流，不展示未校验草稿，不做 `SSE` / `WebSocket` / 未校验 `delta`，不持久化 `partial message/delta`，不新增 `delta` 表。
+- 执行环境：本轮只修改文档，未运行 Python、pytest、服务进程或浏览器自动化；未联网、未安装依赖、未执行 git 操作。
+- 依赖情况：无需新增依赖，沿用当前 `fire` 环境。Playwright 按用户补充可尝试使用，但实施前必须先在 `fire` 环境确认可用；若不可用，只记录阻塞，不私自安装。
+- 验证结果：本轮未运行测试。文档层已记录后续实现验收口径：服务层事件顺序与共享链路、`TestClient.stream` NDJSON、前端 buffer 解析/typewriter/错误态/重复提交、真实 `data/index/` 加 fake chat client 验证，以及可用时通过 Playwright `page.route` mock `/api/conversations*` 的 Chromium 关键路径 E2E。
+- 当前阻塞点：设计文档与计划已更新，代码尚未实现；下一步应按实施计划的“流式状态专项阶段”进入 TDD，实现 `/api/conversations/{conversation_id}/messages/stream` 与前端 NDJSON 消费。
 
 ### 2026-04-22 修复火山方舟返回 JSON 字段类型偏差导致的聊天失败
 
@@ -189,14 +198,14 @@
 
 ### 2026-04-12 修订 2.0 PRD 的前端页面与交互约束
 
-- 执行内容：按仓库文档顺序读取 [文档索引](/Users/itboybob/Project/fire/docs/文档索引.md)、[状态文档](/Users/itboybob/Project/fire/docs/status.md)、[设计文档](/Users/itboybob/Project/fire/docs/plans/2026-03-28-fire-law-rag-design.md)、[旧实施计划](/Users/itboybob/Project/fire/docs/plans/2026-03-28-fire-law-rag-implementation.md)、[2.0 实施计划](/Users/itboybob/Project/fire/docs/plans/2026-04-11-fire-qa-system-2.0-implementation.md) 与原 [2.0 PRD](/Users/itboybob/Project/fire/docs/plans/2026-04-11-fire-qa-system-2.0-prd.md)，并审查当前 [index.html](/Users/itboybob/Project/fire/app/templates/index.html)、[app.js](/Users/itboybob/Project/fire/app/static/app.js)、[app.css](/Users/itboybob/Project/fire/app/static/app.css) 的实际前端壳。确认本轮不是“单纯样式问题”，而是前端页面模型缺失：当前首页态和对话态没有被产品定义分开，`Starter Cards` 被挂在线程空态中，`buildThreadEmptyState()` 会直接吞掉首页卡片；`textarea` 没有正式键盘契约；无流式架构也没有最小等待态。随后已重写 [2.0 PRD](/Users/itboybob/Project/fire/docs/plans/2026-04-11-fire-qa-system-2.0-prd.md)，将“首页 `/` / 对话页 `/conversations/{id}`、Enter 发送 / `Shift+Enter` 换行、输入法组合态保护、非流式立即跳转与占位、首页深色启动台 / 对话页浅色证据台、未实现能力不得伪装入口”等前端页面与交互约束正式落盘。
+- 执行内容：按仓库文档顺序读取 [文档索引](/Users/itboybob/Project/fire/docs/文档索引.md)、[状态文档](/Users/itboybob/Project/fire/docs/status.md)、[设计文档](/Users/itboybob/Project/fire/docs/plans/2026-03-28-fire-law-rag-design.md)、[旧实施计划](/Users/itboybob/Project/fire/docs/plans/2026-03-28-fire-law-rag-implementation.md)、[2.0 实施计划](/Users/itboybob/Project/fire/docs/plans/2026-04-11-fire-qa-system-2.0-implementation.md) 与原 [2.0 PRD](/Users/itboybob/Project/fire/docs/plans/2026-04-11-fire-qa-system-2.0-prd.md)，并审查当前 [index.html](/Users/itboybob/Project/fire/app/templates/index.html)、[app.js](/Users/itboybob/Project/fire/app/static/app.js)、[app.css](/Users/itboybob/Project/fire/app/static/app.css) 的实际前端壳。确认本轮不是“单纯样式问题”，而是前端页面模型缺失：当前首页态和对话态没有被产品定义分开，`Starter Cards` 被挂在线程空态中，`buildThreadEmptyState()` 会直接吞掉首页卡片；`textarea` 没有正式键盘契约；旧等待态也没有最小反馈。随后已重写 [2.0 PRD](/Users/itboybob/Project/fire/docs/plans/2026-04-11-fire-qa-system-2.0-prd.md)，将“首页 `/` / 对话页 `/conversations/{id}`、Enter 发送 / `Shift+Enter` 换行、输入法组合态保护、提交后立即跳转与占位、首页深色启动台 / 对话页浅色证据台、未实现能力不得伪装入口”等前端页面与交互约束正式落盘。
 - 执行环境：未运行 Python、pytest 或服务进程；本轮为文档修订与现状审查，命令仅涉及文件读取、文本检索和本地图片查看。
 - 依赖情况：无需新增依赖，沿用当前仓库和本地图片参考。
 - 验证结果：
   - 代码现状核对：已确认 [app/static/app.js](/Users/itboybob/Project/fire/app/static/app.js) 当前仅监听 `form submit`，没有 `keydown` 级别的 `Enter` / `Shift+Enter` 规则；同时 `buildThreadEmptyState()` 不再渲染首页 `Starter Cards`，与模板首屏意图不一致。
   - 视觉参考核对：已直接读取用户提供的“旧首页”“对话页面”图片，确认目标不是继续放大“历史会话管理页”，而是拆成“深色首页启动台”和“浅色对话证据台”两种正式页面态。
   - 官方文档核对：已通过 `Tavily` 检索 `developer.mozilla.org` 官方文档，确认 `KeyboardEvent.isComposing` 的当前语义和 `History.pushState()` / `popstate` 的当前用法，可支撑 PRD 中“输入法组合态下 Enter 不发送”和“首页/对话页 URL 同步”两条前端契约。
-- 当前阻塞点：产品约束已补齐，但 [2.0 实施计划](/Users/itboybob/Project/fire/docs/plans/2026-04-11-fire-qa-system-2.0-implementation.md) 还没有同步到这版前端重构边界；若继续实现，应先更新实施计划，再按 TDD 落地首页态、对话态、键盘交互和非流式等待态。
+- 当时阻塞点：产品约束已补齐，但 [2.0 实施计划](/Users/itboybob/Project/fire/docs/plans/2026-04-11-fire-qa-system-2.0-implementation.md) 尚未同步到这版前端重构边界。该文档同步已由 `2026-04-23` 的 NDJSON 状态流文档更新处理；后续应按“流式状态专项阶段”进入 TDD。
 
 ### 2026-04-11 审查并修复 2.0 计划 Task 7-10 当前实现
 
