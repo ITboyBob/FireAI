@@ -2,6 +2,7 @@ from collections.abc import Mapping
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict
 
 from app.api.chat import get_chat_client, get_retriever
@@ -10,6 +11,7 @@ from app.schemas.conversation import (
     ConversationDetail,
     ConversationListItem,
     ConversationMessage,
+    ConversationStreamEvent,
     RenameConversationInput,
     SendConversationMessageResponse,
     UserMessageInput,
@@ -134,6 +136,34 @@ async def send_message(
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     return SendConversationMessageResponse.model_validate(result, from_attributes=True)
 
+
+@router.post("/{conversation_id}/messages/stream", response_class=StreamingResponse)
+async def send_message_stream(
+    conversation_id: str,
+    payload: UserMessageInput,
+    service: Annotated[ConversationTurnService, Depends(get_conversation_turn_service)],
+    conversation_service: Annotated[ConversationService, Depends(get_conversation_service)],
+) -> StreamingResponse:
+    try:
+        conversation_service.get_conversation_detail(conversation_id)
+    except ConversationNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=MISSING_CONVERSATION_DETAIL) from exc
+
+    def event_generator():
+        try:
+            for event in service.handle_user_message_stream(conversation_id, payload.message):
+                yield event.model_dump_json(exclude_none=True) + "\n"
+        except ChatCompletionError:
+            error_event = ConversationStreamEvent(event="error", code="model_error")
+            yield error_event.model_dump_json(exclude_none=True) + "\n"
+        except Exception:
+            error_event = ConversationStreamEvent(event="error", code="internal_error")
+            yield error_event.model_dump_json(exclude_none=True) + "\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="application/x-ndjson; charset=utf-8"
+    )
 
 def _serialize_conversation(item: Any) -> ConversationListItem:
     return ConversationListItem.model_validate(item, from_attributes=True)

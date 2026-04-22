@@ -60,16 +60,17 @@
             <label class="composer-label" for="home-composer-input">提出问题</label>
             <textarea
               id="home-composer-input"
+              data-testid="home-composer-input"
               name="message"
               rows="4"
               placeholder="例如：消防法关于消防安全责任制怎么规定？"
               required
             ></textarea>
             <div class="composer-footer">
-              <p id="home-request-status" class="request-status" aria-live="polite">
+              <p id="home-request-status" data-testid="request-status" class="request-status" aria-live="polite">
                 Enter 发送，Shift+Enter 换行。
               </p>
-              <button id="home-send-button" class="accent-button" type="submit">发送问题</button>
+              <button id="home-send-button" data-testid="home-send-button" class="accent-button" type="submit">发送问题</button>
             </div>
           </form>
 
@@ -100,22 +101,23 @@
             </div>
           </div>
 
-          <section id="conversation-thread" class="conversation-thread" aria-live="polite"></section>
+          <section id="conversation-thread" data-testid="conversation-thread" class="conversation-thread" aria-live="polite"></section>
 
           <form id="thread-composer-form" class="composer-shell composer-shell--thread">
             <label class="composer-label" for="thread-composer-input">继续追问</label>
             <textarea
               id="thread-composer-input"
+              data-testid="thread-composer-input"
               name="message"
               rows="3"
               placeholder="继续追问当前法规问题，例如：它第二条怎么说？"
               required
             ></textarea>
             <div class="composer-footer">
-              <p id="thread-request-status" class="request-status" aria-live="polite">
+              <p id="thread-request-status" data-testid="request-status" class="request-status" aria-live="polite">
                 每次提交都会重新检索最新证据。
               </p>
-              <button id="thread-send-button" class="accent-button" type="submit">发送</button>
+              <button id="thread-send-button" data-testid="thread-send-button" class="accent-button" type="submit">发送</button>
             </div>
           </form>
 

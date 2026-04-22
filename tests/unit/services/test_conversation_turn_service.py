@@ -224,3 +224,26 @@ def test_handle_user_message_raises_when_model_call_fails(tmp_path):
 
     with pytest.raises(ChatCompletionError, match="模型调用失败"):
         service.handle_user_message(conversation.id, "消防法关于消防安全责任制怎么规定？")
+
+
+def test_handle_user_message_stream_yields_expected_event_sequence(tmp_path):
+    repo = ConversationRepository(tmp_path / "conversations.db")
+    service = _build_service(repo)
+
+    conversation = service.conversation_service.create_conversation()
+
+    events = list(service.handle_user_message_stream(conversation.id, "消防法关于消防安全责任制怎么规定？"))
+    event_names = [e.event for e in events]
+
+    assert event_names == ["received", "retrieving", "generating", "organizing_evidence", "completed"]
+
+    received = events[0]
+    assert received.data == {"persisted": True}
+
+    completed = events[-1]
+    assert completed.assistant is not None
+    assert completed.assistant.answer == "国家实行消防安全责任制。"
+
+    # Verify that the one-shot method still works via the stream implementation
+    response = service.handle_user_message(conversation.id, "它第二条怎么说？")
+    assert response.assistant.answer == "国家实行消防安全责任制。"

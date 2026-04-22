@@ -1,3 +1,5 @@
+from typing import Any
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -65,3 +67,12 @@ class SendConversationMessageResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     assistant: AssistantMessagePayload
+
+
+class ConversationStreamEvent(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    event: str
+    data: dict[str, Any] | None = None
+    assistant: AssistantMessagePayload | None = None
+    code: str | None = None

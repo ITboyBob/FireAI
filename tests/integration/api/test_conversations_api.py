@@ -26,7 +26,9 @@ class FakeConversationService:
         return self.conversations
 
     def get_conversation_detail(self, conversation_id: str):
-        assert conversation_id == "conv-1"
+        from app.services.conversation_repository import ConversationNotFoundError
+        if conversation_id != "conv-1":
+            raise ConversationNotFoundError(conversation_id)
         return {
             "conversation": self.conversations[0],
             "messages": [],
@@ -61,11 +63,37 @@ class FakeConversationTurnService:
             }
         }
 
+    def handle_user_message_stream(self, conversation_id: str, message: str):
+        from app.schemas.conversation import ConversationStreamEvent
+        assert conversation_id == "conv-1"
+        assert message == "消防法第二条怎么说？"
+        yield ConversationStreamEvent(event="received", data={"persisted": True})
+        yield ConversationStreamEvent(
+            event="completed",
+            assistant={
+                "message_id": "msg-2",
+                "answer": "国家实行消防安全责任制。",
+                "legal_basis": ["《中华人民共和国消防法》第二条"],
+                "clause_texts": [
+                    {"path": "中华人民共和国消防法 > 第一章 总则 > 第二条", "text": "国家实行消防安全责任制。"}
+                ],
+                "correction_notice": "",
+                "created_at": "2026-04-11T10:00:00Z",
+            }
+        )
+
 
 class FailingConversationTurnService:
     def handle_user_message(self, conversation_id: str, message: str):
         assert conversation_id == "conv-1"
         assert message == "消防法第二条怎么说？"
+        raise ChatCompletionError("模型调用失败：Your API Token has expired.")
+
+    def handle_user_message_stream(self, conversation_id: str, message: str):
+        from app.schemas.conversation import ConversationStreamEvent
+        assert conversation_id == "conv-1"
+        assert message == "消防法第二条怎么说？"
+        yield ConversationStreamEvent(event="received", data={"persisted": True})
         raise ChatCompletionError("模型调用失败：Your API Token has expired.")
 
 
@@ -180,7 +208,69 @@ def test_conversation_detail_returns_history_summary_from_real_turn_flow(tmp_pat
     )
     detail = client.get(f"/api/conversations/{conversation_id}")
 
-    assert first.status_code == 200
     assert second.status_code == 200
     assert detail.status_code == 200
     assert "消防法关于消防安全责任制怎么规定？" in detail.json()["history_summary"]
+
+
+def test_send_message_stream_returns_ndjson():
+    app = create_app()
+    app.dependency_overrides[get_conversation_service] = lambda: FakeConversationService()
+    app.dependency_overrides[get_conversation_turn_service] = lambda: FakeConversationTurnService()
+    client = TestClient(app)
+
+    with client.stream(
+        "POST",
+        "/api/conversations/conv-1/messages/stream",
+        json={"message": "消防法第二条怎么说？"},
+    ) as response:
+        assert response.status_code == 200
+        assert response.headers["content-type"] == "application/x-ndjson; charset=utf-8"
+        lines = list(response.iter_lines())
+
+    assert len(lines) == 2
+    import json
+    received = json.loads(lines[0])
+    assert received["event"] == "received"
+    assert received["data"]["persisted"] is True
+
+    completed = json.loads(lines[1])
+    assert completed["event"] == "completed"
+    assert completed["assistant"]["answer"] == "国家实行消防安全责任制。"
+
+
+def test_send_message_stream_returns_error_event_on_failure():
+    app = create_app()
+    app.dependency_overrides[get_conversation_service] = lambda: FakeConversationService()
+    app.dependency_overrides[get_conversation_turn_service] = lambda: FailingConversationTurnService()
+    client = TestClient(app)
+
+    with client.stream(
+        "POST",
+        "/api/conversations/conv-1/messages/stream",
+        json={"message": "消防法第二条怎么说？"},
+    ) as response:
+        assert response.status_code == 200
+        lines = list(response.iter_lines())
+
+    assert len(lines) == 2
+    import json
+    received = json.loads(lines[0])
+    assert received["event"] == "received"
+
+    error_event = json.loads(lines[1])
+    assert error_event["event"] == "error"
+    assert error_event["code"] == "model_error"
+
+
+def test_send_message_stream_returns_404_if_conversation_not_found():
+    app = create_app()
+    app.dependency_overrides[get_conversation_service] = lambda: FakeConversationService()
+    app.dependency_overrides[get_conversation_turn_service] = lambda: FakeConversationTurnService()
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/conversations/conv-999/messages/stream",
+        json={"message": "消防法第二条怎么说？"},
+    )
+    assert response.status_code == 404

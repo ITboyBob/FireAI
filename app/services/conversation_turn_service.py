@@ -1,9 +1,9 @@
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
 from dataclasses import replace
 import re
 from typing import Any
 
-from app.schemas.conversation import SendConversationMessageResponse
+from app.schemas.conversation import ConversationStreamEvent, SendConversationMessageResponse
 from app.services.answer_service import build_answer, is_model_failure_uncertainty
 from app.services.chat_client import ChatCompletionError
 from app.services.conversation_repository import ConversationDetail, ConversationRepository, StoredAnswerSnapshot
@@ -42,7 +42,7 @@ class ConversationTurnService:
         self.summary_trigger_turns = summary_trigger_turns
         self.retrieval_top_k = retrieval_top_k
 
-    def handle_user_message(self, conversation_id: str, message: str) -> SendConversationMessageResponse:
+    def handle_user_message_stream(self, conversation_id: str, message: str) -> Iterator[ConversationStreamEvent]:
         detail = self.repository.get_conversation_detail(conversation_id)
         previous_turns = self._build_previous_turns(detail)
         previous_snapshot = detail.snapshots[-1] if detail.snapshots else None
@@ -51,6 +51,9 @@ class ConversationTurnService:
         if not detail.messages:
             self.conversation_service.note_first_user_message(conversation_id, message)
 
+        yield ConversationStreamEvent(event="received", data={"persisted": True})
+
+        yield ConversationStreamEvent(event="retrieving")
         classification = self.turn_classifier.classify(message, previous_turns=previous_turns)
         history_summary = self._build_history_summary(previous_turns)
         context = self.context_manager.build(previous_turns, history_summary=history_summary)
@@ -59,10 +62,13 @@ class ConversationTurnService:
             context,
         )
         evidence = self.retriever.search(normalized, top_k=self.retrieval_top_k)
+        
+        yield ConversationStreamEvent(event="generating")
         answer = build_answer(evidence, client=self.chat_client, question=message)
         if is_model_failure_uncertainty(answer.get("uncertainty")):
             raise ChatCompletionError(str(answer["uncertainty"]))
 
+        yield ConversationStreamEvent(event="organizing_evidence")
         assistant_payload = self.presenter.build(
             answer=answer,
             previous_snapshot=previous_snapshot,
@@ -112,7 +118,17 @@ class ConversationTurnService:
 
         if snapshot.turn_id != turn.id:
             raise RuntimeError("snapshot was not persisted for the created turn")
-        return SendConversationMessageResponse(assistant=payload)
+            
+        yield ConversationStreamEvent(event="completed", assistant=payload)
+
+    def handle_user_message(self, conversation_id: str, message: str) -> SendConversationMessageResponse:
+        assistant = None
+        for event in self.handle_user_message_stream(conversation_id, message):
+            if event.event == "completed" and event.assistant:
+                assistant = event.assistant
+        if not assistant:
+            raise RuntimeError("stream did not complete")
+        return SendConversationMessageResponse(assistant=assistant)
 
     def _build_history_summary(self, previous_turns: list[dict[str, Any]]) -> str:
         if len(previous_turns) < self.summary_trigger_turns:

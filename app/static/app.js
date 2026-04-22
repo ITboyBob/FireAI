@@ -178,6 +178,7 @@ function renderConversationList() {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "sidebar-item";
+    button.setAttribute("data-testid", "conversation-list-item");
     if (conversation.id === state.activeConversationId) {
       button.classList.add("is-active");
     }
@@ -367,6 +368,7 @@ function buildMessageCard(message) {
   } else {
     const copy = document.createElement("p");
     copy.className = "assistant-copy";
+    copy.setAttribute("data-testid", "assistant-copy");
     copy.textContent = message.content;
     rail.appendChild(copy);
   }
@@ -381,6 +383,7 @@ function buildMessageCard(message) {
   if (!message.isPending && message.legal_basis?.length) {
     const basis = document.createElement("ul");
     basis.className = "basis-list";
+    basis.setAttribute("data-testid", "basis-list");
     for (const item of message.legal_basis) {
       const rowItem = document.createElement("li");
       rowItem.textContent = item;
@@ -403,9 +406,10 @@ function buildMessageCard(message) {
     for (const item of message.clause_texts) {
       const card = document.createElement("article");
       card.className = "evidence-card";
+      card.setAttribute("data-testid", "evidence-card");
       card.innerHTML = `
-        <p class="evidence-path"></p>
-        <p class="evidence-copy"></p>
+        <p class="evidence-path" data-testid="evidence-path"></p>
+        <p class="evidence-copy" data-testid="evidence-copy"></p>
       `;
       card.querySelector(".evidence-path").textContent = item.path;
       card.querySelector(".evidence-copy").textContent = item.text;
@@ -622,23 +626,188 @@ async function sendMessage(message, source) {
     renderThread();
     setStatus("正在检索最新证据并生成回答。");
 
-    await requestJson(`${apiBase}/${conversationId}/messages`, {
-      method: "POST",
-      body: JSON.stringify({ message }),
-    });
-
-    clearComposerValues();
-    await loadConversationList();
-    await loadConversationDetail(conversationId);
-    setStatus(source === "home" ? "已进入会话并收到回答。" : "已收到新的会话回答。");
+    await fetchStreamMessage(conversationId, message, source);
   } catch (error) {
     const messageText = error instanceof Error ? error.message : "请求失败。";
     showError(messageText);
     replacePendingAssistantWithError(messageText);
-    setStatus("请求失败，请检查错误信息后重试。");
+    setStatus("请求失败，请检查错误信息后重试。可能已生成新的用户消息，重试将产生新的提问。");
   } finally {
     setLoading(false);
   }
+}
+
+async function fetchStreamMessage(conversationId, message, source) {
+  const response = await fetch(`${apiBase}/${conversationId}/messages/stream`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/x-ndjson"
+    },
+    body: JSON.stringify({ message }),
+  });
+
+  if (!response.ok) {
+    let detail = `状态码 ${response.status}`;
+    try {
+      const payload = await response.json();
+      detail = payload.detail || detail;
+    } catch (e) {}
+    throw new Error(`请求失败，${detail}`);
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder("utf-8");
+  let buffer = "";
+  let assistantData = null;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    let newlineIndex;
+    while ((newlineIndex = buffer.indexOf("\n")) !== -1) {
+      const line = buffer.slice(0, newlineIndex).trim();
+      buffer = buffer.slice(newlineIndex + 1);
+      if (line) {
+        assistantData = handleStreamEvent(JSON.parse(line)) || assistantData;
+      }
+    }
+  }
+
+  if (buffer.trim()) {
+    assistantData = handleStreamEvent(JSON.parse(buffer.trim())) || assistantData;
+  }
+
+  if (!assistantData) {
+    throw new Error("未能获取完整回答");
+  }
+
+  const cards = elements.conversationThread.querySelectorAll(".message-row--assistant");
+  const lastCard = cards[cards.length - 1];
+  
+  if (lastCard) {
+    setStatus("正在逐字显示回答...");
+    await typewriteMessage(lastCard, assistantData);
+  }
+
+  clearComposerValues();
+  await loadConversationList();
+  // refresh detail behind the scenes
+  const rawDetail = await requestJson(`${apiBase}/${conversationId}`);
+  state.activeDetail = rawDetail;
+  // intentionally do NOT re-renderThread here so we don't flash the UI, it's already rendered
+  setStatus(source === "home" ? "已进入会话并收到回答。" : "已收到新的会话回答。");
+}
+
+function handleStreamEvent(event) {
+  if (event.event === "error") {
+    throw new Error(`流式失败，错误代码：${event.code}`);
+  } else if (event.event === "received") {
+    setStatus("消息已提交，准备处理...");
+  } else if (event.event === "retrieving") {
+    setStatus("正在检索相关法规与证据...");
+  } else if (event.event === "generating") {
+    setStatus("正在基于法规生成回答...");
+  } else if (event.event === "organizing_evidence") {
+    setStatus("正在组织证据链...");
+  } else if (event.event === "completed") {
+    return event.assistant;
+  }
+  return null;
+}
+
+async function typewriteMessage(cardElement, assistantData) {
+  const scrollThread = () => {
+    elements.conversationThread.scrollTop = elements.conversationThread.scrollHeight;
+  };
+
+  const rail = cardElement.querySelector(".assistant-rail");
+  rail.innerHTML = "";
+
+  if (assistantData.correction_notice) {
+    const hint = document.createElement("div");
+    hint.className = "assistant-hint";
+    hint.innerHTML = `
+      <span class="assistant-eyebrow">Correction Hint</span>
+      <span class="assistant-hint-copy"></span>
+    `;
+    hint.querySelector(".assistant-hint-copy").textContent = assistantData.correction_notice;
+    rail.appendChild(hint);
+  }
+
+  const title = document.createElement("h3");
+  title.className = "assistant-title";
+  title.textContent = "回答";
+  rail.appendChild(title);
+
+  const copy = document.createElement("p");
+  copy.className = "assistant-copy";
+  copy.setAttribute("data-testid", "assistant-copy");
+  rail.appendChild(copy);
+
+  for (const char of assistantData.answer) {
+    copy.textContent += char;
+    scrollThread();
+    await new Promise((r) => setTimeout(r, 15));
+  }
+
+  if (assistantData.legal_basis?.length) {
+    const basis = document.createElement("ul");
+    basis.className = "basis-list";
+    basis.setAttribute("data-testid", "basis-list");
+    rail.appendChild(basis);
+    for (const item of assistantData.legal_basis) {
+      const rowItem = document.createElement("li");
+      basis.appendChild(rowItem);
+      for (const char of item) {
+        rowItem.textContent += char;
+        if (Math.random() > 0.5) scrollThread();
+        await new Promise((r) => setTimeout(r, 10));
+      }
+    }
+  }
+
+  if (assistantData.clause_texts?.length) {
+    const evidence = document.createElement("section");
+    evidence.className = "evidence-panel";
+    evidence.innerHTML = `
+      <div class="evidence-head">
+        <h4 class="evidence-title">证据区</h4>
+        <span class="evidence-tag">SOURCE VERIFIED</span>
+      </div>
+      <div class="evidence-grid"></div>
+    `;
+    const grid = evidence.querySelector(".evidence-grid");
+    rail.appendChild(evidence);
+    
+    for (const item of assistantData.clause_texts) {
+      const card = document.createElement("article");
+      card.className = "evidence-card";
+      card.setAttribute("data-testid", "evidence-card");
+      card.innerHTML = `
+        <p class="evidence-path" data-testid="evidence-path"></p>
+        <p class="evidence-copy" data-testid="evidence-copy"></p>
+      `;
+      grid.appendChild(card);
+      const pathEl = card.querySelector(".evidence-path");
+      pathEl.textContent = item.path;
+      
+      const textEl = card.querySelector(".evidence-copy");
+      for (const char of item.text) {
+        textEl.textContent += char;
+        if (Math.random() > 0.8) scrollThread();
+        await new Promise((r) => setTimeout(r, 5));
+      }
+    }
+  }
+
+  const meta = document.createElement("small");
+  meta.className = "bubble-meta";
+  meta.textContent = formatDateTime(assistantData.created_at) || "刚刚";
+  rail.appendChild(meta);
+  scrollThread();
 }
 
 function handleComposerSubmit(source) {
