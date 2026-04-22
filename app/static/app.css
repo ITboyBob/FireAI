@@ -110,7 +110,7 @@ button {
   position: sticky;
   top: 0;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 1.5rem;
   height: 100vh;
   padding: 1.75rem;
@@ -119,21 +119,18 @@ button {
   box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.02);
 }
 
-.sidebar-top,
-.sidebar-footer {
+.sidebar-top {
   display: grid;
   gap: 1.25rem;
 }
 
-.brand-lockup,
-.operator-card {
+.brand-lockup {
   display: flex;
   gap: 0.9rem;
   align-items: center;
 }
 
-.brand-mark,
-.operator-avatar {
+.brand-mark {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -166,7 +163,6 @@ button {
 }
 
 .brand-subtitle,
-.topbar-kicker,
 .hero-kicker,
 .thread-kicker,
 .sidebar-label,
@@ -180,9 +176,7 @@ button {
   text-transform: uppercase;
 }
 
-.brand-subtitle,
-.sidebar-footer-copy,
-.operator-role {
+.brand-subtitle {
   color: var(--muted-text);
 }
 
@@ -352,18 +346,6 @@ button {
   color: var(--page-text);
 }
 
-.operator-card {
-  padding: 0.9rem 1rem;
-  border-radius: 1rem;
-  background: var(--sidebar-surface);
-  border: 1px solid var(--line);
-}
-
-.operator-name {
-  margin: 0;
-  font-weight: 700;
-}
-
 .shell-main {
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
@@ -379,33 +361,10 @@ button {
   padding: 0.5rem 0 1.25rem;
 }
 
-.topbar-kicker {
-  color: var(--brand);
-}
-
 .topbar-title {
   font-size: clamp(1.8rem, 3vw, 2.6rem);
   font-weight: 800;
   letter-spacing: -0.04em;
-}
-
-.status-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.55rem;
-  padding: 0.72rem 1rem;
-  border-radius: 999px;
-  background: var(--panel-bg);
-  border: 1px solid var(--line);
-  box-shadow: var(--shadow-md);
-  color: var(--muted-text);
-}
-
-.status-dot {
-  width: 0.65rem;
-  height: 0.65rem;
-  border-radius: 999px;
-  background: #1eb980;
 }
 
 .error-panel {

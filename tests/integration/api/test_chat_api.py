@@ -22,6 +22,11 @@ def test_root_page_renders_conversation_shell():
     assert 'id="home-composer-form"' in response.text
     assert 'id="thread-composer-form"' in response.text
     assert 'data-prompt="消防法关于消防安全责任制怎么规定？"' in response.text
+    assert "本机会话模式" not in response.text
+    assert "消防问答终端" not in response.text
+    assert "证据优先 / 单机会话" not in response.text
+    assert "系统正常" not in response.text
+    assert '<p class="topbar-kicker">消防问答系统 2.0</p>' not in response.text
 
 
 def test_conversation_page_route_renders_same_shell_with_initial_conversation_id():

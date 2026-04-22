@@ -1,6 +1,7 @@
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 import json
+import logging
 import re
 import time
 from typing import Any
@@ -9,6 +10,9 @@ from openai import OpenAI
 from pydantic import ValidationError
 
 from app.schemas.chat import ModelAnswer
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 class ChatCompletionError(RuntimeError):
@@ -42,8 +46,14 @@ class OpenAIChatClient:
                     response_format=_build_response_format(self.base_url),
                 )
                 payload = _normalize_json_payload(_extract_message_payload(response))
-                return ModelAnswer.model_validate_json(payload).model_dump(mode="json")
+                normalized_payload = _normalize_model_answer_payload(payload)
+                return ModelAnswer.model_validate_json(normalized_payload).model_dump(mode="json")
             except ValidationError as exc:
+                LOGGER.warning(
+                    "Model answer schema validation failed: errors=%s payload=%r",
+                    exc.errors(),
+                    _truncate_for_log(payload if "payload" in locals() else ""),
+                )
                 raise ChatCompletionError("模型返回了无法通过 schema 校验的 JSON。") from exc
             except ChatCompletionError as exc:
                 last_error = exc
@@ -167,6 +177,41 @@ def _normalize_json_payload(payload: str) -> str:
     if start != -1 and end > start:
         return text[start : end + 1].strip()
     return text
+
+
+def _normalize_model_answer_payload(payload: str) -> str:
+    try:
+        data = json.loads(payload)
+    except json.JSONDecodeError:
+        return payload
+
+    if not isinstance(data, dict):
+        return payload
+
+    changed = False
+    citations = data.get("citations")
+    if isinstance(citations, str):
+        citation = citations.strip()
+        data["citations"] = [citation] if citation else []
+        changed = True
+    elif citations is None and "citations" in data:
+        data["citations"] = []
+        changed = True
+
+    if "uncertainty" in data and not isinstance(data["uncertainty"], str):
+        uncertainty = data["uncertainty"]
+        data["uncertainty"] = "" if uncertainty in (None, False, 0, 0.0) else str(uncertainty)
+        changed = True
+
+    if not changed:
+        return payload
+    return json.dumps(data, ensure_ascii=False)
+
+
+def _truncate_for_log(payload: str, limit: int = 1000) -> str:
+    if len(payload) <= limit:
+        return payload
+    return f"{payload[:limit]}...<truncated>"
 
 
 def _is_retryable_provider_error(message: str) -> bool:

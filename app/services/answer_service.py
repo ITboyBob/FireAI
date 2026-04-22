@@ -82,6 +82,7 @@ def _build_messages(
         "你是消防法律 RAG 的答案生成器。"
         "你只能依据提供的证据回答，必须输出 JSON，字段固定为 "
         "conclusion、citations、scope、uncertainty。"
+        "citations 必须是字符串数组；uncertainty 必须是字符串，若没有不确定性则填空字符串。"
         "若证据不足，必须明确拒答。"
         "citations 只能从给定候选引文中逐字选择，不得自造。"
     )

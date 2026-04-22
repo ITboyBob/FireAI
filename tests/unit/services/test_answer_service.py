@@ -269,6 +269,42 @@ def test_openai_chat_client_parses_markdown_fenced_json():
     assert result["conclusion"] == "国家实行消防安全责任制。"
 
 
+def test_openai_chat_client_normalizes_volcengine_scalar_answer_fields():
+    class FakeCompletions:
+        def create(self, **kwargs):
+            del kwargs
+            message = SimpleNamespace(
+                content=json.dumps(
+                    {
+                        "conclusion": "单位的主要负责人是本单位的消防安全责任人。",
+                        "citations": "《中华人民共和国消防法》第十六条",
+                        "scope": "单位消防安全责任规定",
+                        "uncertainty": 0,
+                    },
+                    ensure_ascii=False,
+                ),
+                refusal=None,
+            )
+            return SimpleNamespace(choices=[SimpleNamespace(message=message)])
+
+    class FakeSdkClient:
+        def __init__(self, **kwargs):
+            del kwargs
+            self.chat = SimpleNamespace(completions=FakeCompletions())
+
+    client = OpenAIChatClient(
+        api_key="test-key",
+        base_url="https://ark.cn-beijing.volces.com/api/v3",
+        model="doubao-1-5-lite-32k-250115",
+        client_factory=lambda **kwargs: FakeSdkClient(**kwargs),
+    )
+
+    result = client.complete([{"role": "system", "content": "请严格输出 JSON。"}])
+
+    assert result["citations"] == ["《中华人民共和国消防法》第十六条"]
+    assert result["uncertainty"] == ""
+
+
 def test_openai_chat_client_raises_when_model_output_is_not_valid_json():
     class FakeCompletions:
         def create(self, **kwargs):

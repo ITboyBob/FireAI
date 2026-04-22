@@ -87,6 +87,29 @@
 
 ## 最新记录
 
+### 2026-04-22 修复火山方舟返回 JSON 字段类型偏差导致的聊天失败
+
+- 执行内容：针对前端报错“模型调用失败：模型返回了无法通过 schema 校验的 JSON。”进行定位。已确认本轮不是火山方舟接口不可用，也不是 API Key / 模型 ID 错误，而是模型返回的 JSON 字段类型与本地 `ModelAnswer` schema 不一致：真实返回中 `citations` 是单个字符串，`uncertainty` 是数字 `0`，而本地要求分别为字符串数组和字符串。已在 [chat_client.py](/Users/itboybob/Project/fire/app/services/chat_client.py) 增加受控归一化：单个 `citations` 字符串会转为单元素数组，`uncertainty` 的空值/`0` 会转为空字符串；若归一化后仍无法校验，会输出截断后的 warning 日志帮助定位。已在 [answer_service.py](/Users/itboybob/Project/fire/app/services/answer_service.py) 强化提示词，明确要求 `citations` 为字符串数组、`uncertainty` 为字符串。
+- 执行环境：`fire`
+- 依赖情况：无需新增依赖，沿用当前 `fire` 环境；未执行包安装。
+- 验证结果：
+  - 真实故障复现：使用真实 `data/index/` 检索结果与火山方舟 `doubao-1-5-lite-32k-250115` 调用，原始返回为合法 JSON，但 `citations` / `uncertainty` 类型不符合本地 schema，复现了截图中的校验失败。
+  - 定向回归：`conda run -n fire python -m pytest tests/unit/services/test_answer_service.py -q` 结果为 `11 passed in 0.24s`。
+  - 受影响回归：`conda run -n fire python -m pytest tests/unit/services/test_answer_service.py tests/unit/services/test_conversation_turn_service.py tests/integration/api/test_chat_api.py tests/integration/api/test_conversations_api.py -q` 结果为 `29 passed in 0.46s`。
+  - 真实上游验证：使用真实 `data/index/` 检索结果与当前火山方舟配置再次执行答案生成，已返回 `{'conclusion': '单位的主要负责人是本单位的消防安全责任人。', 'citations': ['《中华人民共和国消防法》第十六条'], 'uncertainty': ''}`。
+- 当前阻塞点：本次修复已验证通过；但用户当前 8000 端口后端进程看起来不是 `--reload` 启动，需重启后端后浏览器聊天界面才会加载修复后的代码。
+
+### 2026-04-22 切换聊天模型提供商为火山方舟
+
+- 执行内容：按用户要求查询火山引擎官方文档后，将本机未纳入版本控制的 `.env` 切换为火山方舟 OpenAI 兼容配置；真实 `CHAT_API_KEY` 只写入本机 `.env`，未写入仓库示例文件。已同步更新 [.env.example](/Users/itboybob/Project/fire/.env.example)，将公开示例配置改为 `CHAT_BASE_URL=https://ark.cn-beijing.volces.com/api/v3`、`CHAT_MODEL=doubao-1-5-lite-32k-250115`，并继续保留 `CHAT_API_KEY=replace-me`。
+- 官方文档依据：火山方舟 [对话(Chat) API](https://www.volcengine.com/docs/82379/1494384) 给出的 Chat Completions 请求地址为 `https://ark.cn-beijing.volces.com/api/v3/chat/completions`；火山方舟 [文本生成](https://www.volcengine.com/docs/82379/1399009) 与在线推理文档给出的 OpenAI SDK `base_url` 为 `https://ark.cn-beijing.volces.com/api/v3`；火山方舟 [模型列表](https://www.volcengine.com/docs/82379/1330310) 中当前匹配 `Doubao-1.5-lite-32k` 的模型 ID 为 `doubao-1-5-lite-32k-250115`。
+- 执行环境：`fire`
+- 依赖情况：无需新增依赖，沿用当前 `fire` 环境；未执行包安装。
+- 验证结果：
+  - `conda run -n fire python -c "from app.core.settings import Settings; ..."` 已确认 `Settings()` 可读取 `CHAT_BASE_URL=https://ark.cn-beijing.volces.com/api/v3`、`CHAT_MODEL=doubao-1-5-lite-32k-250115`，且 `CHAT_API_KEY` 已脱离占位值。
+  - `conda run -n fire python -m pytest tests/unit/core/test_settings.py -q` 结果为 `3 passed in 0.04s`。
+- 当前阻塞点：本轮只完成配置加载验证，未调用火山方舟真实模型接口以避免未经确认地产生外部调用费用。若下一步做真实问答验收，需要确认该 API Key 已在火山方舟开通 `doubao-1-5-lite-32k-250115` 或对应模型单元权限；若真实调用返回模型不支持 `json_schema` 结构化输出，还需要把当前聊天客户端的火山方舟分支改为 `response_format={"type":"text"}` 并继续使用本地 JSON 校验。
+
 ### 2026-04-22 调整 `docs/status.md` 为按需更新
 
 - 执行内容：按用户新要求调整规则文档，将“每次任务结束或每次代码执行后自动更新 `docs/status.md`”改为“按需更新”。当前口径是：`docs/status.md` 仍是唯一项目状态源，但只有重要里程碑、阻塞点变化、用户明确要求、长期任务交接、需要保存验证结果或会影响后续上下文时才更新；纯文档小改、只读分析、无状态影响的简单任务不需要自动写入。
