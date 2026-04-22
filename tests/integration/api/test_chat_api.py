@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
@@ -5,6 +7,9 @@ from app.api.chat import get_chat_client, get_retriever
 from app.main import create_app
 from app.services.answer_service import MODEL_FAILURE_UNCERTAINTY
 from app.services.chat_client import ChatCompletionError
+
+
+APP_JS = Path(__file__).resolve().parents[3] / "app/static/app.js"
 
 
 def test_root_page_renders_conversation_shell():
@@ -27,6 +32,16 @@ def test_root_page_renders_conversation_shell():
     assert "证据优先 / 单机会话" not in response.text
     assert "系统正常" not in response.text
     assert '<p class="topbar-kicker">消防问答系统 2.0</p>' not in response.text
+
+
+def test_new_conversation_button_returns_home_without_creating_empty_conversation():
+    script = APP_JS.read_text(encoding="utf-8")
+    listener_start = script.index('elements.newConversationButton?.addEventListener("click"')
+    listener_body = script[listener_start: script.index("for (const trigger", listener_start)]
+
+    assert "function goHome()" in script
+    assert "goHome();" in listener_body
+    assert "createConversation" not in listener_body
 
 
 def test_conversation_page_route_renders_same_shell_with_initial_conversation_id():

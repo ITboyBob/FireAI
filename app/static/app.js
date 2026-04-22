@@ -561,6 +561,17 @@ function clearComposerValues() {
   updateComposerValues("");
 }
 
+function goHome() {
+  state.activeConversationId = null;
+  state.activeDetail = null;
+  setView("home");
+  updateUrl(null);
+  renderConversationList();
+  renderThread();
+  clearComposerValues();
+  setStatus("首页已就绪，可以直接提问。");
+}
+
 function replacePendingAssistantWithError(messageText) {
   if (!state.activeDetail) {
     return;
@@ -670,19 +681,8 @@ bindComposerKeyboard(elements.homeComposerInput, "home");
 bindComposerKeyboard(elements.threadComposerInput, "thread");
 
 elements.newConversationButton?.addEventListener("click", () => {
-  void (async () => {
-    hideError();
-    setLoading(true);
-    try {
-      await createConversation();
-      setStatus("已创建新会话，可以直接继续提问。");
-    } catch (error) {
-      showError(error instanceof Error ? error.message : "创建会话失败。");
-      setStatus("创建会话失败。");
-    } finally {
-      setLoading(false);
-    }
-  })();
+  hideError();
+  goHome();
 });
 
 for (const trigger of document.querySelectorAll("[data-prompt]")) {
