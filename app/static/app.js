@@ -702,17 +702,13 @@ async function fetchStreamMessage(conversationId, message, source) {
 }
 
 function handleStreamEvent(event) {
-  if (event.event === "error") {
-    throw new Error(`流式失败，错误代码：${event.code}`);
-  } else if (event.event === "received") {
-    setStatus("消息已提交，准备处理...");
-  } else if (event.event === "retrieving") {
-    setStatus("正在检索相关法规与证据...");
-  } else if (event.event === "generating") {
-    setStatus("正在基于法规生成回答...");
-  } else if (event.event === "organizing_evidence") {
-    setStatus("正在组织证据链...");
-  } else if (event.event === "completed") {
+  if (event.type === "error") {
+    throw new Error(event.message || `流式失败，错误代码：${event.code || "unknown"}`);
+  }
+  if (event.message) {
+    setStatus(event.message);
+  }
+  if (event.type === "completed") {
     return event.assistant;
   }
   return null;

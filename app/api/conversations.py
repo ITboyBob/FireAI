@@ -1,7 +1,8 @@
 from collections.abc import Mapping
-from typing import Annotated, Any
+import inspect
+from typing import Annotated, Any, Awaitable, Callable
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict
 
@@ -67,6 +68,36 @@ def get_conversation_turn_service(
         presenter=ConversationPresenter(),
         summary_trigger_turns=settings.conversation_summary_trigger_turns,
     )
+
+
+ConversationTurnServiceFactory = Callable[[], Awaitable[ConversationTurnService]]
+
+
+def get_conversation_turn_service_factory(
+    request: Request,
+    settings: Annotated[Settings, Depends(get_settings)],
+    repository: Annotated[ConversationRepository, Depends(get_conversation_repository)],
+    conversation_service: Annotated[ConversationService, Depends(get_conversation_service)],
+) -> ConversationTurnServiceFactory:
+    async def _build() -> ConversationTurnService:
+        retriever_dependency = request.app.dependency_overrides.get(get_retriever, get_retriever)
+        chat_client_dependency = request.app.dependency_overrides.get(get_chat_client, get_chat_client)
+        retriever = await _call_dependency(retriever_dependency, settings=settings)
+        chat_client = await _call_dependency(chat_client_dependency, settings=settings)
+        return ConversationTurnService(
+            repository=repository,
+            conversation_service=conversation_service,
+            turn_classifier=TurnClassifier(),
+            context_manager=ContextManager(window_turns=settings.conversation_context_window_turns),
+            summary_manager=ConversationSummaryManager(),
+            knowledge_version_resolver=KnowledgeVersionResolver(index_dir=settings.index_dir),
+            retriever=retriever,
+            chat_client=chat_client,
+            presenter=ConversationPresenter(),
+            summary_trigger_turns=settings.conversation_summary_trigger_turns,
+        )
+
+    return _build
 
 
 @router.post("", response_model=ConversationListItem, status_code=status.HTTP_201_CREATED)
@@ -141,7 +172,7 @@ async def send_message(
 async def send_message_stream(
     conversation_id: str,
     payload: UserMessageInput,
-    service: Annotated[ConversationTurnService, Depends(get_conversation_turn_service)],
+    service_factory: Annotated[ConversationTurnServiceFactory, Depends(get_conversation_turn_service_factory)],
     conversation_service: Annotated[ConversationService, Depends(get_conversation_service)],
 ) -> StreamingResponse:
     try:
@@ -149,15 +180,27 @@ async def send_message_stream(
     except ConversationNotFoundError as exc:
         raise HTTPException(status_code=404, detail=MISSING_CONVERSATION_DETAIL) from exc
 
+    service = await service_factory()
+
     def event_generator():
         try:
             for event in service.handle_user_message_stream(conversation_id, payload.message):
                 yield event.model_dump_json(exclude_none=True) + "\n"
-        except ChatCompletionError:
-            error_event = ConversationStreamEvent(event="error", code="model_error")
+        except ChatCompletionError as exc:
+            error_event = ConversationStreamEvent(
+                type="error",
+                code="model_error",
+                message=str(exc),
+                retryable=True,
+            )
             yield error_event.model_dump_json(exclude_none=True) + "\n"
         except Exception:
-            error_event = ConversationStreamEvent(event="error", code="internal_error")
+            error_event = ConversationStreamEvent(
+                type="error",
+                code="internal_error",
+                message="服务内部异常，请稍后重试。",
+                retryable=True,
+            )
             yield error_event.model_dump_json(exclude_none=True) + "\n"
 
     return StreamingResponse(
@@ -208,3 +251,16 @@ def _get(payload: Any, key: str, default: Any = None) -> Any:
     if isinstance(payload, Mapping):
         return payload.get(key, default)
     return getattr(payload, key, default)
+
+
+async def _call_dependency(dependency: Callable[..., Any], /, **kwargs: Any) -> Any:
+    signature = inspect.signature(dependency)
+    call_kwargs = {
+        name: value
+        for name, value in kwargs.items()
+        if name in signature.parameters
+    }
+    result = dependency(**call_kwargs)
+    if inspect.isawaitable(result):
+        return await result
+    return result

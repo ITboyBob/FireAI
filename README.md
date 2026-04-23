@@ -16,7 +16,7 @@
 - 离线链路：原始 `.doc/.docx` 法规标准化、结构解析、按条优先切块、关键词索引与向量索引构建
 - 在线链路：
   - `/api/conversations/*` 提供会话创建、列表、详情、重命名、删除和多轮消息执行
-  - 已确认待实现 `POST /api/conversations/{conversation_id}/messages/stream`，使用后端 NDJSON 状态流，最终可信结果由前端逐字呈现
+  - `POST /api/conversations/{conversation_id}/messages/stream` 已实现，使用后端 NDJSON 状态流输出处理状态与最终可信结果
   - 一次性 `POST /api/conversations/{conversation_id}/messages` 保留兼容
   - `/api/chat` 保留为兼容回归入口，模型调用失败时返回明确错误
 - 会话能力：本机持久化历史会话、首条消息自动标题、基础追问判定、上下文窗口裁剪、修正提示和回答快照落库
@@ -59,9 +59,11 @@
 - 状态流接口为 `POST /api/conversations/{conversation_id}/messages/stream`，请求体复用 `UserMessageInput` 的 `message` 字段。
 - 响应头必须为 `Content-Type: application/x-ndjson; charset=utf-8`。
 - 每行必须是一个完整 JSON 事件；正文换行必须由 JSON 编码转义；前端必须用 buffer 解析，不能假设一次 `read()` 就是一行。
-- 事件类型固定为 `received`、`retrieving`、`generating`、`organizing_evidence`、`completed`、`error`。
+- 对外序列化事件主契约收敛为 `type`、`message`、`persisted`、`retryable`、`assistant`、`code`。
+- `type` 固定为 `received`、`retrieving`、`generating`、`organizing_evidence`、`completed`、`error`。
 - `received` 只表示后端已接受请求且已成功持久化用户消息，必须携带 `persisted: true`。
 - `completed.assistant` 等价现有 `SendConversationMessageResponse.assistant`，字段固定为 `message_id`、`answer`、`legal_basis`、`clause_texts`、`correction_notice`、`created_at`。
+- 流开始后的失败通过 `type=error` 表达，配合 `code`、`message`、`retryable` 描述错误语义。
 - 后端必须在发送 `completed` 前完成模型完整 JSON、schema 校验、引文校验、presenter 证据筛选、assistant message / turn / snapshot / history summary 落库。
 - 本状态流不是模型 token 原生流，不展示未校验草稿，不做 `SSE` 或 `WebSocket`，不做未校验 `delta`，不持久化 `partial message/delta`，不新增 `delta` 表。
 - 一次性 `POST /api/conversations/{conversation_id}/messages` 必须保留兼容，并与 `completed.assistant` 保持同构。
@@ -72,7 +74,8 @@
 - 模型调用失败应暴露为上游服务问题，不能伪造成证据不足。
 - 会话历史读取不得触发新的模型调用；只有用户显式发送消息时才进入检索和回答生成链路。
 - 删除后的会话不得继续写入消息、轮次或回答快照。
-- 状态流开始前可返回 HTTP `404 / 503 / 422`；状态流开始后必须使用 `error` 事件表达失败。
+- 状态流开始前可返回 HTTP `404 / 503 / 422`；其中 `get_retriever()` 必须把依赖缺失和普通检索器初始化异常统一映射为 `503`，不得再泄漏 pre-stream 裸 `500`。
+- 状态流开始后必须使用 `error` 事件表达失败。
 - `error.code` 至少包括 `conversation_not_found`、`index_not_ready`、`model_error`、`validation_error`、`persistence_error`、`internal_error`。
 - 失败后可能已经落库用户消息；第一版不做幂等重试，错误后前端应保留输入内容，并提示重试可能产生新的用户消息。
 
@@ -176,11 +179,19 @@ conda run -n fire python -m pytest tests/integration/pipeline/test_build_pipelin
 conda run -n fire python -m pytest -q
 ```
 
-流式状态专项实现后，至少补充执行：
+流式接口 API 回归：
 
 ```bash
-conda run -n fire python -m pytest tests/integration/api/test_conversations_api.py tests/integration/api/test_chat_api.py -q
+conda run -n fire python -m pytest tests/integration/api/test_chat_api.py tests/integration/api/test_conversations_api.py -q
 ```
+
+流式状态相关定向回归：
+
+```bash
+conda run -n fire python -m pytest tests/unit/api/test_chat_dependencies.py tests/unit/api/test_conversation_dependencies.py tests/unit/services/test_conversation_turn_service.py tests/integration/api/test_chat_api.py tests/integration/api/test_conversations_api.py -q
+```
+
+当前已在 `fire` 环境通过 API 回归、定向回归、全量回归和真实 `data/index/retrieval.db` + fake chat client smoke；浏览器验收仍未完成，当前阻塞点是 Codex 内置浏览器 `iab` backend 不可发现，而不是本地后端未启动。详细结果见 [docs/status.md](docs/status.md)。
 
 若 `fire` 环境中的 Playwright 可用，再执行项目内约定的 Chromium 关键路径 E2E；E2E 应通过 `page.route` mock `/api/conversations*` 的可控 NDJSON。
 

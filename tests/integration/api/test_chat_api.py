@@ -1,15 +1,35 @@
 from pathlib import Path
 
+import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
+from app.api import chat as chat_api
 from app.api.chat import get_chat_client, get_retriever
+from app.core.settings import Settings, get_settings
 from app.main import create_app
 from app.services.answer_service import MODEL_FAILURE_UNCERTAINTY
 from app.services.chat_client import ChatCompletionError
+from app.services.embedder import MissingEmbeddingDependencyError
+from app.services.vector_index import VECTOR_MAP_FILENAME
+from app.services.vector_store import FAISS_INDEX_FILENAME, MissingVectorStoreDependencyError
 
 
 APP_JS = Path(__file__).resolve().parents[3] / "app/static/app.js"
+
+
+def _build_settings_with_ready_index(tmp_path: Path) -> Settings:
+    index_dir = tmp_path / "index"
+    index_dir.mkdir(parents=True, exist_ok=True)
+    (index_dir / "retrieval.db").touch()
+    (index_dir / FAISS_INDEX_FILENAME).touch()
+    (index_dir / VECTOR_MAP_FILENAME).write_text("[]", encoding="utf-8")
+    return Settings.model_validate(
+        {
+            "index_dir": index_dir,
+            "embedding_model_name": "test-embedding-model",
+        }
+    )
 
 
 def test_root_page_renders_conversation_shell():
@@ -162,6 +182,50 @@ def test_chat_endpoint_returns_503_when_index_is_not_ready():
 
     assert response.status_code == 503
     assert response.json() == {"detail": "尚未完成建库"}
+
+
+@pytest.mark.parametrize(
+    ("error_factory", "expected_detail"),
+    [
+        (
+            lambda: MissingEmbeddingDependencyError(
+                "缺少 `sentence-transformers` 依赖。请先在 `fire` 环境安装它，再运行真实本地嵌入。"
+            ),
+            "缺少 `sentence-transformers` 依赖。请先在 `fire` 环境安装它，再运行真实本地嵌入。",
+        ),
+        (
+            lambda: MissingVectorStoreDependencyError(
+                "缺少 `faiss-cpu` 依赖。请先在 `fire` 环境安装 `numpy` 和 `faiss-cpu`。"
+            ),
+            "缺少 `faiss-cpu` 依赖。请先在 `fire` 环境安装 `numpy` 和 `faiss-cpu`。",
+        ),
+        (
+            lambda: OSError("hf download failed"),
+            "检索器初始化失败：hf download failed",
+        ),
+    ],
+)
+def test_chat_endpoint_returns_503_when_retriever_initialization_dependencies_are_unavailable(
+    tmp_path,
+    monkeypatch,
+    error_factory,
+    expected_detail,
+):
+    settings = _build_settings_with_ready_index(tmp_path)
+    app = create_app()
+    app.dependency_overrides[get_settings] = lambda: settings
+
+    def _raise_dependency_error(**kwargs):
+        del kwargs
+        raise error_factory()
+
+    monkeypatch.setattr(chat_api, "_build_retriever", _raise_dependency_error)
+    client = TestClient(app)
+
+    response = client.post("/api/chat", json={"message": "现在能查吗？"})
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": expected_detail}
 
 
 def test_chat_endpoint_returns_502_when_model_call_fails():

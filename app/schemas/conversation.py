@@ -1,6 +1,6 @@
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class ConversationListItem(BaseModel):
@@ -72,7 +72,38 @@ class SendConversationMessageResponse(BaseModel):
 class ConversationStreamEvent(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    event: str
-    data: dict[str, Any] | None = None
+    type: Literal["received", "retrieving", "generating", "organizing_evidence", "completed", "error"]
+    message: str | None = None
+    persisted: bool | None = None
+    retryable: bool | None = None
     assistant: AssistantMessagePayload | None = None
     code: str | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_legacy_stream_shape(cls, value: Any) -> Any:
+        if not isinstance(value, dict):
+            return value
+
+        payload = dict(value)
+        if "type" not in payload and "event" in payload:
+            payload["type"] = payload.pop("event")
+
+        legacy_data = payload.pop("data", None)
+        if isinstance(legacy_data, dict):
+            if "persisted" not in payload and "persisted" in legacy_data:
+                payload["persisted"] = bool(legacy_data["persisted"])
+            if "message" not in payload and legacy_data.get("message") is not None:
+                payload["message"] = str(legacy_data["message"])
+
+        return payload
+
+    @property
+    def event(self) -> str:
+        return self.type
+
+    @property
+    def data(self) -> dict[str, Any] | None:
+        if self.persisted is None:
+            return None
+        return {"persisted": self.persisted}

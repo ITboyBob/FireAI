@@ -12,6 +12,10 @@ from app.services.query_normalizer import NormalizedQuery, normalize_query
 
 
 CITATION_PATTERN = re.compile(r"《(?P<title>[^》]+)》(?P<article>第[^》]+条)?")
+RECEIVED_EVENT_MESSAGE = "已收到问题。"
+RETRIEVING_EVENT_MESSAGE = "正在检索最新法规证据。"
+GENERATING_EVENT_MESSAGE = "正在生成结构化回答。"
+ORGANIZING_EVIDENCE_EVENT_MESSAGE = "正在整理法律依据和条文原文。"
 
 
 class ConversationTurnService:
@@ -51,9 +55,9 @@ class ConversationTurnService:
         if not detail.messages:
             self.conversation_service.note_first_user_message(conversation_id, message)
 
-        yield ConversationStreamEvent(event="received", data={"persisted": True})
+        yield ConversationStreamEvent(type="received", message=RECEIVED_EVENT_MESSAGE, persisted=True)
 
-        yield ConversationStreamEvent(event="retrieving")
+        yield ConversationStreamEvent(type="retrieving", message=RETRIEVING_EVENT_MESSAGE)
         classification = self.turn_classifier.classify(message, previous_turns=previous_turns)
         history_summary = self._build_history_summary(previous_turns)
         context = self.context_manager.build(previous_turns, history_summary=history_summary)
@@ -63,12 +67,12 @@ class ConversationTurnService:
         )
         evidence = self.retriever.search(normalized, top_k=self.retrieval_top_k)
         
-        yield ConversationStreamEvent(event="generating")
+        yield ConversationStreamEvent(type="generating", message=GENERATING_EVENT_MESSAGE)
         answer = build_answer(evidence, client=self.chat_client, question=message)
         if is_model_failure_uncertainty(answer.get("uncertainty")):
             raise ChatCompletionError(str(answer["uncertainty"]))
 
-        yield ConversationStreamEvent(event="organizing_evidence")
+        yield ConversationStreamEvent(type="organizing_evidence", message=ORGANIZING_EVIDENCE_EVENT_MESSAGE)
         assistant_payload = self.presenter.build(
             answer=answer,
             previous_snapshot=previous_snapshot,
@@ -119,12 +123,12 @@ class ConversationTurnService:
         if snapshot.turn_id != turn.id:
             raise RuntimeError("snapshot was not persisted for the created turn")
             
-        yield ConversationStreamEvent(event="completed", assistant=payload)
+        yield ConversationStreamEvent(type="completed", assistant=payload)
 
     def handle_user_message(self, conversation_id: str, message: str) -> SendConversationMessageResponse:
         assistant = None
         for event in self.handle_user_message_stream(conversation_id, message):
-            if event.event == "completed" and event.assistant:
+            if event.type == "completed" and event.assistant:
                 assistant = event.assistant
         if not assistant:
             raise RuntimeError("stream did not complete")

@@ -41,15 +41,18 @@ async def get_retriever(settings: Annotated[Settings, Depends(get_settings)]) ->
     if not settings.embedding_model_name or settings.embedding_model_name == "replace-me":
         raise HTTPException(status_code=503, detail="未配置 EMBEDDING_MODEL_NAME，无法执行在线检索。")
 
-    return _build_retriever(
-        keyword_db_path=keyword_db_path,
-        vector_index_path=vector_index_path,
-        vector_map_path=vector_map_path,
-        embedding_model_name=settings.embedding_model_name,
-        embedding_device=settings.embedding_device,
-        embedding_batch_size=settings.embedding_batch_size,
-        embedding_max_seq_length=settings.embedding_max_seq_length,
-    )
+    try:
+        return _build_retriever(
+            keyword_db_path=keyword_db_path,
+            vector_index_path=vector_index_path,
+            vector_map_path=vector_map_path,
+            embedding_model_name=settings.embedding_model_name,
+            embedding_device=settings.embedding_device,
+            embedding_batch_size=settings.embedding_batch_size,
+            embedding_max_seq_length=settings.embedding_max_seq_length,
+        )
+    except Exception as exc:
+        raise _raise_retriever_dependency_unavailable(exc) from exc
 
 
 async def get_chat_client(settings: Annotated[Settings, Depends(get_settings)]) -> OpenAIChatClient:
@@ -71,7 +74,7 @@ async def chat(
     try:
         evidence = retriever.search(payload.message, top_k=payload.top_k)
     except (MissingEmbeddingDependencyError, MissingVectorStoreDependencyError) as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+        raise _raise_retriever_dependency_unavailable(exc) from exc
 
     result = build_answer(evidence, client=client, question=payload.message)
     if is_model_failure_uncertainty(result["uncertainty"]):
@@ -84,6 +87,15 @@ def _ensure_index_files_exist(paths: list[Path]) -> None:
     if all(path.exists() for path in paths):
         return
     raise HTTPException(status_code=503, detail=INDEX_NOT_READY_DETAIL)
+
+
+def _raise_retriever_dependency_unavailable(exc: Exception) -> HTTPException:
+    if isinstance(exc, (MissingEmbeddingDependencyError, MissingVectorStoreDependencyError)):
+        detail = str(exc)
+    else:
+        message = str(exc).strip()
+        detail = f"检索器初始化失败：{message}" if message else "检索器初始化失败。"
+    return HTTPException(status_code=503, detail=detail)
 
 
 @lru_cache

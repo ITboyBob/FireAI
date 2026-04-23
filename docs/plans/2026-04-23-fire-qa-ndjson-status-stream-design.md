@@ -1,8 +1,8 @@
 # 消防问答 NDJSON 状态流设计
 
-**最后更新：** 2026-04-23
+**最后更新：** 2026-04-24
 
-**文档状态：** 已确认设计基线，尚未实现。
+**文档状态：** 已实现并验证到当前范围。
 
 **适用范围：** 消防问答系统 2.0 的会话消息发送链路、前端等待态、最终回答呈现和相关测试验收。
 
@@ -37,18 +37,19 @@
 
 - 会话创建、列表、详情、重命名和软删除。
 - 一次性消息发送：`POST /api/conversations/{conversation_id}/messages`。
+- 状态流消息发送：`POST /api/conversations/{conversation_id}/messages/stream`。
 - `UserMessageInput` 请求体，字段为 `message`。
 - `SendConversationMessageResponse.assistant` 展示结构。
 - 会话服务层完成追问判定、上下文裁剪、查询改写、检索、回答生成、presenter 整理和快照落库。
 - 前端首页首问链路已按“先创建会话，再发送消息”工作。
 
-新增状态流不得绕过这些链路。它应复用同一套服务层编排与最终展示 schema，而不是复制一条新的回答生成逻辑。
+当前状态流实现不得绕过这些链路。它应复用同一套服务层编排与最终展示 schema，而不是复制一条新的回答生成逻辑。
 
 ## API 与事件协议
 
 ### 请求
 
-新增接口：
+状态流接口：
 
 ```http
 POST /api/conversations/{conversation_id}/messages/stream
@@ -96,6 +97,17 @@ Content-Type: application/x-ndjson; charset=utf-8
 
 ### 事件类型
 
+对外序列化事件主契约固定为：
+
+- `type`
+- `message`
+- `persisted`
+- `retryable`
+- `assistant`
+- `code`
+
+其中 `type` 为必填，其他字段按事件类型按需出现。`ConversationStreamEvent` 内部仍可保留 `event/data` 作为旧单测和服务层读取的最小兼容层，但它们不属于对外协议，也不应继续写入文档或验收口径。
+
 事件类型固定为：
 
 - `received`
@@ -105,7 +117,7 @@ Content-Type: application/x-ndjson; charset=utf-8
 - `completed`
 - `error`
 
-`received` 只表示后端已接受请求，并且已经成功持久化用户消息。它必须携带 `persisted: true`：
+`received` 只表示后端已接受请求，并且已经成功持久化用户消息。它必须携带 `persisted: true`，并可附带用户可读的 `message`：
 
 ```json
 {"type":"received","message":"已收到问题。","persisted":true}
@@ -165,7 +177,7 @@ Content-Type: application/x-ndjson; charset=utf-8
 
 1. 接收 `UserMessageInput`。
 2. 校验会话存在和请求体合法性；若流尚未开始，可直接返回 `404` 或 `422`。
-3. 检查索引可用性；若流尚未开始，可直接返回 `503`。
+3. 检查索引与检索依赖可用性；若流尚未开始，可直接返回 `503`。`get_retriever()` 必须把 `MissingEmbeddingDependencyError` / `MissingVectorStoreDependencyError` 以及普通初始化异常统一映射为 `503`，不得泄漏裸 `500`。当初始化异常来自检索器构建过程时，错误详情应收敛为 `检索器初始化失败：<原始错误>`。
 4. 持久化用户消息。
 5. 发送 `received`，且 `persisted` 必须为 `true`。
 6. 发送 `retrieving`，执行追问判定、上下文裁剪、查询改写和检索。
@@ -210,7 +222,7 @@ Content-Type: application/x-ndjson; charset=utf-8
 
 - `404`：会话不存在。
 - `422`：请求体不合法。
-- `503`：索引未就绪。
+- `503`：索引未就绪、检索依赖缺失，或普通检索器初始化异常。当前除 `MissingEmbeddingDependencyError` 与 `MissingVectorStoreDependencyError` 外，也覆盖 `OSError('hf download failed')` 这类初始化异常；它们都必须在 pre-stream 阶段被统一映射为 `503`，并返回 `检索器初始化失败：<原始错误>` 这一类明确详情。
 
 流开始后必须用 `error` 事件表达失败。错误事件至少携带：
 
@@ -235,7 +247,7 @@ API 测试：
 - 使用 `TestClient.stream` 验证 `Content-Type` 为 `application/x-ndjson; charset=utf-8`。
 - 验证每行都是完整 JSON。
 - 验证 `received.persisted` 为 `true`。
-- 验证流开始前的 `404 / 422 / 503`。
+- 验证流开始前的 `404 / 422 / 503`；当前已补 `422` 集成测试。`503` 既覆盖索引未就绪，也覆盖 `MissingEmbeddingDependencyError` / `MissingVectorStoreDependencyError` 这类检索依赖缺失路径，以及普通初始化异常路径。
 - 验证流开始后的 `error.code` 至少覆盖 `conversation_not_found`、`index_not_ready`、`model_error`、`validation_error`、`persistence_error`、`internal_error` 中的关键路径。
 
 前端测试：
@@ -252,6 +264,8 @@ API 测试：
 - 使用真实 `data/index/`。
 - 使用 fake chat client，避免真实模型波动导致验收不稳定。
 - 覆盖至少一轮首问和一轮追问。
+- 当前已验证到“真实 `data/index/retrieval.db` + fake chat client”范围：流式返回 `received/retrieving/generating/organizing_evidence/completed`，最终回答与历史写回正常。
+- 当前未纳入本轮通过口径的是“真实向量检索 + 真实 embedder warmup” smoke；它在当前环境会受 Hugging Face 网络可用性影响，可能报 SSL / closed client 相关异常，属于外部依赖风险。
 
 浏览器 E2E：
 
@@ -261,13 +275,13 @@ API 测试：
 - 为关键 DOM 补 `data-testid`，让测试依赖稳定语义而不是视觉样式。
 - `trace` 和 `screenshot` 只在失败时保留。
 - 不得依赖 `waitForTimeout`，应等待明确的 DOM 状态、响应或事件。
-- 若 Playwright 在 `fire` 环境不可用，记录阻塞，不私自安装。
+- 若 Playwright 在 `fire` 环境不可用，记录阻塞，不私自安装。当前 `e2e-runner` 未完成浏览器验收的直接原因不是应用后端没启动，而是 Codex 内置浏览器 `iab` backend 不可发现；本地后端实际已启动，`curl http://127.0.0.1:8000/health` 返回 `{"status":"ok"}`。
 
-## 实施依赖
+## 实现与验证依赖
 
 本设计无需新增依赖，沿用现有 `fire` 环境。
 
-实施前需要确认：
+当前实现与继续验证时需要确认：
 
 - `fire` 环境可运行现有 Python、FastAPI、pytest 依赖。
 - `data/index/` 已存在真实索引产物，供真实验证使用。

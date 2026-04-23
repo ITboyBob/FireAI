@@ -1,10 +1,21 @@
+from pathlib import Path
+
+import pytest
 from fastapi.testclient import TestClient
 
+from app.api import chat as chat_api
 from app.api.chat import get_chat_client, get_retriever
-from app.api.conversations import get_conversation_service, get_conversation_turn_service
+from app.api.conversations import (
+    get_conversation_service,
+    get_conversation_turn_service,
+    get_conversation_turn_service_factory,
+)
 from app.core.settings import Settings, get_settings
 from app.main import create_app
 from app.services.chat_client import ChatCompletionError
+from app.services.embedder import MissingEmbeddingDependencyError
+from app.services.vector_index import VECTOR_MAP_FILENAME
+from app.services.vector_store import FAISS_INDEX_FILENAME, MissingVectorStoreDependencyError
 
 
 class FakeConversationService:
@@ -67,9 +78,12 @@ class FakeConversationTurnService:
         from app.schemas.conversation import ConversationStreamEvent
         assert conversation_id == "conv-1"
         assert message == "消防法第二条怎么说？"
-        yield ConversationStreamEvent(event="received", data={"persisted": True})
+        yield ConversationStreamEvent(type="received", message="已收到问题。", persisted=True)
+        yield ConversationStreamEvent(type="retrieving", message="正在检索最新法规证据。")
+        yield ConversationStreamEvent(type="generating", message="正在生成结构化回答。")
+        yield ConversationStreamEvent(type="organizing_evidence", message="正在整理法律依据和条文原文。")
         yield ConversationStreamEvent(
-            event="completed",
+            type="completed",
             assistant={
                 "message_id": "msg-2",
                 "answer": "国家实行消防安全责任制。",
@@ -93,7 +107,7 @@ class FailingConversationTurnService:
         from app.schemas.conversation import ConversationStreamEvent
         assert conversation_id == "conv-1"
         assert message == "消防法第二条怎么说？"
-        yield ConversationStreamEvent(event="received", data={"persisted": True})
+        yield ConversationStreamEvent(type="received", message="已收到问题。", persisted=True)
         raise ChatCompletionError("模型调用失败：Your API Token has expired.")
 
 
@@ -121,6 +135,28 @@ class RealFlowChatClient:
             "scope": "适用于一般消防安全责任制说明。",
             "uncertainty": "",
         }
+
+
+def _build_settings_with_ready_index(tmp_path: Path) -> Settings:
+    index_dir = tmp_path / "index"
+    index_dir.mkdir(parents=True, exist_ok=True)
+    (index_dir / "retrieval.db").touch()
+    (index_dir / FAISS_INDEX_FILENAME).touch()
+    (index_dir / VECTOR_MAP_FILENAME).write_text("[]", encoding="utf-8")
+    return Settings.model_validate(
+        {
+            "conversation_db_path": tmp_path / "conversations.db",
+            "index_dir": index_dir,
+            "embedding_model_name": "test-embedding-model",
+        }
+    )
+
+
+def _build_turn_service_factory(service):
+    async def _factory():
+        return service
+
+    return _factory
 
 
 def test_create_conversation_then_send_message_returns_assistant_payload():
@@ -216,7 +252,9 @@ def test_conversation_detail_returns_history_summary_from_real_turn_flow(tmp_pat
 def test_send_message_stream_returns_ndjson():
     app = create_app()
     app.dependency_overrides[get_conversation_service] = lambda: FakeConversationService()
-    app.dependency_overrides[get_conversation_turn_service] = lambda: FakeConversationTurnService()
+    app.dependency_overrides[get_conversation_turn_service_factory] = (
+        lambda: _build_turn_service_factory(FakeConversationTurnService())
+    )
     client = TestClient(app)
 
     with client.stream(
@@ -228,21 +266,34 @@ def test_send_message_stream_returns_ndjson():
         assert response.headers["content-type"] == "application/x-ndjson; charset=utf-8"
         lines = list(response.iter_lines())
 
-    assert len(lines) == 2
+    assert len(lines) == 5
     import json
     received = json.loads(lines[0])
-    assert received["event"] == "received"
-    assert received["data"]["persisted"] is True
+    assert received == {
+        "type": "received",
+        "message": "已收到问题。",
+        "persisted": True,
+    }
 
-    completed = json.loads(lines[1])
-    assert completed["event"] == "completed"
+    assert [json.loads(line)["type"] for line in lines] == [
+        "received",
+        "retrieving",
+        "generating",
+        "organizing_evidence",
+        "completed",
+    ]
+
+    completed = json.loads(lines[-1])
+    assert completed["type"] == "completed"
     assert completed["assistant"]["answer"] == "国家实行消防安全责任制。"
 
 
 def test_send_message_stream_returns_error_event_on_failure():
     app = create_app()
     app.dependency_overrides[get_conversation_service] = lambda: FakeConversationService()
-    app.dependency_overrides[get_conversation_turn_service] = lambda: FailingConversationTurnService()
+    app.dependency_overrides[get_conversation_turn_service_factory] = (
+        lambda: _build_turn_service_factory(FailingConversationTurnService())
+    )
     client = TestClient(app)
 
     with client.stream(
@@ -256,17 +307,22 @@ def test_send_message_stream_returns_error_event_on_failure():
     assert len(lines) == 2
     import json
     received = json.loads(lines[0])
-    assert received["event"] == "received"
+    assert received["type"] == "received"
+    assert received["persisted"] is True
 
     error_event = json.loads(lines[1])
-    assert error_event["event"] == "error"
+    assert error_event["type"] == "error"
     assert error_event["code"] == "model_error"
+    assert error_event["retryable"] is True
+    assert "模型调用失败" in error_event["message"]
 
 
 def test_send_message_stream_returns_404_if_conversation_not_found():
     app = create_app()
     app.dependency_overrides[get_conversation_service] = lambda: FakeConversationService()
-    app.dependency_overrides[get_conversation_turn_service] = lambda: FakeConversationTurnService()
+    app.dependency_overrides[get_conversation_turn_service_factory] = (
+        lambda: _build_turn_service_factory(FakeConversationTurnService())
+    )
     client = TestClient(app)
 
     response = client.post(
@@ -274,3 +330,101 @@ def test_send_message_stream_returns_404_if_conversation_not_found():
         json={"message": "消防法第二条怎么说？"},
     )
     assert response.status_code == 404
+
+
+@pytest.mark.parametrize(
+    ("error_factory", "expected_detail"),
+    [
+        (
+            lambda: MissingEmbeddingDependencyError(
+                "缺少 `sentence-transformers` 依赖。请先在 `fire` 环境安装它，再运行真实本地嵌入。"
+            ),
+            "缺少 `sentence-transformers` 依赖。请先在 `fire` 环境安装它，再运行真实本地嵌入。",
+        ),
+        (
+            lambda: MissingVectorStoreDependencyError(
+                "缺少 `faiss-cpu` 依赖。请先在 `fire` 环境安装 `numpy` 和 `faiss-cpu`。"
+            ),
+            "缺少 `faiss-cpu` 依赖。请先在 `fire` 环境安装 `numpy` 和 `faiss-cpu`。",
+        ),
+        (
+            lambda: OSError("hf download failed"),
+            "检索器初始化失败：hf download failed",
+        ),
+    ],
+)
+def test_send_message_stream_returns_503_when_retriever_initialization_dependencies_are_unavailable(
+    tmp_path,
+    monkeypatch,
+    error_factory,
+    expected_detail,
+):
+    settings = _build_settings_with_ready_index(tmp_path)
+    app = create_app()
+    app.dependency_overrides[get_settings] = lambda: settings
+
+    def _raise_dependency_error(**kwargs):
+        del kwargs
+        raise error_factory()
+
+    monkeypatch.setattr(chat_api, "_build_retriever", _raise_dependency_error)
+    client = TestClient(app)
+    conversation_id = client.post("/api/conversations", json={}).json()["id"]
+
+    response = client.post(
+        f"/api/conversations/{conversation_id}/messages/stream",
+        json={"message": "消防法第二条怎么说？"},
+    )
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": expected_detail}
+
+
+def test_send_message_stream_returns_422_for_invalid_payload(tmp_path, monkeypatch):
+    settings = _build_settings_with_ready_index(tmp_path)
+    app = create_app()
+    app.dependency_overrides[get_settings] = lambda: settings
+
+    def _raise_dependency_error(**kwargs):
+        del kwargs
+        raise OSError("hf download failed")
+
+    monkeypatch.setattr(chat_api, "_build_retriever", _raise_dependency_error)
+    client = TestClient(app)
+    conversation_id = client.post("/api/conversations", json={}).json()["id"]
+    response = client.post(
+        f"/api/conversations/{conversation_id}/messages/stream",
+        json={},
+    )
+
+    assert response.status_code == 422
+
+
+def test_send_message_stream_honors_retriever_and_chat_client_overrides_even_when_index_is_missing(tmp_path):
+    import json
+
+    settings = Settings.model_validate(
+        {
+            "conversation_db_path": tmp_path / "conversations.db",
+            "index_dir": tmp_path / "missing-index",
+            "embedding_model_name": "test-embedding-model",
+        }
+    )
+    app = create_app()
+    app.dependency_overrides[get_settings] = lambda: settings
+    app.dependency_overrides[get_retriever] = lambda: RealFlowRetriever()
+    app.dependency_overrides[get_chat_client] = lambda: RealFlowChatClient()
+    client = TestClient(app)
+
+    conversation_id = client.post("/api/conversations", json={}).json()["id"]
+    with client.stream(
+        "POST",
+        f"/api/conversations/{conversation_id}/messages/stream",
+        json={"message": "消防法第二条怎么说？"},
+    ) as response:
+        lines = list(response.iter_lines())
+
+    assert response.status_code == 200
+    payloads = [json.loads(line) for line in lines]
+    assert payloads[-1]["type"] == "completed"
+    assert payloads[-1]["assistant"]["answer"] == "国家实行消防安全责任制。"

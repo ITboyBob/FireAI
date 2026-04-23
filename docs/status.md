@@ -7,7 +7,7 @@
 - 已按用户要求将 `docs/status.md` 更新规则调整为按需更新：状态文档仍是唯一项目状态源，但不再要求每次任务结束或每次代码执行后自动写入。
 - 已按 `requesting-code-review` + TDD 完成 QA System 2.0 `Task 7-10` 的现状审查与缺陷修复，并补齐审查过程中暴露出的仓库层一致性问题；当前已修复“范围延伸追问丢失上一轮法规标题”“当前历史摘要未写回详情 API”“追问拒答误报修正提示”“软删除后仍可写 `answer_snapshots`”“`turns` 可引用其他会话消息”5 个真实缺陷，并在 `fire` 环境完成定向回归、全量测试与真实 `data/chunks/` 烟雾验证。
 - 已按用户要求更新 `AGENTS.md` 的 Git 规则：当前仓库允许代理在当前任务范围内自主提交经过验证的本次改动，并可在提交后再同步提交范围、验证结果和提交说明，但 `push / merge / reset` 等高风险操作仍需用户单独要求。
-- 2.0 产品基线、当前技术标准和实施计划已同步到“后端 NDJSON 状态流，最终可信结果由前端逐字呈现”的新设计边界；新增设计文档为 [2026-04-23-fire-qa-ndjson-status-stream-design.md](/Users/itboybob/Project/fire/docs/plans/2026-04-23-fire-qa-ndjson-status-stream-design.md)，当前尚未进入代码实现。
+- 2.0 产品基线、当前技术标准和 NDJSON 状态流设计已同步到当前实现：`POST /api/conversations/{conversation_id}/messages/stream` 已落地，`get_retriever()` 会把依赖缺失和普通检索器初始化异常统一映射为 `503`，修掉 pre-stream 裸 `500` 泄漏；对外流事件主契约已收敛为 `type/message/persisted/retryable/assistant/code`，内部 `event/data` 仅保留最小兼容层供旧单测和服务层读取。
 - 已开始按 `docs/plans/2026-04-11-fire-qa-system-2.0-implementation.md` 执行消防问答系统 2.0 计划，并已在本地执行分支 `qa-system-2.0-exec` 开工，避免直接在 `main` 上实施。
 - `Task 1` 已按 TDD 完成会话配置扩展：当前 `Settings` 已提供本机 `SQLite` 会话库路径、上下文窗口轮数和摘要触发阈值，`.env.example` 也已补齐对应占位项。
 - `Task 2` 已按 TDD 建立 `SQLite` 会话仓库：当前已能持久化会话、消息、轮次和回答快照，并在 `var/task2-smoke.db` 上通过真实落库/重开验证。
@@ -19,7 +19,7 @@
 - `Task 8` 已按 TDD 暴露正式会话 API：当前 `/api/conversations` 已支持创建、列出、详情、重命名、删除与发消息，并已通过真实 `TestClient + data/index/` 烟雾验证。
 - `Task 9` 已按 TDD 切换到双栏会话界面：当前根页面已改为“会话列表 + 当前线程 + 输入区”结构，前端主链改走 `/api/conversations/*`，并已通过真实 `uvicorn + curl` 壳验证。
 - `Task 10` 已完成并通过真实多轮验收：当前 README / 文档索引 / 状态文档已对齐 2.0 实现，自动化测试、真实建库验证和真实多轮会话验收均已通过。
-- 流式状态专项已完成文档设计与实施计划补充：后续应新增 `POST /api/conversations/{conversation_id}/messages/stream`，响应 `application/x-ndjson; charset=utf-8`，事件固定为 `received/retrieving/generating/organizing_evidence/completed/error`；一次性 `/messages` 接口保留兼容。当前无代码实现、无测试结果。
+- 流式状态专项已完成当前范围验证：API 回归 `12 passed`、定向回归 `34 passed`、全量回归 `101 passed, 1 xfailed`、真实 `data/index/retrieval.db` + fake chat client smoke 通过；`422` 集成测试已补齐，且流式路由为兼顾 `422` 优先与测试/运行时装配一致性，现已通过 `request.app.dependency_overrides` 恢复对 `get_retriever` / `get_chat_client` 覆盖的尊重。当前未完成项是“真实向量检索 + 真实 embedder warmup” smoke 仍受 Hugging Face 连接问题影响，以及 `e2e-runner` 仍因 Codex 内置浏览器 `iab` backend 不可发现而未完成浏览器验收，但本地后端已实际启动，`curl http://127.0.0.1:8000/health` 返回 `{"status":"ok"}`。
 - QA System 2.0 `Task 7-10` 的本轮专项代码审查已收敛完成；当前仓库内已无新的代码级阻塞，剩余风险重新回到外部聊天提供商的可用性与限流策略。
 - 在用户提供新的 iFlow `CHAT_API_KEY` 后，已继续修复 4 个真实链路问题：Markdown 代码块包裹 JSON 导致 schema 校验失败、限流错误未重试、证据区混入无关条文原文、范围延伸追问未触发修正提示。
 - 当前主线已无新的代码阻塞；剩余风险主要是外部聊天提供商的可用性和限流策略，属于运行时依赖而非仓库内逻辑缺陷。
@@ -88,13 +88,26 @@
 
 ## 最新记录
 
+### 2026-04-24 修复流式 pre-stream 500 泄漏并收敛对外事件契约
+
+- 执行内容：围绕“流式 pre-stream 500 泄漏修复 + 流事件契约收敛 + 测试补齐”收敛当前实现。`get_retriever()` 现已把 `MissingEmbeddingDependencyError` / `MissingVectorStoreDependencyError` 以及普通初始化异常统一映射为 `503`；例如 `_build_retriever` 抛出 `OSError('hf download failed')` 时，`/api/chat` 与 `/api/conversations/{conversation_id}/messages/stream` 都会返回 `503`，`detail` 为 `检索器初始化失败：hf download failed`。同时，流式接口已补齐 `422` 集成测试，并通过 `get_conversation_turn_service_factory()` 把 service 构造延后到 body 校验和会话存在检查之后，再借助 `request.app.dependency_overrides` 恢复对 `get_retriever` / `get_chat_client` 覆盖的尊重。对外 NDJSON 事件主契约收敛为 `type`、`message`、`persisted`、`retryable`、`assistant`、`code`，而 `ConversationStreamEvent` 的 `event/data` 仅保留为旧单测与服务层读取的最小兼容层。
+- 执行环境：`fire`
+- 依赖情况：无需新增依赖，沿用当前 `fire` 环境。
+- 验证结果：
+  - API 回归：`conda run -n fire python -m pytest tests/integration/api/test_conversations_api.py -q` 结果为 `12 passed`
+  - 定向回归：`conda run -n fire python -m pytest tests/unit/api/test_chat_dependencies.py tests/unit/api/test_conversation_dependencies.py tests/unit/services/test_conversation_turn_service.py tests/integration/api/test_chat_api.py tests/integration/api/test_conversations_api.py -q` 结果为 `34 passed`
+  - 全量回归：`conda run -n fire python -m pytest -q` 结果为 `101 passed, 1 xfailed`
+  - 手工复现：将 `_build_retriever` monkeypatch 为 `raise OSError('hf download failed')` 后，`/api/chat` 与 `/api/conversations/{id}/messages/stream` 均返回 `503`，`detail` 为 `检索器初始化失败：hf download failed`
+  - 真实产物 smoke：基于真实 `data/index/retrieval.db` + fake chat client 验证通过，流式返回顺序为 `received/retrieving/generating/organizing_evidence/completed`，最终回答与历史写回正常
+- 当前阻塞点：本轮补丁在仓库内无新增代码阻塞；剩余风险一是“真实向量检索 + 真实 embedder warmup” smoke 在当前环境仍可能因 Hugging Face 连接问题报 SSL / closed client 相关异常，属于外部模型或网络依赖风险；二是 `e2e-runner` 仍未完成浏览器验收，原因不是应用后端没启动，而是 Codex 内置浏览器 `iab` backend 不可发现。当前本地后端已实际启动，`curl http://127.0.0.1:8000/health` 返回 `{"status":"ok"}`。
+
 ### 2026-04-23 更新 NDJSON 状态流设计与文档基线
 
 - 执行内容：按用户已确认的最终设计，新增 [NDJSON 状态流设计](/Users/itboybob/Project/fire/docs/plans/2026-04-23-fire-qa-ndjson-status-stream-design.md)，并同步更新 [2.0 PRD](/Users/itboybob/Project/fire/docs/plans/2026-04-11-fire-qa-system-2.0-prd.md)、[2.0 实施计划](/Users/itboybob/Project/fire/docs/plans/2026-04-11-fire-qa-system-2.0-implementation.md)、[README](/Users/itboybob/Project/fire/README.md) 与 [文档索引](/Users/itboybob/Project/fire/docs/文档索引.md)。统一口径为“后端 NDJSON 状态流，最终可信结果由前端逐字呈现”；明确这不是模型 token 原生流，不展示未校验草稿，不做 `SSE` / `WebSocket` / 未校验 `delta`，不持久化 `partial message/delta`，不新增 `delta` 表。
 - 执行环境：本轮只修改文档，未运行 Python、pytest、服务进程或浏览器自动化；未联网、未安装依赖、未执行 git 操作。
 - 依赖情况：无需新增依赖，沿用当前 `fire` 环境。Playwright 按用户补充可尝试使用，但实施前必须先在 `fire` 环境确认可用；若不可用，只记录阻塞，不私自安装。
 - 验证结果：本轮未运行测试。文档层已记录后续实现验收口径：服务层事件顺序与共享链路、`TestClient.stream` NDJSON、前端 buffer 解析/typewriter/错误态/重复提交、真实 `data/index/` 加 fake chat client 验证，以及可用时通过 Playwright `page.route` mock `/api/conversations*` 的 Chromium 关键路径 E2E。
-- 当前阻塞点：设计文档与计划已更新，代码尚未实现；下一步应按实施计划的“流式状态专项阶段”进入 TDD，实现 `/api/conversations/{conversation_id}/messages/stream` 与前端 NDJSON 消费。
+- 当前阻塞点：该文档基线现已由 `2026-04-24` 的流式实现与验证记录接续；当前不再是“尚未实现”，后续若继续扩展流事件字段或真实 E2E 覆盖，应以最新实现口径继续更新。
 
 ### 2026-04-22 修复火山方舟返回 JSON 字段类型偏差导致的聊天失败
 
