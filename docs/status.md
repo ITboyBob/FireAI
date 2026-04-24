@@ -8,6 +8,7 @@
 - 已按 `requesting-code-review` + TDD 完成 QA System 2.0 `Task 7-10` 的现状审查与缺陷修复，并补齐审查过程中暴露出的仓库层一致性问题；当前已修复“范围延伸追问丢失上一轮法规标题”“当前历史摘要未写回详情 API”“追问拒答误报修正提示”“软删除后仍可写 `answer_snapshots`”“`turns` 可引用其他会话消息”5 个真实缺陷，并在 `fire` 环境完成定向回归、全量测试与真实 `data/chunks/` 烟雾验证。
 - 已按用户要求更新 `AGENTS.md` 的 Git 规则：当前仓库允许代理在当前任务范围内自主提交经过验证的本次改动，并可在提交后再同步提交范围、验证结果和提交说明，但 `push / merge / reset` 等高风险操作仍需用户单独要求。
 - 2.0 产品基线、当前技术标准和 NDJSON 状态流设计已同步到当前实现：`POST /api/conversations/{conversation_id}/messages/stream` 已落地，`get_retriever()` 会把依赖缺失和普通检索器初始化异常统一映射为 `503`，修掉 pre-stream 裸 `500` 泄漏；对外流事件主契约已收敛为 `type/message/persisted/retryable/assistant/code`，内部 `event/data` 仅保留最小兼容层供旧单测和服务层读取。
+- **已修复模型加载导致的事件循环阻塞与假死问题**：通过将 `get_retriever` 降级为同步函数放入线程池，并在 `SentenceTransformer` 侧强制注入 `HF_HUB_OFFLINE=1` 切断联网，同时在 `app/main.py` 引入 `lifespan` 生命周期完成启动期预热，彻底解决了重启后首次发问时的 `client closed` 报错以及长达数秒的冷启动延迟。
 - 已开始按 `docs/plans/2026-04-11-fire-qa-system-2.0-implementation.md` 执行消防问答系统 2.0 计划，并已在本地执行分支 `qa-system-2.0-exec` 开工，避免直接在 `main` 上实施。
 - `Task 1` 已按 TDD 完成会话配置扩展：当前 `Settings` 已提供本机 `SQLite` 会话库路径、上下文窗口轮数和摘要触发阈值，`.env.example` 也已补齐对应占位项。
 - `Task 2` 已按 TDD 建立 `SQLite` 会话仓库：当前已能持久化会话、消息、轮次和回答快照，并在 `var/task2-smoke.db` 上通过真实落库/重开验证。

@@ -32,7 +32,7 @@ RetrieverFactory = Callable[..., Retriever]
 ChatClientFactory = Callable[..., OpenAIChatClient]
 
 
-async def get_retriever(settings: Annotated[Settings, Depends(get_settings)]) -> Retriever:
+def get_retriever(settings: Annotated[Settings, Depends(get_settings)]) -> Retriever:
     keyword_db_path = settings.index_dir / KEYWORD_DB_FILENAME
     vector_index_path = settings.index_dir / FAISS_INDEX_FILENAME
     vector_map_path = settings.index_dir / VECTOR_MAP_FILENAME

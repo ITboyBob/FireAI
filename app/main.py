@@ -1,4 +1,5 @@
 import hashlib
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -6,9 +7,11 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from app.api.chat import router as chat_router
+from app.api.chat import get_retriever, router as chat_router
+from app.core.settings import get_settings
 from app.api.conversations import router as conversations_router
 from app.api.health import router as health_router
+import anyio.to_thread
 
 
 APP_DIR = Path(__file__).resolve().parent
@@ -22,8 +25,18 @@ def build_static_asset_url(request: Request, asset_name: str) -> str:
     return f"{request.url_for('static', path=f'/{asset_name}')}?v={version}"
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    settings = get_settings()
+    if settings.embedding_model_name and settings.embedding_model_name != "replace-me":
+        try:
+            await anyio.to_thread.run_sync(get_retriever, settings)
+        except Exception:
+            pass
+    yield
+
 def create_app() -> FastAPI:
-    app = FastAPI(title="消防问答系统 2.0")
+    app = FastAPI(title="消防问答系统 2.0", lifespan=lifespan)
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
     def render_shell(request: Request, *, initial_conversation_id: str = "") -> HTMLResponse:

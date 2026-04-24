@@ -94,6 +94,9 @@ class SentenceTransformerEmbedder:
         if self._model is not None:
             return self._model
 
+        import os
+        os.environ["HF_HUB_OFFLINE"] = "1"
+
         try:
             from sentence_transformers import SentenceTransformer
         except ImportError as exc:
