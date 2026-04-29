@@ -131,6 +131,36 @@ def test_append_vector_index_extends_positions_and_rejects_duplicate_document(tm
         )
 
 
+def test_append_vector_index_encodes_before_loading_vector_store(tmp_path):
+    events: list[str] = []
+
+    class OrderedFakeEmbedder(FakeEmbedder):
+        def encode(self, texts):
+            events.append("encode")
+            return super().encode(texts)
+
+    def load_store(path):
+        events.append("load-store")
+        return AppendableRecordingVectorStore.load(path)
+
+    build_vector_index(
+        [{"chunk_id": "old-1", "document_id": "old_doc", "text": "消防安全责任制"}],
+        tmp_path,
+        embedder=FakeEmbedder(),
+        vector_store_factory=lambda dimension: RecordingVectorStore(dimension),
+    )
+
+    append_vector_index(
+        [{"chunk_id": "new-1", "document_id": "new_doc", "text": "损坏消防设施"}],
+        tmp_path,
+        embedder=OrderedFakeEmbedder(),
+        document_id="new_doc",
+        vector_store_loader=load_store,
+    )
+
+    assert events[:2] == ["encode", "load-store"]
+
+
 def test_sentence_transformer_embedder_uses_document_and_query_encoders(monkeypatch):
     calls: list[tuple[str, list[str], dict]] = []
 

@@ -99,15 +99,15 @@ def append_vector_index(
     if any(not text for text in texts):
         raise ValueError("each chunk must include non-empty text")
 
-    store = vector_store_loader(index_path)
-    if store.vector_count != len(existing_vector_map):
-        raise ValueError("faiss.index 与 vector_map.json 数量不一致")
-
     raw_vectors = _encode_documents(embedder, texts)
     if len(raw_vectors) != len(chunks):
         raise ValueError("embedder output count does not match chunk count")
     vectors = normalize_vectors(raw_vectors)
     vector_dimension = _validate_vector_dimensions(vectors)
+
+    store = vector_store_loader(index_path)
+    if store.vector_count != len(existing_vector_map):
+        raise ValueError("faiss.index 与 vector_map.json 数量不一致")
     if store.dimension != vector_dimension:
         raise ValueError("vector dimensions do not match the configured store dimension")
 
