@@ -26,12 +26,16 @@
   -> data/chunks/
   -> scripts/build_index.py
   -> data/index/
+  -> scripts/import_new_corpus.py
+  -> data/manifests/
   -> FastAPI 后端
   -> 会话、检索、回答生成、证据整理
   -> 网页界面
 ```
 
 离线链路负责语料标准化、结构解析、切块、关键词索引和向量索引构建。
+
+增量导入链路只用于用户显式指定的单个全新法规文件。它先在 `data/.staging/` 中生成临时语料和索引，完整校验后再提交到正式 `data/`，并在 `data/manifests/incremental_imports.json` 记录成功导入状态。
 
 在线链路负责会话管理、查询规范化、法规证据检索、结构化回答生成、证据展示和历史记录持久化。
 
@@ -41,6 +45,8 @@
 - `app/`：FastAPI 应用、API 路由、服务层、模板和静态资源。
 - `scripts/`：离线语料处理和索引构建脚本。
 - `data/`：可重建的标准化文本、结构化 JSON、切块 JSONL 和检索索引。
+- `data/manifests/`：增量导入的 build-state 记录。
+- `data/.staging/`：增量导入过程中不可见的临时产物目录。
 - `var/`：本机运行时数据和临时产物。
 
 ## 环境配置
@@ -113,7 +119,18 @@ conda run -n fire python scripts/build_index.py
    - `data/index/faiss.index`
    - `data/index/vector_map.json`
 
-4. 启动后端服务。
+4. 如需追加一个全新法规，使用显式增量导入。
+
+```bash
+conda run -n fire python scripts/import_new_corpus.py \
+  --source /absolute/path/to/new-law.docx
+```
+
+   第一版只支持一个 `.doc/.docx` 文件；不支持目录扫描、多文件导入、PDF/TXT/网页导入、旧法规修订替换或条文级 diff。若发现同 `document_id`、正式输出文件已存在、manifest 已记录、关键词索引已有记录或向量映射已有记录，会直接失败，不跳过、不覆盖。
+
+   命令成功后会输出 `run_id`、导入法规、chunk 数量、manifest 路径，并提示：语义重复法规无法仅靠文件名或 hash 完整识别，第一版只做机械冲突检测。
+
+5. 启动后端服务。
 
 ```bash
 conda run -n fire python -m uvicorn app.main:create_app --factory --reload
@@ -125,7 +142,7 @@ conda run -n fire python -m uvicorn app.main:create_app --factory --reload
 conda run -n fire python -m uvicorn app.main:create_app --factory --reload --port 8000
 ```
 
-5. 访问页面。
+6. 访问页面。
 
    - 网站首页：<http://127.0.0.1:8000/>
    - 网站首页（等价地址）：<http://localhost:8000/>
@@ -133,4 +150,4 @@ conda run -n fire python -m uvicorn app.main:create_app --factory --reload --por
    - `/health`：健康检查
    - `/docs`：FastAPI 文档页
 
-6. 在网页首页输入消防法规相关问题，查看回答、法律依据和条文原文。
+7. 在网页首页输入消防法规相关问题，查看回答、法律依据和条文原文。
