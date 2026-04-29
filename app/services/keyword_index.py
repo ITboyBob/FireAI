@@ -6,6 +6,10 @@ import sqlite3
 FTS_TABLE = "chunks"
 
 
+class KeywordIndexConflictError(RuntimeError):
+    pass
+
+
 def build_keyword_index(chunks: list[dict[str, Any]], db_path: Path) -> Path:
     db_path.parent.mkdir(parents=True, exist_ok=True)
     if db_path.exists():
@@ -13,37 +17,33 @@ def build_keyword_index(chunks: list[dict[str, Any]], db_path: Path) -> Path:
 
     with sqlite3.connect(db_path) as connection:
         _create_fts_table(connection)
-        connection.executemany(
-            f"""
-            INSERT INTO {FTS_TABLE} (
-                chunk_id,
-                document_id,
-                title,
-                path,
-                text,
-                article_no,
-                chapter_title,
-                region,
-                promulgated_on,
-                effective_on
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            [
-                (
-                    chunk["chunk_id"],
-                    chunk.get("document_id"),
-                    chunk.get("title"),
-                    chunk.get("path"),
-                    chunk.get("text"),
-                    chunk.get("article_no"),
-                    chunk.get("chapter_title"),
-                    chunk.get("region"),
-                    chunk.get("promulgated_on"),
-                    chunk.get("effective_on"),
-                )
-                for chunk in chunks
-            ],
-        )
+        _insert_chunks(connection, chunks)
+
+    return db_path
+
+
+def append_keyword_index(
+    chunks: list[dict[str, Any]],
+    db_path: Path,
+    *,
+    document_id: str,
+) -> Path:
+    if not db_path.exists():
+        raise FileNotFoundError(f"关键词索引不存在: {db_path}")
+
+    with sqlite3.connect(db_path) as connection:
+        row = connection.execute(
+            f"SELECT 1 FROM {FTS_TABLE} WHERE document_id = ? LIMIT 1",
+            (document_id,),
+        ).fetchone()
+        if row is not None:
+            raise KeywordIndexConflictError(f"关键词索引已有该 document_id: {document_id}")
+        if not chunks:
+            raise ValueError("chunks must not be empty")
+        if any(chunk.get("document_id") != document_id for chunk in chunks):
+            raise ValueError(f"chunks document_id 必须全部等于: {document_id}")
+
+        _insert_chunks(connection, chunks)
 
     return db_path
 
@@ -162,3 +162,37 @@ def _create_fts_table(connection: sqlite3.Connection) -> None:
         connection.execute(table_sql % ", tokenize='trigram'")
     except sqlite3.OperationalError:
         connection.execute(table_sql % "")
+
+
+def _insert_chunks(connection: sqlite3.Connection, chunks: list[dict[str, Any]]) -> None:
+    connection.executemany(
+        f"""
+        INSERT INTO {FTS_TABLE} (
+            chunk_id,
+            document_id,
+            title,
+            path,
+            text,
+            article_no,
+            chapter_title,
+            region,
+            promulgated_on,
+            effective_on
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        [
+            (
+                chunk["chunk_id"],
+                chunk.get("document_id"),
+                chunk.get("title"),
+                chunk.get("path"),
+                chunk.get("text"),
+                chunk.get("article_no"),
+                chunk.get("chapter_title"),
+                chunk.get("region"),
+                chunk.get("promulgated_on"),
+                chunk.get("effective_on"),
+            )
+            for chunk in chunks
+        ],
+    )
