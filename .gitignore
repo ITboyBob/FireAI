@@ -20,6 +20,9 @@ data/structured/
 data/chunks/
 data/index/
 data/manifests/
+法律文本/
+苏子瀚/
+总.json
 
 # Local model or tool caches
 .cache/
@@ -34,3 +37,5 @@ hf_cache/
 # Claude Code configuration (generated rules, not source code)
 .claude/
 CLAUDE.md
+# Codex configuration
+AGENTS.md
