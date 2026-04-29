@@ -1,6 +1,8 @@
 from collections.abc import Sequence
+from dataclasses import dataclass
 import json
 from pathlib import Path
+import re
 import sqlite3
 from typing import Literal, cast
 
@@ -10,6 +12,16 @@ from app.services.incremental_manifest import load_manifest
 
 class IncrementalImportError(RuntimeError):
     pass
+
+
+@dataclass(frozen=True)
+class ImportStaging:
+    root: Path
+    normalized_dir: Path
+    structured_dir: Path
+    chunks_dir: Path
+    index_dir: Path
+    manifest_dir: Path
 
 
 def resolve_explicit_sources(paths: Sequence[Path]) -> list[CorpusDocument]:
@@ -45,6 +57,33 @@ def resolve_explicit_sources(paths: Sequence[Path]) -> list[CorpusDocument]:
         )
 
     return documents
+
+
+def create_import_staging(staging_root: Path, *, run_id: str) -> ImportStaging:
+    if not re.fullmatch(r"[A-Za-z0-9_.-]+", run_id):
+        raise IncrementalImportError(f"run_id 包含不安全字符: {run_id}")
+
+    root = staging_root / f"incremental-import-{run_id}"
+    if root.exists():
+        raise IncrementalImportError(f"staging 目录已存在: {root}")
+
+    staging = ImportStaging(
+        root=root,
+        normalized_dir=root / "normalized",
+        structured_dir=root / "structured",
+        chunks_dir=root / "chunks",
+        index_dir=root / "index",
+        manifest_dir=root / "manifests",
+    )
+    for directory in (
+        staging.normalized_dir,
+        staging.structured_dir,
+        staging.chunks_dir,
+        staging.index_dir,
+        staging.manifest_dir,
+    ):
+        directory.mkdir(parents=True, exist_ok=False)
+    return staging
 
 
 def validate_append_only_preflight(

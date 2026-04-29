@@ -5,6 +5,7 @@ import pytest
 
 from app.services.corpus_ingestor import CorpusDocument
 from app.services.incremental_import import (
+    create_import_staging,
     IncrementalImportError,
     resolve_explicit_sources,
     validate_append_only_preflight,
@@ -142,6 +143,20 @@ def test_preflight_fails_when_vector_map_has_document(tmp_path: Path):
             index_dir=index_dir,
             manifest_path=manifest_path,
         )
+
+
+def test_create_import_staging_uses_run_scoped_hidden_directory(tmp_path: Path):
+    staging_root = tmp_path / "data" / ".staging"
+
+    staging = create_import_staging(staging_root, run_id="run-123")
+
+    assert staging.root == staging_root / "incremental-import-run-123"
+    assert staging.normalized_dir == staging.root / "normalized"
+    assert staging.structured_dir == staging.root / "structured"
+    assert staging.chunks_dir == staging.root / "chunks"
+    assert staging.index_dir == staging.root / "index"
+    assert staging.manifest_dir == staging.root / "manifests"
+    assert staging.root.exists()
 
 
 def _new_fire_rule_document(tmp_path: Path) -> CorpusDocument:
