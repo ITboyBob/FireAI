@@ -1,10 +1,13 @@
 import json
 from pathlib import Path
+import sqlite3
 
 import pytest
 
 from app.services.corpus_ingestor import CorpusDocument
 from app.services.incremental_import import (
+    CommitPlan,
+    commit_staged_import,
     create_import_staging,
     generate_new_corpus_artifacts,
     IncrementalImportError,
@@ -193,6 +196,147 @@ def test_generate_new_corpus_artifacts_writes_only_to_staging(
     assert not (tmp_path / "data" / "chunks" / "new_fire_rule.jsonl").exists()
 
 
+def test_commit_staged_import_does_not_publish_partial_corpus_files(
+    tmp_path: Path,
+    monkeypatch,
+):
+    data_dir = tmp_path / "data"
+    index_dir = data_dir / "index"
+    manifest_path = data_dir / "manifests" / "incremental_imports.json"
+    staging = create_import_staging(data_dir / ".staging", run_id="run-123")
+    _prepare_existing_keyword_db(index_dir / "retrieval.db", document_id="old_doc")
+    _prepare_existing_fake_vector_index(index_dir, document_id="old_doc", vector_count=1)
+    _write_staged_new_doc_files(staging, document_id="new_doc")
+
+    def fail_keyword_append(*args, **kwargs):
+        raise IncrementalImportError("模拟关键词索引失败")
+
+    monkeypatch.setattr(
+        "app.services.incremental_import.append_keyword_index",
+        fail_keyword_append,
+    )
+
+    with pytest.raises(IncrementalImportError, match="模拟关键词索引失败"):
+        commit_staged_import(
+            _commit_plan(
+                document_id="new_doc",
+                staging=staging,
+                data_dir=data_dir,
+                index_dir=index_dir,
+                manifest_path=manifest_path,
+            ),
+            embedder=object(),
+        )
+
+    assert not (data_dir / "normalized" / "new_doc.txt").exists()
+    assert not (data_dir / "structured" / "new_doc.json").exists()
+    assert not (data_dir / "chunks" / "new_doc.jsonl").exists()
+    assert not manifest_path.exists()
+
+
+def test_commit_staged_import_keeps_formal_keyword_db_unchanged_when_later_step_fails(
+    tmp_path: Path,
+    monkeypatch,
+):
+    data_dir = tmp_path / "data"
+    index_dir = data_dir / "index"
+    manifest_path = data_dir / "manifests" / "incremental_imports.json"
+    staging = create_import_staging(data_dir / ".staging", run_id="run-123")
+
+    _prepare_existing_keyword_db(index_dir / "retrieval.db", document_id="old_doc")
+    _prepare_existing_fake_vector_index(index_dir, document_id="old_doc", vector_count=1)
+    keyword_count_before = _count_keyword_rows(index_dir / "retrieval.db")
+    _write_staged_new_doc_files(staging, document_id="new_doc")
+
+    def fail_vector_append(*args, **kwargs):
+        raise IncrementalImportError("模拟向量索引失败")
+
+    monkeypatch.setattr(
+        "app.services.incremental_import.append_vector_index",
+        fail_vector_append,
+    )
+
+    with pytest.raises(IncrementalImportError, match="模拟向量索引失败"):
+        commit_staged_import(
+            _commit_plan(
+                document_id="new_doc",
+                staging=staging,
+                data_dir=data_dir,
+                index_dir=index_dir,
+                manifest_path=manifest_path,
+            ),
+            embedder=object(),
+        )
+
+    assert _count_keyword_rows(index_dir / "retrieval.db") == keyword_count_before
+    assert not _keyword_document_exists(index_dir / "retrieval.db", "new_doc")
+
+
+def test_commit_staged_import_rolls_back_everything_when_manifest_write_fails(
+    tmp_path: Path,
+    monkeypatch,
+):
+    data_dir = tmp_path / "data"
+    index_dir = data_dir / "index"
+    manifest_path = data_dir / "manifests" / "incremental_imports.json"
+    staging = create_import_staging(data_dir / ".staging", run_id="run-123")
+
+    _prepare_existing_keyword_db(index_dir / "retrieval.db", document_id="old_doc")
+    _prepare_existing_fake_vector_index(index_dir, document_id="old_doc", vector_count=1)
+    _write_staged_new_doc_files(staging, document_id="new_doc")
+
+    keyword_count_before = _count_keyword_rows(index_dir / "retrieval.db")
+    vector_count_before = _read_fake_vector_count(index_dir / "faiss.index")
+    vector_map_before = (index_dir / "vector_map.json").read_text(encoding="utf-8")
+    manifest_before = manifest_path.read_text(encoding="utf-8") if manifest_path.exists() else None
+
+    def fake_vector_append(chunks, output_dir, **kwargs):
+        (output_dir / "faiss.index").write_text("fake-vector-count=2", encoding="utf-8")
+        vector_map = json.loads((output_dir / "vector_map.json").read_text(encoding="utf-8"))
+        vector_map.append({"position": 1, **chunks[0]})
+        (output_dir / "vector_map.json").write_text(
+            json.dumps(vector_map, ensure_ascii=False),
+            encoding="utf-8",
+        )
+        return object()
+
+    def fail_manifest_append(*args, **kwargs):
+        raise IncrementalImportError("模拟 manifest 写入失败")
+
+    monkeypatch.setattr(
+        "app.services.incremental_import.append_vector_index",
+        fake_vector_append,
+    )
+    monkeypatch.setattr(
+        "app.services.incremental_import.append_import_record",
+        fail_manifest_append,
+    )
+
+    with pytest.raises(IncrementalImportError, match="模拟 manifest 写入失败"):
+        commit_staged_import(
+            _commit_plan(
+                document_id="new_doc",
+                staging=staging,
+                data_dir=data_dir,
+                index_dir=index_dir,
+                manifest_path=manifest_path,
+            ),
+            embedder=object(),
+        )
+
+    assert _count_keyword_rows(index_dir / "retrieval.db") == keyword_count_before
+    assert not _keyword_document_exists(index_dir / "retrieval.db", "new_doc")
+    assert _read_fake_vector_count(index_dir / "faiss.index") == vector_count_before
+    assert (index_dir / "vector_map.json").read_text(encoding="utf-8") == vector_map_before
+    assert not (data_dir / "normalized" / "new_doc.txt").exists()
+    assert not (data_dir / "structured" / "new_doc.json").exists()
+    assert not (data_dir / "chunks" / "new_doc.jsonl").exists()
+    if manifest_before is None:
+        assert not manifest_path.exists()
+    else:
+        assert manifest_path.read_text(encoding="utf-8") == manifest_before
+
+
 def _new_fire_rule_document(tmp_path: Path) -> CorpusDocument:
     source_path = tmp_path / "新消防规定.docx"
     source_path.write_text("placeholder", encoding="utf-8")
@@ -202,3 +346,119 @@ def _new_fire_rule_document(tmp_path: Path) -> CorpusDocument:
         source_name="新消防规定",
         file_type="docx",
     )
+
+
+def _commit_plan(
+    *,
+    document_id: str,
+    staging,
+    data_dir: Path,
+    index_dir: Path,
+    manifest_path: Path,
+) -> CommitPlan:
+    return CommitPlan(
+        document_id=document_id,
+        source_name="新法规",
+        source_path="/tmp/new.docx",
+        chunk_count=1,
+        staging=staging,
+        data_dir=data_dir,
+        index_dir=index_dir,
+        manifest_path=manifest_path,
+        run_id="run-123",
+    )
+
+
+def _write_staged_new_doc_files(staging, *, document_id: str) -> None:
+    (staging.normalized_dir / f"{document_id}.txt").write_text(
+        "新法规\n第一条 新增消防安全责任。",
+        encoding="utf-8",
+    )
+    (staging.structured_dir / f"{document_id}.json").write_text("{}", encoding="utf-8")
+    (staging.chunks_dir / f"{document_id}.jsonl").write_text(
+        json.dumps(
+            {
+                "chunk_id": "new-1",
+                "document_id": document_id,
+                "title": "新法规",
+                "path": "新法规 > 第一条",
+                "text": "新增消防安全责任。",
+                "article_no": "第一条",
+                "chapter_title": None,
+                "region": None,
+                "promulgated_on": None,
+                "effective_on": None,
+            },
+            ensure_ascii=False,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+
+def _prepare_existing_keyword_db(db_path: Path, *, document_id: str) -> None:
+    build_keyword_index(
+        [
+            {
+                "chunk_id": "old-1",
+                "document_id": document_id,
+                "title": "旧法规",
+                "path": "旧法规 > 第一条",
+                "text": "旧消防设施要求。",
+                "article_no": "第一条",
+                "chapter_title": None,
+                "region": None,
+                "promulgated_on": None,
+                "effective_on": None,
+            }
+        ],
+        db_path,
+    )
+
+
+def _prepare_existing_fake_vector_index(
+    index_dir: Path,
+    *,
+    document_id: str,
+    vector_count: int,
+) -> None:
+    index_dir.mkdir(parents=True, exist_ok=True)
+    (index_dir / "faiss.index").write_text(
+        f"fake-vector-count={vector_count}",
+        encoding="utf-8",
+    )
+    (index_dir / "vector_map.json").write_text(
+        json.dumps(
+            [
+                {
+                    "position": 0,
+                    "chunk_id": "old-1",
+                    "document_id": document_id,
+                    "text": "旧消防设施要求。",
+                }
+            ],
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+
+def _count_keyword_rows(db_path: Path) -> int:
+    with sqlite3.connect(db_path) as connection:
+        return int(connection.execute("SELECT count(*) FROM chunks").fetchone()[0])
+
+
+def _keyword_document_exists(db_path: Path, document_id: str) -> bool:
+    with sqlite3.connect(db_path) as connection:
+        return (
+            connection.execute(
+                "SELECT 1 FROM chunks WHERE document_id = ? LIMIT 1",
+                (document_id,),
+            ).fetchone()
+            is not None
+        )
+
+
+def _read_fake_vector_count(index_path: Path) -> int:
+    payload = index_path.read_text(encoding="utf-8")
+    return int(payload.split("=", maxsplit=1)[1])
