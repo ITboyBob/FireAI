@@ -12,6 +12,7 @@ from app.services.incremental_import import (
     generate_new_corpus_artifacts,
     IncrementalImportError,
     resolve_explicit_sources,
+    run_incremental_import,
     validate_append_only_preflight,
 )
 from app.services.incremental_manifest import append_import_record
@@ -335,6 +336,76 @@ def test_commit_staged_import_rolls_back_everything_when_manifest_write_fails(
         assert not manifest_path.exists()
     else:
         assert manifest_path.read_text(encoding="utf-8") == manifest_before
+
+
+def test_run_incremental_import_returns_committed_summary(tmp_path: Path, monkeypatch):
+    source = tmp_path / "新消防规定.docx"
+    source.write_text("placeholder", encoding="utf-8")
+    data_dir = tmp_path / "data"
+    index_dir = data_dir / "index"
+    _prepare_existing_keyword_db(index_dir / "retrieval.db", document_id="old_doc")
+    _prepare_existing_fake_vector_index(index_dir, document_id="old_doc", vector_count=1)
+
+    def fake_normalize_document(document, output_dir):
+        output_path = output_dir / f"{document.document_id}.txt"
+        output_path.write_text("新消防规定\n第一条 新增法规正文。", encoding="utf-8")
+        return type("Result", (), {"output_path": output_path, "error_message": None})()
+
+    def fake_vector_append(chunks, output_dir, **kwargs):
+        (output_dir / "faiss.index").write_text("fake-vector-count=2", encoding="utf-8")
+        vector_map = json.loads((output_dir / "vector_map.json").read_text(encoding="utf-8"))
+        vector_map.append({"position": 1, **chunks[0]})
+        (output_dir / "vector_map.json").write_text(
+            json.dumps(vector_map, ensure_ascii=False),
+            encoding="utf-8",
+        )
+        return object()
+
+    monkeypatch.setattr(
+        "app.services.incremental_import.normalize_document",
+        fake_normalize_document,
+    )
+    monkeypatch.setattr(
+        "app.services.incremental_import.append_vector_index",
+        fake_vector_append,
+    )
+
+    summary = run_incremental_import(
+        sources=[source],
+        data_dir=data_dir,
+        index_dir=index_dir,
+        manifest_path=data_dir / "manifests" / "incremental_imports.json",
+        staging_root=data_dir / ".staging",
+        embedder=object(),
+        run_id="run-123",
+    )
+
+    assert summary.run_id == "run-123"
+    assert summary.committed_document_ids == [summary.documents[0].document_id]
+    assert summary.total_chunks > 0
+    document_id = summary.committed_document_ids[0]
+    assert (data_dir / "normalized" / f"{document_id}.txt").exists()
+    assert (data_dir / "structured" / f"{document_id}.json").exists()
+    assert (data_dir / "chunks" / f"{document_id}.jsonl").exists()
+    assert summary.manifest_path.exists()
+
+
+def test_run_incremental_import_rejects_multiple_sources(tmp_path: Path):
+    first = tmp_path / "第一份.docx"
+    second = tmp_path / "第二份.docx"
+    first.write_text("placeholder", encoding="utf-8")
+    second.write_text("placeholder", encoding="utf-8")
+
+    with pytest.raises(IncrementalImportError, match="第一版一次只能导入一个法规文件"):
+        run_incremental_import(
+            sources=[first, second],
+            data_dir=tmp_path / "data",
+            index_dir=tmp_path / "data" / "index",
+            manifest_path=tmp_path / "data" / "manifests" / "incremental_imports.json",
+            staging_root=tmp_path / "data" / ".staging",
+            embedder=object(),
+            run_id="run-123",
+        )
 
 
 def _new_fire_rule_document(tmp_path: Path) -> CorpusDocument:

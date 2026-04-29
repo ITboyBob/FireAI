@@ -6,6 +6,7 @@ import re
 import shutil
 import sqlite3
 from typing import Literal, cast
+import uuid
 
 from app.services.chunk_builder import build_chunks, write_chunks
 from app.services.corpus_ingestor import CorpusDocument, build_document_id
@@ -62,6 +63,15 @@ class CommittedImport:
     chunk_count: int
 
 
+@dataclass(frozen=True)
+class IncrementalImportSummary:
+    run_id: str
+    documents: list[CorpusDocument]
+    committed_document_ids: list[str]
+    total_chunks: int
+    manifest_path: Path
+
+
 def resolve_explicit_sources(paths: Sequence[Path]) -> list[CorpusDocument]:
     if not paths:
         raise IncrementalImportError("必须显式指定新增法规文件")
@@ -95,6 +105,60 @@ def resolve_explicit_sources(paths: Sequence[Path]) -> list[CorpusDocument]:
         )
 
     return documents
+
+
+def run_incremental_import(
+    *,
+    sources: Sequence[Path],
+    data_dir: Path,
+    index_dir: Path,
+    manifest_path: Path,
+    staging_root: Path,
+    embedder: object,
+    run_id: str | None = None,
+) -> IncrementalImportSummary:
+    if len(sources) != 1:
+        raise IncrementalImportError("第一版一次只能导入一个法规文件")
+
+    actual_run_id = run_id or uuid.uuid4().hex
+    documents = resolve_explicit_sources(sources)
+    validate_append_only_preflight(
+        documents,
+        data_dir=data_dir,
+        index_dir=index_dir,
+        manifest_path=manifest_path,
+    )
+    staging = create_import_staging(staging_root, run_id=actual_run_id)
+    artifacts = generate_new_corpus_artifacts(documents, staging)
+    artifact_by_document_id = {item.document_id: item for item in artifacts}
+
+    committed: list[CommittedImport] = []
+    for document in documents:
+        artifact = artifact_by_document_id[document.document_id]
+        committed.append(
+            commit_staged_import(
+                CommitPlan(
+                    document_id=document.document_id,
+                    source_name=document.source_name,
+                    source_path=str(document.source_path),
+                    chunk_count=artifact.chunk_count,
+                    staging=staging,
+                    data_dir=data_dir,
+                    index_dir=index_dir,
+                    manifest_path=manifest_path,
+                    run_id=actual_run_id,
+                ),
+                embedder=embedder,
+            )
+        )
+
+    return IncrementalImportSummary(
+        run_id=actual_run_id,
+        documents=list(documents),
+        committed_document_ids=[item.document_id for item in committed],
+        total_chunks=sum(item.chunk_count for item in committed),
+        manifest_path=manifest_path,
+    )
 
 
 def create_import_staging(staging_root: Path, *, run_id: str) -> ImportStaging:
