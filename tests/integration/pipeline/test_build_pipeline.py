@@ -37,6 +37,10 @@ class RecordingVectorStore:
     def add(self, vectors):
         self.vectors = [list(vector) for vector in vectors]
 
+    @property
+    def vector_count(self):
+        return len(self.vectors)
+
     def save(self, path: Path) -> Path:
         path.write_text("fake-index", encoding="utf-8")
         return path
