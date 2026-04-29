@@ -21,6 +21,7 @@ data/structured/
 data/chunks/
 data/index/
 data/manifests/
+data/.staging/
 法律文本/
 苏子瀚/
 总.json
