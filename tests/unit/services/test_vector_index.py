@@ -8,7 +8,11 @@ import pytest
 
 from app.services.embedder import SentenceTransformerEmbedder
 from app.services.keyword_index import search_keyword_index
-from app.services.vector_index import build_vector_index
+from app.services.vector_index import (
+    append_vector_index,
+    build_vector_index,
+    VectorIndexConflictError,
+)
 from app.services.vector_store import FaissVectorStore, MissingVectorStoreDependencyError
 
 
@@ -35,10 +39,25 @@ class RecordingVectorStore:
     def add(self, vectors):
         self.vectors = [list(vector) for vector in vectors]
 
+    @property
+    def vector_count(self):
+        return len(self.vectors)
+
     def save(self, path: Path) -> Path:
         self.saved_path = path
         path.write_text("fake-index", encoding="utf-8")
         return path
+
+
+class AppendableRecordingVectorStore(RecordingVectorStore):
+    @classmethod
+    def load(cls, path):
+        store = cls(dimension=2)
+        store.vectors = [[0.6, 0.8]]
+        return store
+
+    def add(self, vectors):
+        self.vectors.extend([list(vector) for vector in vectors])
 
 
 def test_build_vector_index_persists_mapping_and_store_artifacts(tmp_path: Path):
@@ -77,6 +96,39 @@ def test_build_vector_index_persists_mapping_and_store_artifacts(tmp_path: Path)
             "path": "法 > 第二十八条",
         },
     ]
+
+
+def test_append_vector_index_extends_positions_and_rejects_duplicate_document(tmp_path):
+    build_vector_index(
+        [{"chunk_id": "old-1", "document_id": "old_doc", "text": "消防安全责任制"}],
+        tmp_path,
+        embedder=FakeEmbedder(),
+        vector_store_factory=lambda dimension: RecordingVectorStore(dimension),
+    )
+
+    artifacts = append_vector_index(
+        [{"chunk_id": "new-1", "document_id": "new_doc", "text": "损坏消防设施"}],
+        tmp_path,
+        embedder=FakeEmbedder(),
+        document_id="new_doc",
+        vector_store_loader=AppendableRecordingVectorStore.load,
+    )
+
+    vector_map = json.loads(artifacts.vector_map_path.read_text(encoding="utf-8"))
+    assert [item["position"] for item in vector_map] == [0, 1]
+    assert [item["document_id"] for item in vector_map] == ["old_doc", "new_doc"]
+    assert artifacts.vector_count == 2
+    assert artifacts.vector_store.vectors[0] == [0.6, 0.8]
+    assert len(artifacts.vector_store.vectors) == 2
+
+    with pytest.raises(VectorIndexConflictError, match="向量映射已有该 document_id"):
+        append_vector_index(
+            [{"chunk_id": "new-2", "document_id": "new_doc", "text": "重复"}],
+            tmp_path,
+            embedder=FakeEmbedder(),
+            document_id="new_doc",
+            vector_store_loader=AppendableRecordingVectorStore.load,
+        )
 
 
 def test_sentence_transformer_embedder_uses_document_and_query_encoders(monkeypatch):

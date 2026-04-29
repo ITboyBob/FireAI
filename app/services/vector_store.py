@@ -14,6 +14,10 @@ class MissingVectorStoreDependencyError(RuntimeError):
 class VectorStore(Protocol):
     dimension: int
 
+    @property
+    def vector_count(self) -> int:
+        """Return the number of vectors currently stored."""
+
     def add(self, vectors: Sequence[Sequence[float]]) -> None:
         """Add vectors to the store."""
 
@@ -32,6 +36,10 @@ class FaissVectorStore:
     def __post_init__(self) -> None:
         if self.dimension <= 0:
             raise ValueError("dimension must be positive")
+
+    @property
+    def vector_count(self) -> int:
+        return int(self._get_or_create_index().ntotal)
 
     def add(self, vectors: Sequence[Sequence[float]]) -> None:
         if not vectors:
