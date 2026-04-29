@@ -3,6 +3,9 @@ import runpy
 import sqlite3
 from pathlib import Path
 
+import pytest
+
+from app.services.incremental_import import IncrementalImportError
 from app.services.incremental_import import run_incremental_import
 from app.services.keyword_index import search_keyword_index
 from app.services.vector_index import load_vector_map
@@ -48,6 +51,50 @@ def test_incremental_import_appends_new_law_without_losing_existing_index(tmp_pa
 
     manifest = json.loads((data_dir / "manifests" / "incremental_imports.json").read_text(encoding="utf-8"))
     assert [item["document_id"] for item in manifest["imports"]] == summary.committed_document_ids
+
+
+def test_incremental_import_duplicate_document_fails_without_new_rows(tmp_path):
+    raw_dir = tmp_path / "法律文本"
+    data_dir = tmp_path / "data"
+    raw_dir.mkdir(parents=True)
+    _write_docx(MINI_FIRE_LAW, raw_dir / "消防法--2019年4月23日.docx")
+
+    new_source = tmp_path / "新增消防规定.docx"
+    _write_docx("新增消防规定\n第一条 新增消防设施维护要求。", new_source)
+    _build_existing_corpus_and_index(raw_dir=raw_dir, data_dir=data_dir)
+
+    run_incremental_import(
+        sources=[new_source],
+        data_dir=data_dir,
+        index_dir=data_dir / "index",
+        manifest_path=data_dir / "manifests" / "incremental_imports.json",
+        staging_root=data_dir / ".staging",
+        embedder=FakeEmbedder(),
+        run_id="run-first",
+    )
+
+    vector_map_before = (data_dir / "index" / "vector_map.json").read_text(encoding="utf-8")
+    manifest_before = (data_dir / "manifests" / "incremental_imports.json").read_text(
+        encoding="utf-8"
+    )
+    keyword_count_before = _count_keyword_rows(data_dir / "index" / "retrieval.db")
+
+    with pytest.raises(IncrementalImportError, match="document_id"):
+        run_incremental_import(
+            sources=[new_source],
+            data_dir=data_dir,
+            index_dir=data_dir / "index",
+            manifest_path=data_dir / "manifests" / "incremental_imports.json",
+            staging_root=data_dir / ".staging",
+            embedder=FakeEmbedder(),
+            run_id="run-duplicate",
+        )
+
+    assert (data_dir / "index" / "vector_map.json").read_text(encoding="utf-8") == vector_map_before
+    assert (
+        data_dir / "manifests" / "incremental_imports.json"
+    ).read_text(encoding="utf-8") == manifest_before
+    assert _count_keyword_rows(data_dir / "index" / "retrieval.db") == keyword_count_before
 
 
 def _build_existing_corpus_and_index(*, raw_dir: Path, data_dir: Path) -> None:
