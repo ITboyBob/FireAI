@@ -39,6 +39,10 @@ def _build_document_id(source_name: str) -> str:
     return re.sub(r"_+", "_", slug)
 
 
+def build_document_id(source_name: str) -> str:
+    return _build_document_id(source_name)
+
+
 def discover_documents(raw_dir: Path) -> list[CorpusDocument]:
     documents: list[CorpusDocument] = []
     for path in raw_dir.iterdir():
@@ -53,7 +57,7 @@ def discover_documents(raw_dir: Path) -> list[CorpusDocument]:
         literal_file_type = cast(Literal["doc", "docx"], file_type)
         documents.append(
             CorpusDocument(
-                document_id=_build_document_id(source_name),
+                document_id=build_document_id(source_name),
                 source_path=path,
                 source_name=source_name,
                 file_type=literal_file_type,
