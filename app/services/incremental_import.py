@@ -1,13 +1,16 @@
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 import json
 from pathlib import Path
 import re
 import sqlite3
 from typing import Literal, cast
 
+from app.services.chunk_builder import build_chunks, write_chunks
 from app.services.corpus_ingestor import CorpusDocument, build_document_id
 from app.services.incremental_manifest import load_manifest
+from app.services.normalizer import normalize_document
+from app.services.structure_parser import parse_legal_document, write_structured_document
 
 
 class IncrementalImportError(RuntimeError):
@@ -22,6 +25,15 @@ class ImportStaging:
     chunks_dir: Path
     index_dir: Path
     manifest_dir: Path
+
+
+@dataclass(frozen=True)
+class GeneratedCorpusArtifact:
+    document_id: str
+    normalized_path: Path
+    structured_path: Path
+    chunks_path: Path
+    chunk_count: int
 
 
 def resolve_explicit_sources(paths: Sequence[Path]) -> list[CorpusDocument]:
@@ -84,6 +96,46 @@ def create_import_staging(staging_root: Path, *, run_id: str) -> ImportStaging:
     ):
         directory.mkdir(parents=True, exist_ok=False)
     return staging
+
+
+def generate_new_corpus_artifacts(
+    documents: Sequence[CorpusDocument],
+    staging: ImportStaging,
+) -> list[GeneratedCorpusArtifact]:
+    artifacts: list[GeneratedCorpusArtifact] = []
+    for document in documents:
+        try:
+            normalized = normalize_document(document, staging.normalized_dir)
+            if normalized.output_path is None:
+                raise IncrementalImportError(
+                    f"标准化失败 document_id: {document.document_id}, reason: {normalized.error_message}"
+                )
+
+            raw_text = normalized.output_path.read_text(encoding="utf-8")
+            parsed = parse_legal_document(document.document_id, raw_text)
+            structured_path = write_structured_document(parsed, staging.structured_dir)
+            chunks = build_chunks(asdict(parsed))
+            if not chunks:
+                raise IncrementalImportError(f"chunk 为空 document_id: {document.document_id}")
+            chunks_path = write_chunks(chunks, document.document_id, staging.chunks_dir)
+        except IncrementalImportError:
+            raise
+        except Exception as exc:
+            raise IncrementalImportError(
+                f"新增法规语料生成失败 document_id: {document.document_id}, reason: {exc}"
+            ) from exc
+
+        artifacts.append(
+            GeneratedCorpusArtifact(
+                document_id=document.document_id,
+                normalized_path=normalized.output_path,
+                structured_path=structured_path,
+                chunks_path=chunks_path,
+                chunk_count=len(chunks),
+            )
+        )
+
+    return artifacts
 
 
 def validate_append_only_preflight(

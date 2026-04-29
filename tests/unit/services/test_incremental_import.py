@@ -6,6 +6,7 @@ import pytest
 from app.services.corpus_ingestor import CorpusDocument
 from app.services.incremental_import import (
     create_import_staging,
+    generate_new_corpus_artifacts,
     IncrementalImportError,
     resolve_explicit_sources,
     validate_append_only_preflight,
@@ -157,6 +158,39 @@ def test_create_import_staging_uses_run_scoped_hidden_directory(tmp_path: Path):
     assert staging.index_dir == staging.root / "index"
     assert staging.manifest_dir == staging.root / "manifests"
     assert staging.root.exists()
+
+
+def test_generate_new_corpus_artifacts_writes_only_to_staging(
+    tmp_path: Path,
+    monkeypatch,
+):
+    document = CorpusDocument(
+        document_id="new_fire_rule",
+        source_path=tmp_path / "新消防规定.docx",
+        source_name="新消防规定",
+        file_type="docx",
+    )
+    document.source_path.write_text("placeholder", encoding="utf-8")
+    staging = create_import_staging(tmp_path / "data" / ".staging", run_id="run-123")
+
+    def fake_normalize_document(document, output_dir):
+        output_path = output_dir / f"{document.document_id}.txt"
+        output_path.write_text("新消防规定\n第一条 新增法规正文。", encoding="utf-8")
+        return type("Result", (), {"output_path": output_path, "error_message": None})()
+
+    monkeypatch.setattr(
+        "app.services.incremental_import.normalize_document",
+        fake_normalize_document,
+    )
+
+    result = generate_new_corpus_artifacts([document], staging)
+
+    assert (staging.normalized_dir / "new_fire_rule.txt").exists()
+    assert (staging.structured_dir / "new_fire_rule.json").exists()
+    assert (staging.chunks_dir / "new_fire_rule.jsonl").exists()
+    assert result[0].document_id == "new_fire_rule"
+    assert result[0].chunk_count > 0
+    assert not (tmp_path / "data" / "chunks" / "new_fire_rule.jsonl").exists()
 
 
 def _new_fire_rule_document(tmp_path: Path) -> CorpusDocument:
