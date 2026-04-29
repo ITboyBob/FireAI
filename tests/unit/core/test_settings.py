@@ -25,3 +25,20 @@ def test_settings_build_conversation_defaults():
     assert settings.conversation_db_path == Path("var") / "conversations.db"
     assert settings.conversation_context_window_turns == 4
     assert settings.conversation_summary_trigger_turns == 6
+
+
+def test_settings_build_incremental_import_paths():
+    settings = Settings.model_validate({})
+
+    assert settings.manifests_dir == Path("data") / "manifests"
+    assert settings.incremental_staging_dir == Path("data") / ".staging"
+
+
+def test_settings_build_incremental_paths_from_data_dir(monkeypatch, tmp_path):
+    monkeypatch.setenv("DATA_DIR", str(tmp_path / "custom-data"))
+
+    settings = Settings()
+
+    assert settings.data_dir == tmp_path / "custom-data"
+    assert settings.manifests_dir == tmp_path / "custom-data" / "manifests"
+    assert settings.incremental_staging_dir == tmp_path / "custom-data" / ".staging"

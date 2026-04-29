@@ -31,6 +31,14 @@ class Settings(BaseSettings):
             return None
         return value
 
+    @property
+    def manifests_dir(self) -> Path:
+        return self.data_dir / "manifests"
+
+    @property
+    def incremental_staging_dir(self) -> Path:
+        return self.data_dir / ".staging"
+
 
 @lru_cache
 def get_settings() -> Settings:
