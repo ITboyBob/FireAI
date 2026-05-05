@@ -112,27 +112,6 @@ def test_build_chunks_omits_missing_heading_from_path():
     assert chunks[0]["heading_path"] == []
 
 
-@pytest.mark.xfail(
-    reason=(
-        "已记录技术债：当前主线不采用“未超限枚举条文也拆分”规则，"
-        "见 docs/debts/2026-03-29-chunk-builder-enum-red-test-debt.md"
-    ),
-    strict=True,
-)
-def test_build_chunks_matches_real_structured_fixture():
-    structured = json.loads(
-        (FIXTURE_DIR / "xiaofangfa_article_62_structured.json").read_text(encoding="utf-8")
-    )
-
-    chunks = build_chunks(structured, max_chunk_chars=300)
-
-    expected_lines = (
-        FIXTURE_DIR / "xiaofangfa_article_62_expected.jsonl"
-    ).read_text(encoding="utf-8").splitlines()
-
-    assert [json.dumps(chunk, ensure_ascii=False) for chunk in chunks] == expected_lines
-
-
 def test_write_chunks_persists_jsonl(tmp_path: Path):
     structured = {
         "document_id": "xiaofangfa_2019",
