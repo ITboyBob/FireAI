@@ -15,14 +15,24 @@ from app.services.incremental_import import IncrementalImportError, run_incremen
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="显式导入一个全新法规文件")
     parser.add_argument(
+        "source_path",
+        nargs="?",
+        type=Path,
+        help="新增法规 .doc/.docx 文件路径；推荐使用绝对路径",
+    )
+    parser.add_argument(
         "--source",
+        dest="source_options",
         action="append",
         default=[],
         type=Path,
-        help="新增法规 .doc/.docx 文件路径；第一版只允许传入一次",
+        help="新增法规 .doc/.docx 文件路径；兼容旧写法，第一版只允许传入一次",
     )
     args = parser.parse_args(argv)
-    sources: list[Path] = args.source
+    sources: list[Path] = []
+    if args.source_path is not None:
+        sources.append(args.source_path)
+    sources.extend(args.source_options)
 
     if not sources:
         print("必须显式指定新增法规文件", file=sys.stderr)

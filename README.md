@@ -123,6 +123,13 @@ conda run -n fire python scripts/build_index.py
 
 ```bash
 conda run -n fire python scripts/import_new_corpus.py \
+  /absolute/path/to/new-law.docx
+```
+
+   也可以使用兼容的旧写法：
+
+```bash
+conda run -n fire python scripts/import_new_corpus.py \
   --source /absolute/path/to/new-law.docx
 ```
 
