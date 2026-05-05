@@ -12,12 +12,16 @@ from app.services.embedder import SentenceTransformerEmbedder
 from app.services.incremental_import import IncrementalImportError, run_incremental_import
 
 
+def _parse_source_path(value: str) -> Path:
+    return Path(value.strip()).expanduser()
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="显式导入一个全新法规文件")
     parser.add_argument(
         "source_path",
         nargs="?",
-        type=Path,
+        type=_parse_source_path,
         help="新增法规 .doc/.docx 文件路径；推荐使用绝对路径",
     )
     parser.add_argument(
@@ -25,7 +29,7 @@ def main(argv: list[str] | None = None) -> int:
         dest="source_options",
         action="append",
         default=[],
-        type=Path,
+        type=_parse_source_path,
         help="新增法规 .doc/.docx 文件路径；兼容旧写法，第一版只允许传入一次",
     )
     args = parser.parse_args(argv)

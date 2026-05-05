@@ -95,49 +95,17 @@ conda run -n fire python -m pip install -e ".[dev]"
 
 1. 准备本机 `.env` 配置。
 
-2. 构建语料。
+2. 如需追加一个全新法规，使用显式增量导入。
 
 ```bash
-conda run -n fire python scripts/build_corpus.py
-```
-
-   该步骤会重建：
-
-   - `data/normalized/`
-   - `data/structured/`
-   - `data/chunks/`
-
-3. 构建检索索引。
-
-```bash
-conda run -n fire python scripts/build_index.py
-```
-
-   该步骤会重建：
-
-   - `data/index/retrieval.db`
-   - `data/index/faiss.index`
-   - `data/index/vector_map.json`
-
-4. 如需追加一个全新法规，使用显式增量导入。
-
-```bash
-conda run -n fire python scripts/import_new_corpus.py \
-  /absolute/path/to/new-law.docx
-```
-
-   也可以使用兼容的旧写法：
-
-```bash
-conda run -n fire python scripts/import_new_corpus.py \
-  --source /absolute/path/to/new-law.docx
+conda run -n fire python scripts/import_new_corpus.py /absolute/path/to/new-law.docx
 ```
 
    第一版只支持一个 `.doc/.docx` 文件；不支持目录扫描、多文件导入、PDF/TXT/网页导入、旧法规修订替换或条文级 diff。若发现同 `document_id`、正式输出文件已存在、manifest 已记录、关键词索引已有记录或向量映射已有记录，会直接失败，不跳过、不覆盖。
 
    命令成功后会输出 `run_id`、导入法规、chunk 数量、manifest 路径，并提示：语义重复法规无法仅靠文件名或 hash 完整识别，第一版只做机械冲突检测。
 
-5. 启动后端服务。
+3. 启动后端服务。
 
 ```bash
 conda run -n fire python -m uvicorn app.main:create_app --factory --reload
@@ -149,7 +117,7 @@ conda run -n fire python -m uvicorn app.main:create_app --factory --reload
 conda run -n fire python -m uvicorn app.main:create_app --factory --reload --port 8000
 ```
 
-6. 访问页面。
+4. 访问页面。
 
    - 网站首页：<http://127.0.0.1:8000/>
    - 网站首页（等价地址）：<http://localhost:8000/>
@@ -157,4 +125,4 @@ conda run -n fire python -m uvicorn app.main:create_app --factory --reload --por
    - `/health`：健康检查
    - `/docs`：FastAPI 文档页
 
-7. 在网页首页输入消防法规相关问题，查看回答、法律依据和条文原文。
+5. 在网页首页输入消防法规相关问题，查看回答、法律依据和条文原文。
