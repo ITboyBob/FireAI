@@ -29,7 +29,7 @@
 
 ### 5. 文档读取顺序
 
-新会话先遵循根目录 `AGENTS.md`，再读取 `docs/文档索引.md` 和 `docs/文档读取规则.md`。后续只按任务映射加载文档，不得默认扫描整个 `docs/`。
+新会话先遵循根目录 `AGENTS.md`，再读取 `docs/system_meta/文档索引.md` 和 `docs/system_meta/文档读取规则.md`。后续只按任务映射加载文档，不得默认扫描整个 `docs/`。
 
 Claude Code 专属规则只能补充工具行为；若与 `AGENTS.md` 或文档读取规则冲突，以 `AGENTS.md` 为准。
 

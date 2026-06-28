@@ -131,9 +131,11 @@ conda run -n fire python -m uvicorn app.main:create_app --factory --reload --por
 
 本仓库使用分层文档系统，避免新会话一次性加载全部历史资料：
 
-- [文档索引](docs/文档索引.md)：登记全部文档的角色、读取时机和权威级别。
-- [文档读取规则](docs/文档读取规则.md)：定义默认最小读取集合、任务映射和冲突优先级。
-- [消防问答系统 2.0 PRD](docs/plans/2026-04-11-fire-qa-system-2.0-prd.md)：当前唯一产品标准。
-- [工程技术标准](docs/工程技术标准.md)：当前技术架构和工程约束。
+- [文档索引](docs/system_meta/文档索引.md)：登记全部文档的角色、读取时机和权威级别。
+- [文档读取规则](docs/system_meta/文档读取规则.md)：定义默认最小读取集合、任务映射和冲突优先级。
+- [消防问答系统 2.0 PRD](docs/architecture_or_strategy/2026-04-11-fire-qa-system-2.0-prd.md)：当前唯一产品标准。
+- [工程技术标准](docs/architecture_or_strategy/工程技术标准.md)：当前技术架构和工程约束。
+- [多格式法律语料摄取总设计](docs/architecture_or_strategy/2026-06-28-multi-format-legal-corpus-ingestion-design.md)：下一阶段处理 `法律文本/todo/` 全量法规的架构入口。
+- [多格式法律语料摄取实施计划](docs/project_or_workflow/2026-06-28-multi-format-legal-corpus-ingestion-implementation.md)：下一阶段的任务分卷、依赖门禁和验收入口。
 
 `README.md` 只承担项目介绍、安装、运行和文档入口职责，不覆盖 PRD 或工程技术标准。
