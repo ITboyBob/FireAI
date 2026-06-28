@@ -13,7 +13,6 @@ venv/
 # Runtime and logs
 var/
 *.log
-docs/
 
 # Generated data artifacts
 data/normalized/
@@ -35,9 +34,3 @@ hf_cache/
 .DS_Store
 .vscode/
 .idea/
-
-# Claude Code configuration (generated rules, not source code)
-.claude/
-CLAUDE.md
-# Codex configuration
-AGENTS.md

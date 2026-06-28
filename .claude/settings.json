@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git status)",
+      "Bash(git diff)",
+      "Bash(git log)",
+      "Bash(conda run -n fire *)",
+      "Bash(pytest)",
+      "Read(docs/*)",
+      "Read(README*)"
+    ],
+    "deny": [
+      "Bash(git push)",
+      "Bash(git merge)",
+      "Bash(git rebase)",
+      "Bash(git reset)",
+      "Bash(git commit)"
+    ]
+  },
+  "env": {
+    "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "0"
+  },
+  "InstructionsLoaded": [
+    {
+      "hooks": [
+        {
+          "type": "command",
+          "command": "echo '[Claude Code] Instructions loaded successfully'"
+        }
+      ]
+    }
+  ]
+}
