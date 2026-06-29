@@ -41,6 +41,10 @@ COPY_DISTRIBUTION_PATTERN = re.compile(r"^抄送\s*[：:]")
 ADMIN_OFFICE_FOOTER_PATTERN = re.compile(
     r"^[^，,；;：:]{2,40}(?:办公室|办公厅)[。.]?$"
 )
+LOCAL_GOVERNMENT_REGULATION_FOOTER_PATTERN = re.compile(
+    r"^(?!本(?:规定|办法|细则|条例))[\u4e00-\u9fff]{1,16}"
+    r"(?:省|市|自治区|自治州|县)人民政府规章[。.]?$"
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -470,5 +474,6 @@ def _is_tail_marker(text: str) -> bool:
 def _is_footer_line(text: str) -> bool:
     return (
         bool(ADMIN_OFFICE_FOOTER_PATTERN.fullmatch(text))
+        or bool(LOCAL_GOVERNMENT_REGULATION_FOOTER_PATTERN.fullmatch(text))
         or bool(COPY_DISTRIBUTION_PATTERN.match(text))
     )

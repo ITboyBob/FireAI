@@ -149,6 +149,35 @@ def test_s1_boundary_excludes_copy_distribution_footer_after_blank(tmp_path):
     assert len(intermediate.extraction_report.excluded_ranges) == 1
 
 
+def test_s1_boundary_excludes_government_regulation_publication_template(
+    tmp_path,
+):
+    source = _source(tmp_path)
+    extraction = _extraction(
+        source,
+        (
+            "某规定",
+            "第一条 正文。",
+            "",
+            "某省人民政府规章",
+            "",
+            "X某省人民政府发布",
+            "",
+            " PAGE  \\* MERGEFORMAT - 1 -",
+        ),
+    )
+
+    intermediate = identify_s1_target_body(
+        extraction,
+        source=source,
+        expected_title="某规定",
+    )
+
+    assert intermediate.boundary.status == "confirmed"
+    assert intermediate.body_text == "某规定\n第一条 正文。"
+    assert len(intermediate.extraction_report.excluded_ranges) == 1
+
+
 @pytest.mark.parametrize(
     ("lines", "expected_ambiguity"),
     [
@@ -168,6 +197,15 @@ def test_s1_boundary_excludes_copy_distribution_footer_after_blank(tmp_path):
                 "第一条 正文",
                 "",
                 "本规定由某办公厅负责解释。",
+            ),
+            "trailing_content_ambiguous",
+        ),
+        (
+            (
+                "某规定",
+                "第一条 正文",
+                "",
+                "本规定属于某省人民政府规章",
             ),
             "trailing_content_ambiguous",
         ),
