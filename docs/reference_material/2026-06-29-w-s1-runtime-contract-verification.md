@@ -1,8 +1,8 @@
 # W-S1 运行时契约核验记录
 
-**核验日期：** 2026-06-29  
-**角色：** `reference_material`  
-**适用范围：** W-S1 Task 5—6 的 macOS `textutil`、Python 3.14 `subprocess` 与 `dataclasses` 实现假设  
+**核验日期：** 2026-06-29
+**角色：** `reference_material`
+**适用范围：** W-S1 Task 5—6 的 macOS `textutil`、Python 3.14 `subprocess` 与 `dataclasses` 实现假设
 **依赖结论：** 无需新增依赖，继续使用 conda 环境 `fire` 与系统 `/usr/bin/textutil`
 
 ## 1. 本机 `textutil(1)`
