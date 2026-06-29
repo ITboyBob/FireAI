@@ -1,13 +1,14 @@
 from collections.abc import Callable, Sequence
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from hashlib import sha256
 import json
 from pathlib import Path
+import shutil
 from typing import Any, Literal, cast
 import uuid
 
 from app.services.chunk_builder import build_intermediate_chunks, write_chunks
-from app.services.corpus_ingestor import CorpusDocument
+from app.services.corpus_ingestor import CorpusDocument, build_document_id
 from app.services.incremental_import import (
     CommitPlan,
     CommittedImport,
@@ -41,6 +42,14 @@ from app.services.legal_quality_gates import (
     QualityInput,
     QualityReport,
     evaluate_legal_quality,
+)
+from app.services.legal_ingestion_batch import (
+    BatchFileResult,
+    BatchReport,
+    FileAttempt,
+    FileState,
+    save_batch_report,
+    write_quality_report_once,
 )
 from app.services.legal_qualified_import import (
     CommitQualification,
@@ -300,14 +309,17 @@ def run_legal_ingestion(
     staging_root: Path,
     embedder: object,
     run_id: str | None = None,
+    dry_run: bool = False,
     classifier: Callable[[SourceRef], LegalSourceRecord] | None = None,
     extraction_registry: ExtractionStrategyRegistry | None = None,
     boundary_registry: BoundaryStrategyRegistry | None = None,
 ) -> IncrementalImportSummary:
     """统一法规摄取入口：分类、提取、边界、解析、切块、质量门禁、资格提交。
 
-    每份来源独立处理，只有 ``auto_passed`` 质量结论才会进入串行 Append-Only 提交。
-    失败只影响当前文件，不会回滚已经提交的文件。
+    单文件模式保持向后兼容：唯一来源未进入 ready 时直接抛出异常。
+    批次模式（多于一个来源，或 ``dry_run=True``）逐文件处理，失败不阻断其他文件，
+    最终汇总为 ``BatchReport`` 并返回 ``IncrementalImportSummary``。
+    只有 ``auto_passed`` 质量结论才会进入串行 Append-Only 提交；``dry_run`` 不提交。
     """
     actual_run_id = run_id or uuid.uuid4().hex
     classifier = classifier or classify_source
@@ -328,16 +340,9 @@ def run_legal_ingestion(
     ingestion_input = _build_ingestion_input(source_refs)
     outcomes = orchestrator.prepare(ingestion_input, run_id=actual_run_id)
 
-    committed: list[CommittedImport] = []
-    documents: list[CorpusDocument] = []
-    for outcome in outcomes:
-        if outcome.disposition is not IngestionDisposition.READY:
-            raise IncrementalImportError(
-                f"来源未进入 ready 状态: {outcome.source.relative_path}, "
-                f"disposition={outcome.disposition.value}, reason={outcome.reason_code}"
-            )
-        committed_import = _commit_qualified_outcome(
-            outcome=outcome,
+    if len(source_refs) == 1 and not dry_run:
+        return _run_single_legal_ingestion(
+            outcome=outcomes[0],
             data_dir=data_dir,
             index_dir=index_dir,
             manifest_path=manifest_path,
@@ -345,22 +350,16 @@ def run_legal_ingestion(
             embedder=embedder,
             run_id=actual_run_id,
         )
-        committed.append(committed_import)
-        documents.append(
-            CorpusDocument(
-                document_id=committed_import.document_id,
-                source_path=outcome.source.source_path,
-                source_name=outcome.source.source_path.stem,
-                file_type=cast(Literal["doc", "docx"], outcome.source.declared_extension.lstrip(".")),
-            )
-        )
 
-    return IncrementalImportSummary(
-        run_id=actual_run_id,
-        documents=documents,
-        committed_document_ids=[item.document_id for item in committed],
-        total_chunks=sum(item.chunk_count for item in committed),
+    return _run_batch_legal_ingestion(
+        outcomes=outcomes,
+        data_dir=data_dir,
+        index_dir=index_dir,
         manifest_path=manifest_path,
+        staging_root=staging_root,
+        embedder=embedder,
+        run_id=actual_run_id,
+        dry_run=dry_run,
     )
 
 
@@ -394,7 +393,7 @@ def _build_ingestion_input(source_refs: tuple[SourceRef, ...]) -> IngestionInput
     )
 
 
-def _commit_qualified_outcome(
+def _run_single_legal_ingestion(
     *,
     outcome: LegalIngestionOutcome,
     data_dir: Path,
@@ -403,7 +402,279 @@ def _commit_qualified_outcome(
     staging_root: Path,
     embedder: object,
     run_id: str,
-) -> CommittedImport:
+) -> IncrementalImportSummary:
+    if outcome.disposition is not IngestionDisposition.READY:
+        raise IncrementalImportError(
+            f"来源未进入 ready 状态: {outcome.source.relative_path}, "
+            f"disposition={outcome.disposition.value}, reason={outcome.reason_code}"
+        )
+
+    committed_import = _commit_qualified_outcome(
+        outcome=outcome,
+        data_dir=data_dir,
+        index_dir=index_dir,
+        manifest_path=manifest_path,
+        staging_root=staging_root,
+        embedder=embedder,
+        run_id=run_id,
+    )
+    return IncrementalImportSummary(
+        run_id=run_id,
+        documents=[
+            CorpusDocument(
+                document_id=committed_import.document_id,
+                source_path=outcome.source.source_path,
+                source_name=outcome.source.source_path.stem,
+                file_type=cast(
+                    Literal["doc", "docx"],
+                    outcome.source.declared_extension.lstrip("."),
+                ),
+            )
+        ],
+        committed_document_ids=[committed_import.document_id],
+        total_chunks=committed_import.chunk_count,
+        manifest_path=manifest_path,
+    )
+
+
+def _run_batch_legal_ingestion(
+    *,
+    outcomes: tuple[LegalIngestionOutcome, ...],
+    data_dir: Path,
+    index_dir: Path,
+    manifest_path: Path,
+    staging_root: Path,
+    embedder: object,
+    run_id: str,
+    dry_run: bool,
+) -> IncrementalImportSummary:
+    batch_report_dir = data_dir / "manifests" / "legal_ingestion_batches" / run_id
+    batch_report_dir.mkdir(parents=True, exist_ok=True)
+
+    source_root = (
+        outcomes[0].source.source_path.parent
+        if outcomes
+        else data_dir
+    )
+
+    results: list[BatchFileResult] = []
+    committed_imports: list[CommittedImport] = []
+    for outcome in outcomes:
+        result, committed = _process_batch_outcome(
+            outcome=outcome,
+            data_dir=data_dir,
+            index_dir=index_dir,
+            manifest_path=manifest_path,
+            staging_root=staging_root,
+            embedder=embedder,
+            run_id=run_id,
+            batch_report_dir=batch_report_dir,
+            dry_run=dry_run,
+        )
+        results.append(result)
+        if committed is not None:
+            committed_imports.append(committed)
+
+    batch_report_path = batch_report_dir / f"{run_id}.batch.json"
+    save_batch_report(
+        batch_report_path,
+        batch_id=run_id,
+        source_root=source_root,
+        results=tuple(results),
+    )
+
+    documents = [
+        CorpusDocument(
+            document_id=committed.document_id,
+            source_path=outcome.source.source_path,
+            source_name=outcome.source.source_path.stem,
+            file_type=cast(
+                Literal["doc", "docx"],
+                outcome.source.declared_extension.lstrip("."),
+            ),
+        )
+        for committed, outcome in zip(committed_imports, outcomes)
+        if outcome.disposition is IngestionDisposition.READY
+    ]
+
+    return IncrementalImportSummary(
+        run_id=run_id,
+        documents=documents,
+        committed_document_ids=[item.document_id for item in committed_imports],
+        total_chunks=sum(item.chunk_count for item in committed_imports),
+        manifest_path=manifest_path,
+        batch_report_path=batch_report_path,
+    )
+
+
+def _process_batch_outcome(
+    *,
+    outcome: LegalIngestionOutcome,
+    data_dir: Path,
+    index_dir: Path,
+    manifest_path: Path,
+    staging_root: Path,
+    embedder: object,
+    run_id: str,
+    batch_report_dir: Path,
+    dry_run: bool,
+) -> tuple[BatchFileResult, CommittedImport | None]:
+    document_id = build_document_id(outcome.source.source_path.stem)
+    attempt_id = f"{run_id}-{document_id}"
+
+    if outcome.disposition is not IngestionDisposition.READY:
+        final_state, reason_code = _blocked_state_for_disposition(outcome)
+        return (
+            BatchFileResult(
+                relative_path=outcome.source.relative_path,
+                source_sha256=outcome.source.source_sha256,
+                document_id=document_id,
+                attempt_id=attempt_id,
+                final_state=final_state,
+                reason_code=reason_code,
+            ),
+            None,
+        )
+
+    try:
+        commit_plan, qualification, report, staging = _evaluate_qualified_outcome(
+            outcome=outcome,
+            data_dir=data_dir,
+            index_dir=index_dir,
+            manifest_path=manifest_path,
+            staging_root=staging_root,
+            staging_run_id=attempt_id,
+        )
+    except (KeyboardInterrupt, SystemExit):
+        raise
+    except Exception as exc:
+        return (
+            BatchFileResult(
+                relative_path=outcome.source.relative_path,
+                source_sha256=outcome.source.source_sha256,
+                document_id=document_id,
+                attempt_id=attempt_id,
+                final_state=FileState.FAILED,
+                reason_code=f"evaluation_failed:{exc.__class__.__name__}",
+            ),
+            None,
+        )
+
+    quality_report_path = batch_report_dir / f"{attempt_id}.quality.json"
+    final_state, reason_code = _state_from_quality_report(
+        report,
+        dry_run=dry_run,
+    )
+    attempt = FileAttempt(
+        attempt_id=attempt_id,
+        source_sha256=outcome.source.source_sha256,
+        state=final_state,
+    )
+    write_quality_report_once(quality_report_path, attempt, report)
+    quality_report_sha256 = sha256(quality_report_path.read_bytes()).hexdigest()
+
+    if final_state in {FileState.REVIEW_REQUIRED, FileState.FAILED}:
+        shutil.rmtree(staging.root, ignore_errors=True)
+        return (
+            BatchFileResult(
+                relative_path=outcome.source.relative_path,
+                source_sha256=outcome.source.source_sha256,
+                document_id=document_id,
+                attempt_id=attempt_id,
+                final_state=final_state,
+                quality_report_path=str(quality_report_path),
+                quality_report_sha256=quality_report_sha256,
+                reason_code=reason_code,
+            ),
+            None,
+        )
+
+    if dry_run:
+        shutil.rmtree(staging.root, ignore_errors=True)
+        return (
+            BatchFileResult(
+                relative_path=outcome.source.relative_path,
+                source_sha256=outcome.source.source_sha256,
+                document_id=document_id,
+                attempt_id=attempt_id,
+                final_state=FileState.AUTO_PASSED,
+                quality_report_path=str(quality_report_path),
+                quality_report_sha256=quality_report_sha256,
+            ),
+            None,
+        )
+
+    try:
+        qualified_plan = QualifiedCommitPlan(
+            commit_plan=commit_plan,
+            quality_report_path=quality_report_path,
+            quality_report_sha256=quality_report_sha256,
+            qualification=replace(qualification, quality_report_sha256=quality_report_sha256),
+        )
+        committed = commit_qualified_staged_import(qualified_plan, embedder=embedder)
+    except (KeyboardInterrupt, SystemExit):
+        raise
+    except Exception as exc:
+        shutil.rmtree(staging.root, ignore_errors=True)
+        return (
+            BatchFileResult(
+                relative_path=outcome.source.relative_path,
+                source_sha256=outcome.source.source_sha256,
+                document_id=document_id,
+                attempt_id=attempt_id,
+                final_state=FileState.FAILED,
+                quality_report_path=str(quality_report_path),
+                quality_report_sha256=quality_report_sha256,
+                reason_code=f"commit_failed:{exc.__class__.__name__}",
+            ),
+            None,
+        )
+
+    return (
+        BatchFileResult(
+            relative_path=outcome.source.relative_path,
+            source_sha256=outcome.source.source_sha256,
+            document_id=document_id,
+            attempt_id=attempt_id,
+            final_state=FileState.COMMITTED,
+            quality_report_path=str(quality_report_path),
+            quality_report_sha256=quality_report_sha256,
+        ),
+        committed,
+    )
+
+
+def _blocked_state_for_disposition(
+    outcome: LegalIngestionOutcome,
+) -> tuple[FileState, str]:
+    if outcome.disposition is IngestionDisposition.REVIEW_REQUIRED:
+        return FileState.REVIEW_REQUIRED, outcome.reason_code or "review_required"
+    return FileState.FAILED, outcome.reason_code or outcome.disposition.value
+
+
+def _state_from_quality_report(
+    report: QualityReport,
+    *,
+    dry_run: bool,
+) -> tuple[FileState, str | None]:
+    if report.overall is GateOutcome.PASS:
+        if dry_run:
+            return FileState.AUTO_PASSED, None
+        return FileState.AUTO_PASSED, None
+    if report.overall is GateOutcome.REVIEW_REQUIRED:
+        return FileState.REVIEW_REQUIRED, "quality_review_required"
+    return FileState.FAILED, "quality_failed"
+
+
+def _evaluate_qualified_outcome(
+    *,
+    outcome: LegalIngestionOutcome,
+    data_dir: Path,
+    index_dir: Path,
+    manifest_path: Path,
+    staging_root: Path,
+    staging_run_id: str,
+) -> tuple[CommitPlan, CommitQualification, QualityReport, ImportStaging]:
     intermediate = outcome.boundary_result
     if not isinstance(intermediate, LegalDocumentIntermediate):
         raise IncrementalImportError(
@@ -424,23 +695,13 @@ def _commit_qualified_outcome(
         chunks=tuple(chunks),
     )
     report = evaluate_legal_quality(quality_input)
-    if report.overall is not GateOutcome.PASS:
-        raise IncrementalImportError(
-            f"质量门禁未通过: {intermediate.document_id}, overall={report.overall.value}"
-        )
 
-    staging = create_import_staging(staging_root, run_id=run_id)
+    staging = create_import_staging(staging_root, run_id=staging_run_id)
     write_confirmed_normalized(intermediate, staging.normalized_dir)
     write_structured_document(parsed, staging.structured_dir)
     write_chunks(chunks, intermediate.document_id, staging.chunks_dir)
 
-    attempt_id = f"{run_id}-{intermediate.document_id}"
-    quality_report_path = staging.manifest_dir / f"{attempt_id}.quality.json"
-    quality_report_path.write_text(
-        json.dumps(_quality_report_as_dict(report), ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
-
+    attempt_id = staging_run_id
     normalized_path = staging.normalized_dir / f"{intermediate.document_id}.txt"
     structured_path = staging.structured_dir / f"{intermediate.document_id}.json"
     chunks_path = staging.chunks_dir / f"{intermediate.document_id}.jsonl"
@@ -448,7 +709,6 @@ def _commit_qualified_outcome(
     normalized_sha256 = sha256(normalized_path.read_bytes()).hexdigest()
     structured_sha256 = sha256(structured_path.read_bytes()).hexdigest()
     chunks_sha256 = sha256(chunks_path.read_bytes()).hexdigest()
-    quality_report_sha256 = sha256(quality_report_path.read_bytes()).hexdigest()
 
     commit_plan = CommitPlan(
         document_id=intermediate.document_id,
@@ -463,42 +723,67 @@ def _commit_qualified_outcome(
         data_dir=data_dir,
         index_dir=index_dir,
         manifest_path=manifest_path,
-        run_id=run_id,
+        run_id=staging_run_id,
     )
     qualification = CommitQualification(
         attempt_id=attempt_id,
         qualified_state="auto_passed",
         ruleset_version=report.ruleset_version,
         source_sha256=intermediate.source_ref.source_sha256,
-        quality_report_sha256=quality_report_sha256,
+        quality_report_sha256="",  # 由调用方在写入质量报告后回填
         normalized_sha256=normalized_sha256,
         structured_sha256=structured_sha256,
         chunks_sha256=chunks_sha256,
     )
+    return commit_plan, qualification, report, staging
+
+
+def _commit_qualified_outcome(
+    *,
+    outcome: LegalIngestionOutcome,
+    data_dir: Path,
+    index_dir: Path,
+    manifest_path: Path,
+    staging_root: Path,
+    embedder: object,
+    run_id: str,
+) -> CommittedImport:
+    intermediate = outcome.boundary_result
+    if not isinstance(intermediate, LegalDocumentIntermediate):
+        raise IncrementalImportError(
+            f"boundary_result 不是 LegalDocumentIntermediate: {outcome.source.relative_path}"
+        )
+
+    document_id = intermediate.document_id
+    attempt_id = f"{run_id}-{document_id}"
+    commit_plan, qualification, report, staging = _evaluate_qualified_outcome(
+        outcome=outcome,
+        data_dir=data_dir,
+        index_dir=index_dir,
+        manifest_path=manifest_path,
+        staging_root=staging_root,
+        staging_run_id=run_id,
+    )
+
+    if report.overall is not GateOutcome.PASS:
+        raise IncrementalImportError(
+            f"质量门禁未通过: {document_id}, overall={report.overall.value}"
+        )
+
+    quality_report_path = staging.manifest_dir / f"{attempt_id}.quality.json"
+    attempt = FileAttempt(
+        attempt_id=attempt_id,
+        source_sha256=outcome.source.source_sha256,
+        state=FileState.AUTO_PASSED,
+    )
+    write_quality_report_once(quality_report_path, attempt, report)
+    quality_report_sha256 = sha256(quality_report_path.read_bytes()).hexdigest()
+
     qualified_plan = QualifiedCommitPlan(
         commit_plan=commit_plan,
         quality_report_path=quality_report_path,
         quality_report_sha256=quality_report_sha256,
-        qualification=qualification,
+        qualification=replace(qualification, quality_report_sha256=quality_report_sha256),
     )
     return commit_qualified_staged_import(qualified_plan, embedder=embedder)
 
-
-def _quality_report_as_dict(report: QualityReport) -> dict[str, Any]:
-    return {
-        "ruleset_version": report.ruleset_version,
-        "source_sha256": report.source_sha256,
-        "document_id": report.document_id,
-        "overall": report.overall.value,
-        "measured": report.measured,
-        "gates": [
-            {
-                "gate_id": gate.gate_id,
-                "outcome": gate.outcome.value,
-                "measured": gate.measured,
-                "evidence_refs": list(gate.evidence_refs),
-                "reason_code": gate.reason_code,
-            }
-            for gate in report.gates
-        ],
-    }

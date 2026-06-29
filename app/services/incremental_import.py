@@ -80,6 +80,7 @@ class IncrementalImportSummary:
     committed_document_ids: list[str]
     total_chunks: int
     manifest_path: Path
+    batch_report_path: Path | None = None
 
 
 def resolve_explicit_sources(paths: Sequence[Path]) -> list[CorpusDocument]:
@@ -126,13 +127,15 @@ def run_incremental_import(
     staging_root: Path,
     embedder: object,
     run_id: str | None = None,
+    dry_run: bool = False,
     classifier: "Callable[[SourceRef], LegalSourceRecord] | None" = None,
     extraction_registry: "ExtractionStrategyRegistry | None" = None,
     boundary_registry: "BoundaryStrategyRegistry | None" = None,
 ) -> IncrementalImportSummary:
     """保留兼容签名的单文件/批次导入入口，内部委托统一编排器。
 
-    新增的三个可选参数用于测试注入 fake 策略；生产调用无需传入。
+    新增的三个可选参数用于测试注入 fake 策略；``dry_run`` 用于批次只生成报告不提交。
+    生产调用无需传入。
     """
     from app.services.legal_ingestion_orchestrator import run_legal_ingestion
 
@@ -144,17 +147,10 @@ def run_incremental_import(
         staging_root=staging_root,
         embedder=embedder,
         run_id=run_id,
+        dry_run=dry_run,
         classifier=classifier,
         extraction_registry=extraction_registry,
         boundary_registry=boundary_registry,
-    )
-
-    return IncrementalImportSummary(
-        run_id=actual_run_id,
-        documents=list(documents),
-        committed_document_ids=[item.document_id for item in committed],
-        total_chunks=sum(item.chunk_count for item in committed),
-        manifest_path=manifest_path,
     )
 
 

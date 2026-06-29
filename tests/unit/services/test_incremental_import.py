@@ -36,6 +36,7 @@ from app.services.legal_ingestion_models import (
     LegalSourceClassification,
     LegalSourceRecord,
     SourceProbe,
+    SourceRef,
 )
 from app.services.legal_strategy_registry import (
     build_boundary_strategy_registry,

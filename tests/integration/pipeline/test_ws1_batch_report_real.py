@@ -7,6 +7,7 @@ import pytest
 from app.services.legal_ingestion_batch import (
     BatchFileResult,
     FileState,
+    load_batch_report,
     save_batch_report,
 )
 
@@ -63,7 +64,7 @@ def test_ws1_source_files_exist_and_match_baseline(tmp_path):
     )
 
     assert report_path.exists()
-    loaded = save_batch_report.load(report_path)
+    loaded = load_batch_report(report_path)
     assert loaded.batch_id == report.batch_id
     assert len(loaded.results) == 8
     assert loaded.overall_status == "completed"

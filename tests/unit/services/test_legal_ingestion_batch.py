@@ -12,6 +12,7 @@ from app.services.legal_ingestion_batch import (
     ReviewRecord,
     StateEvent,
     apply_review,
+    load_batch_report,
     save_batch_report,
     transition_file,
     write_quality_report_once,
@@ -339,7 +340,7 @@ def test_save_batch_report_round_trips(tmp_path: Path):
         results=results,
     )
     assert report_path.exists()
-    loaded = save_batch_report.load(report_path)
+    loaded = load_batch_report(report_path)
     assert loaded.batch_id == "batch-1"
     assert len(loaded.results) == 1
     assert loaded.results[0].document_id == "doc_a"

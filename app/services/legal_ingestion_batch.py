@@ -241,32 +241,27 @@ def save_batch_report(
     return report
 
 
-class _BatchReportLoader:
-    @staticmethod
-    def load(path: Path) -> BatchReport:
-        data = json.loads(path.read_text(encoding="utf-8"))
-        results = tuple(
-            BatchFileResult(
-                relative_path=item["relative_path"],
-                source_sha256=item["source_sha256"],
-                document_id=item["document_id"],
-                attempt_id=item["attempt_id"],
-                final_state=FileState(item["final_state"]),
-                quality_report_path=item.get("quality_report_path"),
-                quality_report_sha256=item.get("quality_report_sha256"),
-                reason_code=item.get("reason_code"),
-            )
-            for item in data["results"]
+def load_batch_report(path: Path) -> BatchReport:
+    data = json.loads(path.read_text(encoding="utf-8"))
+    results = tuple(
+        BatchFileResult(
+            relative_path=item["relative_path"],
+            source_sha256=item["source_sha256"],
+            document_id=item["document_id"],
+            attempt_id=item["attempt_id"],
+            final_state=FileState(item["final_state"]),
+            quality_report_path=item.get("quality_report_path"),
+            quality_report_sha256=item.get("quality_report_sha256"),
+            reason_code=item.get("reason_code"),
         )
-        return BatchReport(
-            batch_id=data["batch_id"],
-            source_root=Path(data["source_root"]),
-            results=results,
-            created_at=data["created_at"],
-        )
-
-
-save_batch_report.load = _BatchReportLoader.load  # type: ignore[attr-defined]
+        for item in data["results"]
+    )
+    return BatchReport(
+        batch_id=data["batch_id"],
+        source_root=Path(data["source_root"]),
+        results=results,
+        created_at=data["created_at"],
+    )
 
 
 def _utc_now() -> str:
