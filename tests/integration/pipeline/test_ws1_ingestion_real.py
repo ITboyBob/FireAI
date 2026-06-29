@@ -1,0 +1,70 @@
+from hashlib import sha256
+from pathlib import Path
+
+import pytest
+
+from app.services.legal_extractor import ExtractionRequest
+from app.services.legal_ingestion_inventory import freeze_batch_input
+from app.services.legal_ingestion_models import (
+    ExtractionClass,
+    IngestionDisposition,
+)
+from app.services.legal_source_classifier import classify_source
+from app.services.legal_word_extractor import WordLegalExtractor
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+TODO_ROOT = PROJECT_ROOT / "法律文本" / "todo"
+REAL_WORD_CASES = (
+    (
+        "事故调查、问责与系统治理/河北省火灾事故调查处理规定.docx",
+        "河北省火灾事故调查处理规定",
+    ),
+    (
+        "督察、处罚与监管/河北省消防技术服务监督管理规定.doc",
+        "河北省消防技术服务监督管理规定",
+    ),
+)
+
+
+def _relative_tree(root: Path) -> tuple[str, ...]:
+    if not root.exists():
+        return ()
+    return tuple(
+        sorted(path.relative_to(root).as_posix() for path in root.rglob("*"))
+    )
+
+
+@pytest.mark.parametrize(("relative_path", "expected_title"), REAL_WORD_CASES)
+def test_word_extractor_reads_real_ws1_without_persisting_candidate(
+    tmp_path,
+    relative_path,
+    expected_title,
+):
+    batch = freeze_batch_input(TODO_ROOT)
+    source = next(
+        item for item in batch.sources if item.relative_path == relative_path
+    )
+    before_digest = sha256(source.source_path.read_bytes()).hexdigest()
+    data_root = PROJECT_ROOT / "data"
+    data_before = _relative_tree(data_root)
+    temp_before = _relative_tree(tmp_path)
+    record = classify_source(source)
+    request = ExtractionRequest.from_source_record(record, run_id="real-word")
+
+    result = WordLegalExtractor().extract(request)
+    candidate = "\n".join(block.text for block in result.text_blocks)
+
+    assert request.extraction_class is ExtractionClass.W
+    assert result.disposition is IngestionDisposition.READY
+    assert expected_title in candidate
+    assert "第一条" in candidate
+    assert result.pages == (
+        result.pages[0],
+    )
+    assert result.pages[0].logical_page == 1
+    assert result.pages[0].page_number is None
+    assert "physical_pagination_unknown" in result.warnings
+    assert before_digest == sha256(source.source_path.read_bytes()).hexdigest()
+    assert data_before == _relative_tree(data_root)
+    assert temp_before == _relative_tree(tmp_path)

@@ -51,6 +51,16 @@ class ExtractionStrategyRegistry:
         return self._resolutions[key]
 
 
+def build_extraction_strategy_registry(
+    *,
+    word_extractor: LegalExtractor | None = None,
+) -> ExtractionStrategyRegistry:
+    registry = ExtractionStrategyRegistry()
+    if word_extractor is not None:
+        registry.register(ExtractionClass.W, word_extractor)
+    return registry
+
+
 class BoundaryStrategyRegistry:
     def __init__(self) -> None:
         self._resolutions: dict[ContentClass, StrategyResolution] = {

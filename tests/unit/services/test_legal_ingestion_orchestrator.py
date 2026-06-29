@@ -26,7 +26,10 @@ from app.services.legal_ingestion_orchestrator import LegalIngestionOrchestrator
 from app.services.legal_strategy_registry import (
     BoundaryStrategyRegistry,
     ExtractionStrategyRegistry,
+    build_extraction_strategy_registry,
 )
+from app.services.legal_textutil import TextutilRunResult
+from app.services.legal_word_extractor import WordLegalExtractor
 
 
 def _record(
@@ -183,6 +186,33 @@ def test_orchestrator_resolves_axes_independently_and_returns_ready(tmp_path):
     assert outcome.extraction_class is ExtractionClass.W
     assert outcome.content_class is ContentClass.S1
     assert outcome.boundary_result["status"] == "confirmed"
+
+
+def test_orchestrator_runs_word_then_stops_at_unsupported_s1_boundary(tmp_path):
+    record = _record(tmp_path)
+    word = WordLegalExtractor(
+        run_textutil=lambda source: TextutilRunResult(
+            returncode=0,
+            stdout="某规定\n第一条 正文",
+            stderr="",
+        )
+    )
+    orchestrator = LegalIngestionOrchestrator(
+        classifier=lambda source: record,
+        extraction_registry=build_extraction_strategy_registry(
+            word_extractor=word
+        ),
+        boundary_registry=BoundaryStrategyRegistry(),
+    )
+
+    outcome = orchestrator.prepare(
+        IngestionInput(single_source=record.source),
+        run_id="run-123",
+    )[0]
+
+    assert outcome.disposition is IngestionDisposition.UNSUPPORTED
+    assert outcome.reason_code == "boundary_strategy_unsupported"
+    assert outcome.extraction_result.extractor_kind == "W"
 
 
 def test_orchestrator_maps_strategy_exception_and_digest_mismatch_to_failed(tmp_path):
