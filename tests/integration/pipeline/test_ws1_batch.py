@@ -53,8 +53,9 @@ def test_batch_dry_run_does_not_publish_formal_artifacts(tmp_path, monkeypatch, 
     )
 
     captured = capsys.readouterr()
-    assert result == 1
+    assert result == 0
     assert "selected=8" in captured.out
+    assert "auto_passed=8" in captured.out
     assert "batch_report=" in captured.out
     assert not (data_dir / "normalized").exists() or not any((data_dir / "normalized").iterdir())
     assert not (data_dir / "structured").exists() or not any((data_dir / "structured").iterdir())

@@ -58,17 +58,17 @@
 | --- | --- | --- | --- | --- |
 | 唯一统一 CLI | `implemented` | `scripts/import_new_corpus.py` 收敛为唯一薄入口；保留位置参数/`--source` 单文件语法，新增 `--batch-manifest` 显式批次、`--dry-run` 和 `--verify-source-only`；参数互斥、退出码和报告路径输出均有测试覆盖 | 保留兼容调用方式，所有输入统一委托编排器；未支持类型零写入 | W-S1 |
 | 统一摄取编排器 | `implemented` | 已完成 `run_legal_ingestion()` 单文件/批次统一入口、逐文件处理、失败隔离、`--dry-run` 只生成报告不提交；`prepare()` 仍只读 | 固定“分类→提取→边界→质量资格→提交”顺序，禁止旁路 | W-S1 |
-| W：Word 提取策略 | `in_progress` | 真实签名、MIME、只读转换证据、双轴候选分类及内存 Word 提取已实现；Word 专属门禁和 8 文件验收仍未完成 | 真实签名探测、来源证据、内存候选、Word 专属门禁和 8 文件验收通过 | W-S1 |
+| W：Word 提取策略 | `implemented` | 真实签名、MIME、只读转换证据、双轴候选分类、内存 Word 提取和 Word 专属门禁已实现；评估基线 8 份 W-S1 文件全部通过 `source_identity`、`body_purity`、`exclusion_isolation` 等 Word 相关质量门禁 | `tests/integration/pipeline/test_ws1_legal_corpus_quality.py` 对 8 份真实文件逐文件断言门禁通过；`scripts/import_new_corpus.py --batch-manifest ... --dry-run` 输出 `auto_passed=8` | W-S1 |
 | PT：文本型 PDF 提取策略 | `planned` | 已有分类设计，尚未进入实现里程碑 | 后续计划只补 PT 提取与相关组合验收，不预写算法 | 后续里程碑待创建 |
 | PS：扫描型 PDF 提取策略 | `blocked` | OCR 引擎、中文资源和图像预处理依赖尚未获批 | 完成官方文档调研、依赖审批、真实样本探针后才能进入实施 | 后续里程碑待创建 |
-| S1：纯正文边界策略 | `in_progress` | 已实现唯一标题、连续条号、尾部排除和 confirmed 中间格式，4份干净/风险样本通过；尚未完成8文件质量验收 | 唯一标题、第一条、最后一条及尾部污染门禁通过 8 文件验收 | W-S1 |
+| S1：纯正文边界策略 | `implemented` | 已实现唯一标题、连续条号、尾部排除、confirmed 中间格式和 paragraph 子单元拼接的跨层一致性校验；评估基线 8 份 W-S1 文件全部 `boundary.status=confirmed`，条号连续唯一、条文非空、无页眉页脚和印发尾注污染 | `tests/integration/pipeline/test_ws1_legal_corpus_quality.py` 逐文件断言 `boundary_confirmed`、`article_start`、`article_numbers`、`article_non_empty`、`body_purity`、`cross_layer_consistency`、`chunk_coverage` 均通过 | W-S1 |
 | S2：复合发布边界策略 | `planned` | 仅登记接口与风险语义 | 后续只补前置发布材料处理和组合验收，不预写算法 | 后续里程碑待创建 |
 | S3：正文后排除策略 | `planned` | 仅登记接口与风险语义 | 后续只补附件、评分表、模板等排除能力和组合验收，不预写算法 | 后续里程碑待创建 |
 | S4：混合不确定处理 | `planned` | 已确定不得自动提交，具体人工复核流程未实施 | 稳定输出 `review_required`，任何自动提交路径均被测试阻断 | 后续里程碑待创建 |
 | 通用质量资格 | `implemented` | `CommitQualification` 绑定源摘要、质量报告和三类 staged 产物摘要；`commit_qualified_staged_import()` 在第一次 preflight 前校验绑定，失败零写入 | 资格绑定源摘要、质量报告和 staged 产物摘要，失败时零提交 | W-S1 |
 | Append-Only 单文件提交 | `implemented` | staging、两次 preflight、索引追加、回滚和 manifest 已有实现 | W-S1 只复用并回归验证，不重写提交事务 | 既有增量导入 |
 | 批次发现与逐文件隔离 | `implemented` | `_run_batch_legal_ingestion()` 实现逐文件评估、串行提交、独立质量报告和批次汇总；失败文件不阻断其他文件，也不回滚已提交文件 | 批次只负责发现、调度和汇总；每份文件独立提交，失败互不污染 | W-S1 |
-| 14 文件真实验收 | `in_progress` | 唯一 fixture 已与真实14文件核对，11份 Word 已完成只读真实分类；W-S1 8 份已可端到端 dry-run 并产生质量报告，但全部因 `cross_layer_consistency` 门禁未通过，尚未正式提交 | 各能力里程碑逐步覆盖；最终 14 份均有处理状态和可追溯证据 | 跨里程碑收口 |
+| 14 文件真实验收 | `in_progress` | 唯一 fixture 已与真实14文件核对；11份 Word 已完成只读真实分类；W-S1 8 份已完成端到端 dry-run 质量验收且全部门禁通过，尚未正式提交；剩余 3 份 Word（S2/S3）和 3 份 PDF 待后续策略里程碑覆盖 | 各能力里程碑逐步覆盖；最终 14 份均有处理状态和可追溯证据 | 跨里程碑收口 |
 
 ## 5. 当前里程碑
 
@@ -113,4 +113,4 @@ W-S1 完成不等于 14 文件全量摄取完成，也不等于多格式法规�
 | 2026-06-29 | 创建路线图；W-S1 登记为首个端到端里程碑；仅 W、S1 和公共主干进入当前范围 | 已批准的三层文档结构与统一入口架构决策 |
 | 2026-06-29 | W-S1 开始实施；完成14文件基线冻结、来源模型、批次清单、11份真实 Word 探测与双轴分类 | 提交 `f22e6d3`、`b99ab63`、`9c51395` 及对应无 skip 测试 |
 | 2026-06-29 | 完成双轴注册与只读编排接缝、Word 内存候选提取、S1 边界和统一中间格式；能力保持 `in_progress` | 提交 `b6821ab`、`b02fb91`；Task 6 单元30项和4份真实样本验证 |
-| 2026-06-29 | 完成唯一 CLI 单文件/显式批次模式、`--dry-run`、`--verify-source-only`、互斥校验和退出码；编排器支持批次与 dry-run | `tests/unit/services/test_incremental_import.py`、`tests/integration/pipeline/test_incremental_import_cli.py`、`tests/integration/pipeline/test_ws1_batch.py` 全部通过；真实 8 份 W-S1 可 dry-run 并产生完整质量报告，当前全部因 `cross_layer_consistency` 门禁失败，未写入正式产物 |
+| 2026-06-29 | W-S1 质量验收完成：`cross_layer_consistency` 修复 paragraph 子单元拼接，8 份真实 W-S1 文件 dry-run 全部门禁通过；W 提取策略与 S1 边界策略状态更新为 `implemented`；`test_incremental_import_real_smoke.py` 改为缺失即失败并修正真实文件路径 | `tests/unit/services/test_legal_quality_gates.py::test_cross_layer_article_with_paragraph_children_passes`、`tests/integration/pipeline/test_ws1_legal_corpus_quality.py`、批次 CLI dry-run `auto_passed=8` |

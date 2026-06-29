@@ -482,6 +482,16 @@ def _gate_cross_layer_consistency(quality_input: QualityInput) -> GateResult:
         intermediate_no = f"第{match.group(1)}条"
         intermediate_body = match.group(2).strip()
 
+        # 结构层会把 article 后的 paragraph 子单元拼接到该条正文中，
+        # 中间格式层做一致性校验时也必须包含这些子单元。
+        for child in intermediate.body_units:
+            if child.kind == "paragraph" and child.parent_unit_id == unit.unit_id:
+                intermediate_body = (
+                    f"{intermediate_body}\n{child.text.strip()}"
+                    if intermediate_body
+                    else child.text.strip()
+                )
+
         if intermediate_no != parsed_article.article_no:
             return GateResult(
                 gate_id="cross_layer_consistency",

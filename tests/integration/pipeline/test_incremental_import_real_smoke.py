@@ -14,10 +14,15 @@ from tests.integration.pipeline.test_incremental_import_pipeline import (
 
 
 def test_incremental_import_real_docx_smoke(tmp_path):
-    old_source = Path("法律文本") / "河北省消防条例.docx"
-    new_source = Path("法律文本") / "河北省火灾高危单位消防安全管理规定.docx"
-    if not old_source.exists() or not new_source.exists():
-        pytest.skip("本机缺少真实 docx 法律文本")
+    old_source = Path("法律文本") / "done" / "河北省消防条例.docx"
+    new_source = (
+        Path("法律文本")
+        / "todo"
+        / "事故调查、问责与系统治理"
+        / "河北省火灾事故调查处理规定.docx"
+    )
+    missing = [str(p) for p in (old_source, new_source) if not p.exists()]
+    assert not missing, f"本机缺少真实 docx 法律文本: {', '.join(missing)}"
 
     raw_dir = tmp_path / "法律文本"
     data_dir = tmp_path / "data"
@@ -58,7 +63,7 @@ def test_incremental_import_real_docx_smoke(tmp_path):
         if line.strip()
     ]
     assert chunks
-    assert search_keyword_index("火灾高危单位", data_dir / "index" / "retrieval.db", top_k=5)
+    assert search_keyword_index("火灾事故调查", data_dir / "index" / "retrieval.db", top_k=5)
 
     vector_map = load_vector_map(data_dir / "index" / "vector_map.json")
     assert [item["position"] for item in vector_map] == list(range(len(vector_map)))

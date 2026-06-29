@@ -2,6 +2,7 @@ from hashlib import sha256
 from pathlib import Path
 from dataclasses import replace as dataclass_replace
 
+import re
 import pytest
 
 from app.services.chunk_builder import build_intermediate_chunks
@@ -383,3 +384,93 @@ def test_missing_chunk_for_article_fails(tmp_path):
     assert report.overall == GateOutcome.FAIL
     gate = next(g for g in report.gates if g.gate_id == "chunk_coverage")
     assert gate.outcome == GateOutcome.FAIL
+
+
+def test_cross_layer_article_with_paragraph_children_passes(tmp_path):
+    """article 单元只保存条号与首段，后续段落作为 paragraph 子单元存在时，
+    cross_layer_consistency 应把子单元拼接后再与 parsed 全文比较。"""
+    source = _source(tmp_path)
+    title = "某规定"
+    article1 = "第一条 首段正文"
+    paragraph1 = "第二条后的续段正文。"
+    units = (
+        BodyUnit(
+            unit_id="unit-0",
+            kind="title",
+            text=title,
+            source_span=_span(0, title),
+        ),
+        BodyUnit(
+            unit_id="unit-1",
+            kind="article",
+            text=article1,
+            source_span=_span(1, article1),
+            parent_unit_id="unit-0",
+        ),
+        BodyUnit(
+            unit_id="unit-2",
+            kind="paragraph",
+            text=paragraph1,
+            source_span=_span(2, paragraph1),
+            parent_unit_id="unit-1",
+        ),
+    )
+    intermediate = _intermediate(source, units)
+    parsed = _parsed_with_paragraphs(intermediate)
+    chunks = _chunks(parsed)
+    quality_input = QualityInput(
+        source_sha256=source.source_sha256,
+        document_id=intermediate.document_id,
+        extraction_class=intermediate.extraction_class,
+        content_class=intermediate.content_class,
+        source=source,
+        extraction=_extraction(source, (title, article1, paragraph1)),
+        intermediate=intermediate,
+        parsed=parsed,
+        chunks=tuple(chunks),
+    )
+    report = evaluate_legal_quality(quality_input)
+    assert report.overall == GateOutcome.PASS, [
+        (g.gate_id, g.outcome, g.reason_code) for g in report.gates if g.outcome != GateOutcome.PASS
+    ]
+
+
+def _parsed_with_paragraphs(intermediate: LegalDocumentIntermediate) -> ParsedDocument:
+    article_units = [u for u in intermediate.body_units if u.kind == "article"]
+    children_by_parent = {}
+    for unit in intermediate.body_units:
+        if unit.kind == "paragraph" and unit.parent_unit_id:
+            children_by_parent.setdefault(unit.parent_unit_id, []).append(unit)
+
+    bound_articles = []
+    for article_unit in article_units:
+        match = re.match(r"^(第[一二三四五六七八九十百千万零〇两]+条)\s*(.*)$", article_unit.text)
+        if match is None:
+            raise ValueError(f"article 单元格式错误: {article_unit.text}")
+        body = match.group(2).strip()
+        for child in children_by_parent.get(article_unit.unit_id, []):
+            body = f"{body}\n{child.text}".strip() if body else child.text.strip()
+        bound_articles.append(
+            ParsedArticle(
+                article_no=match.group(1),
+                chapter_title=None,
+                heading_path=(),
+                text=body,
+                source_span=article_unit.source_span,
+            )
+        )
+
+    return ParsedDocument(
+        document_id=intermediate.document_id,
+        title=intermediate.target.title,
+        issuing_authority=None,
+        region=None,
+        promulgated_on=None,
+        effective_on=None,
+        articles=bound_articles,
+        source_sha256=intermediate.source_ref.source_sha256,
+        extraction_class=intermediate.extraction_class.value,
+        content_class=intermediate.content_class.value,
+        boundary_status=intermediate.boundary.status,
+        version_basis=intermediate.target.version_basis,
+    )
