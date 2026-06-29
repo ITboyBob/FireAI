@@ -1,0 +1,142 @@
+[
+  {
+    "relative_path": "事故调查、问责与系统治理/安全生产行政执法与刑事司法衔接工作办法.doc",
+    "declared_extension": ".doc",
+    "expected_extraction_class": "W",
+    "expected_content_class": "S1",
+    "expected_article_count": 33,
+    "risk_codes": [
+      "article_cross_contamination"
+    ]
+  },
+  {
+    "relative_path": "事故调查、问责与系统治理/廊坊市消防工作考核办法.pdf",
+    "declared_extension": ".pdf",
+    "expected_extraction_class": "PS",
+    "expected_content_class": "S3",
+    "expected_article_count": null,
+    "risk_codes": [
+      "ocr_required",
+      "tail_table"
+    ]
+  },
+  {
+    "relative_path": "事故调查、问责与系统治理/廊坊市火灾事故调查处理规定.pdf",
+    "declared_extension": ".pdf",
+    "expected_extraction_class": "PS",
+    "expected_content_class": "S2",
+    "expected_article_count": null,
+    "risk_codes": [
+      "ocr_required",
+      "leading_notice"
+    ]
+  },
+  {
+    "relative_path": "事故调查、问责与系统治理/河北省消防安全领域信用管理暂行细则.doc",
+    "declared_extension": ".doc",
+    "expected_extraction_class": "W",
+    "expected_content_class": "S1",
+    "expected_article_count": 31,
+    "risk_codes": [
+      "word_page_field"
+    ]
+  },
+  {
+    "relative_path": "事故调查、问责与系统治理/河北省消防设施管理规定.docx",
+    "declared_extension": ".docx",
+    "expected_extraction_class": "W",
+    "expected_content_class": "S2",
+    "expected_article_count": 32,
+    "risk_codes": [
+      "version_metadata"
+    ]
+  },
+  {
+    "relative_path": "事故调查、问责与系统治理/河北省火灾事故调查处理规定.docx",
+    "declared_extension": ".docx",
+    "expected_extraction_class": "W",
+    "expected_content_class": "S1",
+    "expected_article_count": 27,
+    "risk_codes": []
+  },
+  {
+    "relative_path": "事故调查、问责与系统治理/社会消防安全教育培训规定.doc",
+    "declared_extension": ".doc",
+    "expected_extraction_class": "W",
+    "expected_content_class": "S2",
+    "expected_article_count": 37,
+    "risk_codes": [
+      "authority_date_metadata"
+    ]
+  },
+  {
+    "relative_path": "督察、处罚与监管/中华人民共和国应急管理部令（第7号)社会消防技术服务管理规定.pdf",
+    "declared_extension": ".pdf",
+    "expected_extraction_class": "PT",
+    "expected_content_class": "S2",
+    "expected_article_count": 40,
+    "risk_codes": [
+      "page_line_reconstruction"
+    ]
+  },
+  {
+    "relative_path": "督察、处罚与监管/中华人民共和国消防救援衔条例.docx",
+    "declared_extension": ".docx",
+    "expected_extraction_class": "W",
+    "expected_content_class": "S1",
+    "expected_article_count": 26,
+    "risk_codes": []
+  },
+  {
+    "relative_path": "督察、处罚与监管/河北省消防技术服务监督管理规定.doc",
+    "declared_extension": ".doc",
+    "expected_extraction_class": "W",
+    "expected_content_class": "S1",
+    "expected_article_count": 30,
+    "risk_codes": [
+      "word_page_field"
+    ]
+  },
+  {
+    "relative_path": "督察、处罚与监管/河北省消防救援机构执法过错责任追究规定.doc",
+    "declared_extension": ".doc",
+    "expected_extraction_class": "W",
+    "expected_content_class": "S3",
+    "expected_article_count": 29,
+    "risk_codes": [
+      "tail_template",
+      "word_page_field"
+    ]
+  },
+  {
+    "relative_path": "督察、处罚与监管/河北省消防行政执法裁量实施办法.doc",
+    "declared_extension": ".doc",
+    "expected_extraction_class": "W",
+    "expected_content_class": "S1",
+    "expected_article_count": 62,
+    "risk_codes": [
+      "trailing_print_info",
+      "word_page_field"
+    ]
+  },
+  {
+    "relative_path": "督察、处罚与监管/消防产品监督管理规定.doc",
+    "declared_extension": ".doc",
+    "expected_extraction_class": "W",
+    "expected_content_class": "S1",
+    "expected_article_count": 44,
+    "risk_codes": [
+      "chunk_structure_overlap"
+    ]
+  },
+  {
+    "relative_path": "督察、处罚与监管/消防监督检查规定.doc",
+    "declared_extension": ".doc",
+    "expected_extraction_class": "W",
+    "expected_content_class": "S1",
+    "expected_article_count": 40,
+    "risk_codes": [
+      "chunk_structure_overlap"
+    ]
+  }
+]
