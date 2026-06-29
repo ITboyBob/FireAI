@@ -107,6 +107,16 @@ class BoundaryStrategyRegistry:
         return self._resolutions[key]
 
 
+def build_boundary_strategy_registry(
+    *,
+    s1_strategy: LegalBoundaryStrategy | None = None,
+) -> BoundaryStrategyRegistry:
+    registry = BoundaryStrategyRegistry()
+    if s1_strategy is not None:
+        registry.register(ContentClass.S1, s1_strategy)
+    return registry
+
+
 def _validate_extraction_key(key: object) -> None:
     if not isinstance(key, ExtractionClass):
         raise TypeError("提取策略键必须是 ExtractionClass")

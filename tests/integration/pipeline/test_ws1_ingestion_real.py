@@ -11,6 +11,7 @@ from app.services.legal_ingestion_models import (
 )
 from app.services.legal_source_classifier import classify_source
 from app.services.legal_word_extractor import WordLegalExtractor
+from app.services.legal_content_boundary import S1BoundaryStrategy
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -23,6 +24,28 @@ REAL_WORD_CASES = (
     (
         "督察、处罚与监管/河北省消防技术服务监督管理规定.doc",
         "河北省消防技术服务监督管理规定",
+    ),
+)
+REAL_BOUNDARY_CASES = (
+    (
+        "事故调查、问责与系统治理/河北省火灾事故调查处理规定.docx",
+        "河北省火灾事故调查处理规定",
+        27,
+    ),
+    (
+        "督察、处罚与监管/消防监督检查规定.doc",
+        "消防监督检查规定",
+        40,
+    ),
+    (
+        "事故调查、问责与系统治理/河北省消防安全领域信用管理暂行细则.doc",
+        "河北省消防安全领域信用管理暂行细则",
+        31,
+    ),
+    (
+        "督察、处罚与监管/河北省消防行政执法裁量实施办法.doc",
+        "河北省消防行政执法裁量实施办法",
+        62,
     ),
 )
 
@@ -68,3 +91,47 @@ def test_word_extractor_reads_real_ws1_without_persisting_candidate(
     assert before_digest == sha256(source.source_path.read_bytes()).hexdigest()
     assert data_before == _relative_tree(data_root)
     assert temp_before == _relative_tree(tmp_path)
+
+
+@pytest.mark.parametrize(
+    ("relative_path", "expected_title", "expected_article_count"),
+    REAL_BOUNDARY_CASES,
+)
+def test_real_ws1_boundary_covers_clean_and_trailing_risk_samples(
+    relative_path,
+    expected_title,
+    expected_article_count,
+):
+    batch = freeze_batch_input(TODO_ROOT)
+    source = next(
+        item for item in batch.sources if item.relative_path == relative_path
+    )
+    before_digest = sha256(source.source_path.read_bytes()).hexdigest()
+    data_root = PROJECT_ROOT / "data"
+    data_before = _relative_tree(data_root)
+    record = classify_source(source)
+    extraction = WordLegalExtractor().extract(
+        ExtractionRequest.from_source_record(record, run_id="real-boundary")
+    )
+
+    intermediate = S1BoundaryStrategy().identify(
+        extraction,
+        source=source,
+        expected_title=expected_title,
+    )
+    article_units = [
+        unit for unit in intermediate.body_units if unit.kind == "article"
+    ]
+
+    assert intermediate.boundary.status == "confirmed"
+    assert intermediate.body_text.startswith(expected_title)
+    assert len(article_units) == expected_article_count
+    assert "PAGE \\* MERGEFORMAT" not in intermediate.body_text
+    assert before_digest == sha256(source.source_path.read_bytes()).hexdigest()
+    assert data_before == _relative_tree(data_root)
+    assert all(
+        not hasattr(excluded, "text")
+        and not hasattr(excluded, "title")
+        and not hasattr(excluded, "summary")
+        for excluded in intermediate.extraction_report.excluded_ranges
+    )

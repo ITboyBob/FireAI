@@ -15,6 +15,10 @@ from app.services.legal_ingestion_models import (
     LegalSourceRecord,
     SourceRef,
 )
+from app.services.legal_intermediate import (
+    LegalDocumentIntermediate,
+    validate_legal_intermediate,
+)
 from app.services.legal_source_classifier import (
     classify_content_signals,
     detect_content_signals,
@@ -189,6 +193,7 @@ class LegalIngestionOrchestrator:
             boundary_result = boundary_resolution.strategy.identify(
                 extraction_result,
                 source=source,
+                expected_title=source.source_path.stem,
             )
         except Exception:
             return LegalIngestionOutcome(
@@ -200,12 +205,28 @@ class LegalIngestionOrchestrator:
                 reason_code="boundary_strategy_failed",
                 extraction_result=extraction_result,
             )
+        boundary_disposition = IngestionDisposition.READY
+        boundary_reason: str | None = None
+        if isinstance(boundary_result, LegalDocumentIntermediate):
+            try:
+                validate_legal_intermediate(boundary_result)
+            except ValueError:
+                boundary_disposition = IngestionDisposition.FAILED
+                boundary_reason = "boundary_invariant_failed"
+            else:
+                if boundary_result.boundary.status == "review_required":
+                    boundary_disposition = IngestionDisposition.REVIEW_REQUIRED
+                    boundary_reason = "boundary_review_required"
+                elif boundary_result.boundary.status == "rejected":
+                    boundary_disposition = IngestionDisposition.FAILED
+                    boundary_reason = "boundary_rejected"
         return LegalIngestionOutcome(
             run_id=run_id,
             source=source,
-            disposition=IngestionDisposition.READY,
+            disposition=boundary_disposition,
             extraction_class=record.extraction_class,
             content_class=content_class,
+            reason_code=boundary_reason,
             extraction_result=extraction_result,
             boundary_result=boundary_result,
         )

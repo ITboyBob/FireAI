@@ -7,8 +7,10 @@ from app.services.legal_strategy_registry import (
     BoundaryStrategyRegistry,
     CapabilityStatus,
     ExtractionStrategyRegistry,
+    build_boundary_strategy_registry,
     build_extraction_strategy_registry,
 )
+from app.services.legal_content_boundary import S1BoundaryStrategy
 from app.services.legal_textutil import TextutilRunResult
 from app.services.legal_word_extractor import WordLegalExtractor
 
@@ -87,6 +89,17 @@ def test_extraction_registry_assembly_registers_only_word_strategy():
     assert registry.resolve(ExtractionClass.W).strategy is word
     assert registry.resolve(ExtractionClass.PT).status is CapabilityStatus.UNSUPPORTED
     assert registry.resolve(ExtractionClass.PS).status is CapabilityStatus.UNSUPPORTED
+
+
+def test_boundary_registry_assembly_registers_only_s1_strategy():
+    s1 = S1BoundaryStrategy()
+
+    registry = build_boundary_strategy_registry(s1_strategy=s1)
+
+    assert registry.resolve(ContentClass.S1).strategy is s1
+    assert registry.resolve(ContentClass.S2).status is CapabilityStatus.UNSUPPORTED
+    assert registry.resolve(ContentClass.S3).status is CapabilityStatus.UNSUPPORTED
+    assert registry.resolve(ContentClass.S4).status is CapabilityStatus.REVIEW_REQUIRED
 
 
 @pytest.mark.parametrize("invalid_key", ["W-S1", ("W", "S1"), ExtractionClass.PX])
