@@ -1,12 +1,73 @@
 from pathlib import Path
+from dataclasses import asdict
+from hashlib import sha256
 import json
 
 import pytest
 
-from app.services.chunk_builder import build_chunks, write_chunks
+from app.services.chunk_builder import (
+    build_chunks,
+    build_intermediate_chunks,
+    write_chunks,
+)
+from app.services.legal_content_boundary import identify_s1_target_body
+from app.services.legal_extractor import (
+    ExtractedBlock,
+    ExtractedPage,
+    ExtractionResult,
+    SourceLocation,
+)
+from app.services.legal_ingestion_models import IngestionDisposition, SourceRef
+from app.services.structure_parser import parse_legal_intermediate
 
 
 FIXTURE_DIR = Path(__file__).resolve().parents[2] / "fixtures" / "chunks"
+
+
+def _confirmed_pair(tmp_path: Path):
+    source_path = tmp_path / "某规定.doc"
+    source_path.write_bytes(b"sample")
+    source = SourceRef(
+        relative_path="某规定.doc",
+        source_path=source_path,
+        source_sha256=sha256(b"sample").hexdigest(),
+        size_bytes=6,
+        declared_extension=".doc",
+    )
+    lines = ("某规定", "第一条 第一款正文。", "第二条 第二条正文。")
+    blocks = tuple(
+        ExtractedBlock(
+            order=order,
+            text=line,
+            location=SourceLocation(
+                logical_page=1,
+                page_number=None,
+                block_order=order,
+                line_number=order + 1,
+            ),
+        )
+        for order, line in enumerate(lines)
+    )
+    extraction = ExtractionResult(
+        source_sha256=source.source_sha256,
+        extractor_kind="W",
+        extractor_version="fake-v1",
+        pages=(
+            ExtractedPage(
+                logical_page=1,
+                page_number=None,
+                block_orders=tuple(range(len(blocks))),
+            ),
+        ),
+        text_blocks=blocks,
+        disposition=IngestionDisposition.READY,
+    )
+    intermediate = identify_s1_target_body(
+        extraction,
+        source=source,
+        expected_title="某规定",
+    )
+    return intermediate, parse_legal_intermediate(intermediate)
 
 
 def test_build_chunks_preserves_article_path_and_metadata():
@@ -140,3 +201,51 @@ def test_write_chunks_persists_jsonl(tmp_path: Path):
     payload = json.loads(lines[0])
     assert payload["chunk_id"] == "xiaofangfa_2019#article-1"
     assert payload["path"] == "中华人民共和国消防法 > 第一章 总则 > 第二条"
+
+
+def test_build_intermediate_chunks_propagates_confirmed_source_contract(tmp_path):
+    intermediate, parsed = _confirmed_pair(tmp_path)
+
+    chunks = build_intermediate_chunks(intermediate, parsed)
+
+    assert len(chunks) == 2
+    assert all(
+        chunk["source_sha256"] == intermediate.source_ref.source_sha256
+        and chunk["extraction_class"] == "W"
+        and chunk["content_class"] == "S1"
+        and chunk["boundary_status"] == "confirmed"
+        for chunk in chunks
+    )
+    assert chunks[0]["source_span"] == asdict(parsed.articles[0].source_span)
+    assert chunks[1]["source_span"] == asdict(parsed.articles[1].source_span)
+
+
+def test_build_intermediate_chunks_rejects_digest_mismatch_before_build(
+    tmp_path,
+    monkeypatch,
+):
+    intermediate, parsed = _confirmed_pair(tmp_path)
+    parsed = type(parsed)(
+        document_id=parsed.document_id,
+        title=parsed.title,
+        issuing_authority=parsed.issuing_authority,
+        region=parsed.region,
+        promulgated_on=parsed.promulgated_on,
+        effective_on=parsed.effective_on,
+        articles=parsed.articles,
+        source_sha256="f" * 64,
+        extraction_class=parsed.extraction_class,
+        content_class=parsed.content_class,
+        boundary_status=parsed.boundary_status,
+        version_basis=parsed.version_basis,
+    )
+    calls = []
+    monkeypatch.setattr(
+        "app.services.chunk_builder.build_chunks",
+        lambda *args, **kwargs: calls.append((args, kwargs)),
+    )
+
+    with pytest.raises(ValueError, match="摘要"):
+        build_intermediate_chunks(intermediate, parsed)
+
+    assert calls == []

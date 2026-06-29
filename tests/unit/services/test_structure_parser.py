@@ -1,10 +1,77 @@
 from pathlib import Path
 import json
 
-from app.services.structure_parser import parse_legal_document, write_structured_document
+import pytest
+
+from app.services.legal_content_boundary import identify_s1_target_body
+from app.services.legal_extractor import (
+    ExtractedBlock,
+    ExtractedPage,
+    ExtractionResult,
+    SourceLocation,
+)
+from app.services.legal_ingestion_models import IngestionDisposition, SourceRef
+from app.services.structure_parser import (
+    parse_legal_document,
+    parse_legal_intermediate,
+    write_structured_document,
+)
 
 
 FIXTURE_DIR = Path(__file__).resolve().parents[2] / "fixtures" / "structured"
+
+
+def _confirmed_intermediate(tmp_path: Path):
+    source_path = tmp_path / "某规定.doc"
+    source_path.write_bytes(b"sample")
+    from hashlib import sha256
+
+    source = SourceRef(
+        relative_path="某规定.doc",
+        source_path=source_path,
+        source_sha256=sha256(b"sample").hexdigest(),
+        size_bytes=6,
+        declared_extension=".doc",
+    )
+    lines = (
+        "某规定",
+        "第一章 总则",
+        "第一条 第一款正文。",
+        "第二款正文。",
+        "第二条 第二条正文。",
+    )
+    blocks = tuple(
+        ExtractedBlock(
+            order=order,
+            text=line,
+            location=SourceLocation(
+                logical_page=1,
+                page_number=None,
+                block_order=order,
+                line_number=order + 1,
+            ),
+        )
+        for order, line in enumerate(lines)
+    )
+    extraction = ExtractionResult(
+        source_sha256=source.source_sha256,
+        extractor_kind="W",
+        extractor_version="fake-v1",
+        pages=(
+            ExtractedPage(
+                logical_page=1,
+                page_number=None,
+                block_orders=tuple(range(len(blocks))),
+            ),
+        ),
+        text_blocks=blocks,
+        disposition=IngestionDisposition.READY,
+    )
+    return identify_s1_target_body(
+        extraction,
+        source=source,
+        expected_title="某规定",
+    )
 
 
 def test_parse_legal_document_extracts_article_and_chapter():
@@ -99,3 +166,89 @@ def test_parse_legal_document_keeps_real_article_after_inline_hyperlink_cleanup(
     assert document.articles[0].text.startswith(
         "有下列行为之一的，依照《中华人民共和国治安管理处罚法》的规定处罚："
     )
+
+
+def test_parse_legal_intermediate_binds_confirmed_source_metadata_and_spans(
+    tmp_path,
+):
+    intermediate = _confirmed_intermediate(tmp_path)
+
+    document = parse_legal_intermediate(intermediate)
+
+    assert document.document_id == intermediate.document_id
+    assert document.title == "某规定"
+    assert document.source_sha256 == intermediate.source_ref.source_sha256
+    assert document.extraction_class == "W"
+    assert document.content_class == "S1"
+    assert document.boundary_status == "confirmed"
+    assert document.articles[0].article_no == "第一条"
+    assert document.articles[0].text == "第一款正文。\n第二款正文。"
+    assert document.articles[0].source_span.start.block_order == 2
+    assert document.articles[0].source_span.end.block_order == 3
+    assert document.articles[1].source_span.start.block_order == 4
+
+
+def test_parse_legal_intermediate_rejects_non_confirmed_before_parser(
+    tmp_path,
+    monkeypatch,
+):
+    intermediate = _confirmed_intermediate(tmp_path)
+    ambiguous = identify_s1_target_body(
+        ExtractionResult(
+            source_sha256=intermediate.source_ref.source_sha256,
+            extractor_kind="W",
+            extractor_version="fake-v1",
+            pages=(
+                ExtractedPage(
+                    logical_page=1,
+                    page_number=None,
+                    block_orders=(0, 1, 2),
+                ),
+            ),
+            text_blocks=(
+                ExtractedBlock(
+                    order=0,
+                    text="某规定",
+                    location=SourceLocation(
+                        logical_page=1,
+                        page_number=None,
+                        block_order=0,
+                        line_number=1,
+                    ),
+                ),
+                ExtractedBlock(
+                    order=1,
+                    text="某规定",
+                    location=SourceLocation(
+                        logical_page=1,
+                        page_number=None,
+                        block_order=1,
+                        line_number=2,
+                    ),
+                ),
+                ExtractedBlock(
+                    order=2,
+                    text="第一条 正文",
+                    location=SourceLocation(
+                        logical_page=1,
+                        page_number=None,
+                        block_order=2,
+                        line_number=3,
+                    ),
+                ),
+            ),
+            disposition=IngestionDisposition.READY,
+        ),
+        source=intermediate.source_ref,
+        expected_title="某规定",
+    )
+    calls = []
+    monkeypatch.setattr(
+        "app.services.structure_parser.parse_legal_document",
+        lambda *args, **kwargs: calls.append((args, kwargs)),
+    )
+
+    with pytest.raises(ValueError, match="confirmed"):
+        parse_legal_intermediate(ambiguous)
+
+    assert calls == []

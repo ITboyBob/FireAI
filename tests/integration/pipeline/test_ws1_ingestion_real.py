@@ -12,6 +12,8 @@ from app.services.legal_ingestion_models import (
 from app.services.legal_source_classifier import classify_source
 from app.services.legal_word_extractor import WordLegalExtractor
 from app.services.legal_content_boundary import S1BoundaryStrategy
+from app.services.structure_parser import parse_legal_intermediate
+from app.services.chunk_builder import build_intermediate_chunks
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -46,6 +48,32 @@ REAL_BOUNDARY_CASES = (
         "督察、处罚与监管/河北省消防行政执法裁量实施办法.doc",
         "河北省消防行政执法裁量实施办法",
         62,
+    ),
+)
+REAL_PARSED_CASES = (
+    (
+        "督察、处罚与监管/中华人民共和国消防救援衔条例.docx",
+        "中华人民共和国消防救援衔条例",
+        26,
+        False,
+    ),
+    (
+        "督察、处罚与监管/消防产品监督管理规定.doc",
+        "消防产品监督管理规定",
+        44,
+        False,
+    ),
+    (
+        "事故调查、问责与系统治理/安全生产行政执法与刑事司法衔接工作办法.doc",
+        "安全生产行政执法与刑事司法衔接工作办法",
+        33,
+        True,
+    ),
+    (
+        "事故调查、问责与系统治理/河北省消防安全领域信用管理暂行细则.doc",
+        "河北省消防安全领域信用管理暂行细则",
+        31,
+        False,
     ),
 )
 
@@ -135,3 +163,46 @@ def test_real_ws1_boundary_covers_clean_and_trailing_risk_samples(
         and not hasattr(excluded, "summary")
         for excluded in intermediate.extraction_report.excluded_ranges
     )
+
+
+@pytest.mark.parametrize(
+    ("relative_path", "expected_title", "expected_article_count", "expect_overlap"),
+    REAL_PARSED_CASES,
+)
+def test_real_ws1_confirmed_body_reaches_parser_and_chunks_without_hiding_risks(
+    relative_path,
+    expected_title,
+    expected_article_count,
+    expect_overlap,
+):
+    batch = freeze_batch_input(TODO_ROOT)
+    source = next(
+        item for item in batch.sources if item.relative_path == relative_path
+    )
+    before_digest = sha256(source.source_path.read_bytes()).hexdigest()
+    data_root = PROJECT_ROOT / "data"
+    data_before = _relative_tree(data_root)
+    record = classify_source(source)
+    extraction = WordLegalExtractor().extract(
+        ExtractionRequest.from_source_record(record, run_id="real-parse")
+    )
+    intermediate = S1BoundaryStrategy().identify(
+        extraction,
+        source=source,
+        expected_title=expected_title,
+    )
+
+    parsed = parse_legal_intermediate(intermediate)
+    chunks = build_intermediate_chunks(intermediate, parsed)
+
+    assert len(parsed.articles) == expected_article_count
+    assert {chunk["article_no"] for chunk in chunks} == {
+        article.article_no for article in parsed.articles
+    }
+    assert all(article.source_span is not None for article in parsed.articles)
+    assert all(chunk["source_span"] for chunk in chunks)
+    assert all("PAGE \\* MERGEFORMAT" not in chunk["text"] for chunk in chunks)
+    if expect_overlap:
+        assert parsed.articles[-1].text in parsed.articles[-2].text
+    assert before_digest == sha256(source.source_path.read_bytes()).hexdigest()
+    assert data_before == _relative_tree(data_root)

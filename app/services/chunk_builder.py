@@ -1,6 +1,13 @@
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 import json
+
+from app.services.legal_intermediate import (
+    LegalDocumentIntermediate,
+    validate_legal_intermediate,
+)
+from app.services.structure_parser import ParsedDocument
 
 
 DEFAULT_MAX_CHUNK_CHARS = 300
@@ -52,6 +59,60 @@ def build_chunks(
             )
 
     return chunks
+
+
+def build_intermediate_chunks(
+    intermediate: LegalDocumentIntermediate,
+    parsed: ParsedDocument,
+    max_chunk_chars: int = DEFAULT_MAX_CHUNK_CHARS,
+) -> list[dict[str, Any]]:
+    validate_legal_intermediate(intermediate)
+    if intermediate.boundary.status != "confirmed":
+        raise ValueError("只有 confirmed 中间格式可以进入切块")
+    if parsed.document_id != intermediate.document_id:
+        raise ValueError("结构化文档的 document_id 与中间格式不一致")
+    if parsed.title != intermediate.target.title:
+        raise ValueError("结构化文档标题与 confirmed 目标正文不一致")
+    if parsed.source_sha256 != intermediate.source_ref.source_sha256:
+        raise ValueError("结构化文档的来源摘要与中间格式不一致")
+    if parsed.extraction_class != intermediate.extraction_class.value:
+        raise ValueError("结构化文档的提取分类与中间格式不一致")
+    if parsed.content_class != intermediate.content_class.value:
+        raise ValueError("结构化文档的内容分类与中间格式不一致")
+    if parsed.boundary_status != "confirmed":
+        raise ValueError("结构化文档未绑定 confirmed 边界状态")
+    if parsed.version_basis != intermediate.target.version_basis:
+        raise ValueError("结构化文档的版本依据与中间格式不一致")
+    if not parsed.articles or any(
+        article.source_span is None for article in parsed.articles
+    ):
+        raise ValueError("结构化文档的条文来源范围不完整")
+
+    chunks = build_chunks(asdict(parsed), max_chunk_chars=max_chunk_chars)
+    covered_article_indexes = {
+        int(chunk["article_index"]) for chunk in chunks
+    }
+    expected_article_indexes = set(range(1, len(parsed.articles) + 1))
+    if covered_article_indexes != expected_article_indexes:
+        raise ValueError("切块结果未完整覆盖 confirmed 条文")
+
+    enriched_chunks: list[dict[str, Any]] = []
+    for chunk in chunks:
+        article_index = int(chunk["article_index"])
+        article = parsed.articles[article_index - 1]
+        if article.source_span is None:
+            raise ValueError("切块结果对应条文缺少来源范围")
+        enriched_chunks.append(
+            {
+                **chunk,
+                "source_sha256": intermediate.source_ref.source_sha256,
+                "source_span": asdict(article.source_span),
+                "extraction_class": intermediate.extraction_class.value,
+                "content_class": intermediate.content_class.value,
+                "boundary_status": intermediate.boundary.status,
+            }
+        )
+    return enriched_chunks
 
 
 def write_chunks(
