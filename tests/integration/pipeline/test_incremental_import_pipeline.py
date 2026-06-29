@@ -8,6 +8,7 @@ import pytest
 from app.services.incremental_import import IncrementalImportError
 from app.services.incremental_import import run_incremental_import
 from app.services.keyword_index import search_keyword_index
+from app.services.legal_ingestion_orchestrator import run_legal_ingestion
 from app.services.vector_index import load_vector_map
 from tests.integration.pipeline.test_build_pipeline import (
     FakeEmbedder,
@@ -95,6 +96,50 @@ def test_incremental_import_duplicate_document_fails_without_new_rows(tmp_path):
         data_dir / "manifests" / "incremental_imports.json"
     ).read_text(encoding="utf-8") == manifest_before
     assert _count_keyword_rows(data_dir / "index" / "retrieval.db") == keyword_count_before
+
+
+def test_incremental_import_ws1_qualified_append_keeps_existing_index(tmp_path):
+    """使用统一编排器提交真实 W-S1 文件时，既有语料的索引不被破坏。"""
+    raw_dir = tmp_path / "法律文本"
+    data_dir = tmp_path / "data"
+    raw_dir.mkdir(parents=True)
+    _write_docx(MINI_FIRE_LAW, raw_dir / "消防法--2019年4月23日.docx")
+
+    _build_existing_corpus_and_index(raw_dir=raw_dir, data_dir=data_dir)
+
+    baseline_path = PROJECT_ROOT / "tests" / "fixtures" / "legal_ingestion" / "todo_baseline.json"
+    baseline = json.loads(baseline_path.read_text(encoding="utf-8"))
+    ws1_cases = [
+        item
+        for item in baseline
+        if item["expected_extraction_class"] == "W"
+        and item["expected_content_class"] == "S1"
+    ]
+    case = ws1_cases[0]
+    source_path = PROJECT_ROOT / "法律文本" / "todo" / case["relative_path"]
+    assert source_path.exists(), f"本机缺少真实 W-S1 源文件: {case['relative_path']}"
+
+    summary = run_legal_ingestion(
+        sources=[source_path],
+        data_dir=data_dir,
+        index_dir=data_dir / "index",
+        manifest_path=data_dir / "manifests" / "incremental_imports.json",
+        staging_root=data_dir / ".staging",
+        embedder=FakeEmbedder(),
+        run_id="ws1-append-pipeline",
+        dry_run=False,
+    )
+
+    assert len(summary.committed_document_ids) == 1
+    new_document_id = summary.committed_document_ids[0]
+
+    assert search_keyword_index("国家实行消防安全责任制", data_dir / "index" / "retrieval.db", top_k=5)
+    hits = search_keyword_index(source_path.stem, data_dir / "index" / "retrieval.db", top_k=5)
+    assert any(hit["document_id"] == new_document_id for hit in hits)
+
+    vector_map = load_vector_map(data_dir / "index" / "vector_map.json")
+    assert [item["position"] for item in vector_map] == list(range(len(vector_map)))
+    assert new_document_id in {item["document_id"] for item in vector_map}
 
 
 def _build_existing_corpus_and_index(*, raw_dir: Path, data_dir: Path) -> None:

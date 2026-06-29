@@ -1,13 +1,27 @@
 from pathlib import Path
 
+import json
+
+from app.services.legal_ingestion_orchestrator import run_legal_ingestion
 from app.services.query_normalizer import normalize_query
 from app.services.retriever import Retriever, fuse_results
-
+from tests.integration.pipeline.test_build_pipeline import (
+    FakeEmbedder,
+    MINI_FIRE_LAW,
+    _write_docx,
+)
+from tests.integration.pipeline.test_incremental_import_pipeline import (
+    _build_existing_corpus_and_index,
+)
 
 class FakeEmbedder:
     def encode_queries(self, texts):
         assert texts
         return [[1.0, 0.0]]
+
+    def encode_documents(self, texts):
+        assert texts
+        return [[1.0, 0.0] for _ in texts]
 
 
 class FakeVectorStore:
@@ -153,3 +167,49 @@ def test_retriever_search_prefers_single_canonical_title_scope():
     results = retriever.search(normalize_query("消防法第二条责任制"), top_k=3)
 
     assert [item["chunk_id"] for item in results] == ["national-2"]
+
+
+def test_retriever_finds_committed_ws1_article(tmp_path: Path) -> None:
+    """Retriever 能从真实 W-S1 提交后的索引中召回对应 chunk。"""
+    raw_dir = tmp_path / "法律文本"
+    data_dir = tmp_path / "data"
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    _write_docx(
+        MINI_FIRE_LAW,
+        raw_dir / "消防法--2019年4月23日.docx",
+    )
+    _build_existing_corpus_and_index(raw_dir=raw_dir, data_dir=data_dir)
+
+    project_root = Path(__file__).resolve().parents[3]
+    baseline_path = project_root / "tests" / "fixtures" / "legal_ingestion" / "todo_baseline.json"
+    baseline = json.loads(baseline_path.read_text(encoding="utf-8"))
+    ws1_cases = [
+        item
+        for item in baseline
+        if item["expected_extraction_class"] == "W"
+        and item["expected_content_class"] == "S1"
+    ]
+    case = ws1_cases[0]
+    source_path = project_root / "法律文本" / "todo" / case["relative_path"]
+    assert source_path.exists(), f"本机缺少真实 W-S1 源文件: {case['relative_path']}"
+
+    summary = run_legal_ingestion(
+        sources=[source_path],
+        data_dir=data_dir,
+        index_dir=data_dir / "index",
+        manifest_path=data_dir / "manifests" / "incremental_imports.json",
+        staging_root=data_dir / ".staging",
+        embedder=FakeEmbedder(),
+        run_id="ws1-retriever",
+        dry_run=False,
+    )
+    document_id = summary.committed_document_ids[0]
+
+    retriever = Retriever.from_disk(
+        keyword_db_path=data_dir / "index" / "retrieval.db",
+        vector_index_path=data_dir / "index" / "faiss.index",
+        vector_map_path=data_dir / "index" / "vector_map.json",
+        embedder=FakeEmbedder(),
+    )
+    results = retriever.search(source_path.stem, top_k=3)
+    assert any(result["document_id"] == document_id for result in results)
