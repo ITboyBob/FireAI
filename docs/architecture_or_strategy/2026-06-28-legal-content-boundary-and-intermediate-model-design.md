@@ -2,8 +2,9 @@
 
 **状态：** 已批准设计  
 **日期：** 2026-06-28  
-**角色：** `architecture_or_strategy`  
+**角色：** `architecture_or_strategy` 总体架构下的专项分卷
 **适用范围：** `法律文本/todo/` 多格式法规进入现有增量语料链路前的内容边界判定与中间数据契约
+**上位设计：** [法规摄取总体架构](./2026-06-29-legal-ingestion-overall-architecture.md)
 
 ## 1. 文档职责
 
@@ -316,12 +317,14 @@ S4 不得自动生成可提交产物。人工复核只能确认边界或退回�
 
 ## 15. 与其他设计文档的权威边界
 
-- [多格式法规导入总设计](./2026-06-28-multi-format-legal-corpus-ingestion-design.md)：负责总体目标、组件关系和与 append-only 机制的整体衔接。
+- [法规摄取总体架构](./2026-06-29-legal-ingestion-overall-architecture.md)：负责唯一入口、统一编排、独立策略注册、结果语义和跨组件边界。
+- [统一法规摄取入口 ADR](./2026-06-29-unified-legal-ingestion-entry-adr.md)：负责禁止组合 CLI、组合策略和旧提交旁路的决策。
+- [多格式法规摄取专项总设计](./2026-06-28-multi-format-legal-corpus-ingestion-design.md)：负责 `todo` 多格式处理范围、组件关系和与 Append-Only 机制的整体衔接。
 - [文件分类与提取器专项设计](./2026-06-28-legal-source-classification-and-extraction-design.md)：负责格式探测、W/PT/PS/PX 分类和各提取器统一输出要求。
 - [质量门禁与批次状态专项设计](./2026-06-28-legal-ingestion-quality-gates-and-batch-state-design.md)：负责检查项、通过标准、人工复核状态、批次失败隔离和提交资格。
 - [todo 法律文本评估基线](../reference_material/2026-06-28-todo-legal-corpus-assessment.md)：负责当前文件清单、实测证据、分类结果和逐文件验收基线。
 
-若其他文档重复定义目标法规标题、正文首尾、排除内容保存边界或统一中间格式，以本文档为准；若涉及文件格式如何提取或质量检查如何判定通过，以对应专项设计为准。
+若其他文档重复定义目标法规标题、正文首尾、排除内容保存边界或统一中间格式，以本文档为准；若涉及文件格式如何提取或质量检查如何判定通过，以对应专项设计为准。S1—S4 是独立正文边界策略，不得与 W/PT/PS 合并为组合策略。
 
 ## 16. 设计结论
 

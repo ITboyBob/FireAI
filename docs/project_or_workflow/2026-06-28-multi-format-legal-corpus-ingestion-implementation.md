@@ -1,5 +1,7 @@
 # 多格式法律语料摄取 Implementation Plan
 
+> **状态：已被替代。** 当前实施顺序以[法规摄取能力路线图](./2026-06-29-legal-ingestion-capability-roadmap.md)和对应里程碑计划为准；本文仅用于历史追溯，不得直接批量执行。
+
 > This plan is intended for direct batch execution in the current workspace.
 
 **Goal:** 为 `法律文本/todo/` 的 14 份真实法规建立多格式分类、提取、正文边界、质量门禁、批次状态与逐文件 append-only 提交能力。

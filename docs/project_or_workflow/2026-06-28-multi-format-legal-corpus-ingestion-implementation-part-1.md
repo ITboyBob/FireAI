@@ -1,5 +1,7 @@
 # 多格式法律语料摄取分卷一 Implementation Plan
 
+> **状态：已被替代。** 当前任务必须从[法规摄取能力路线图](./2026-06-29-legal-ingestion-capability-roadmap.md)进入对应里程碑计划；本文仅用于历史追溯。
+
 > This plan is intended for direct batch execution in the current workspace.
 
 **Goal:** 冻结 `法律文本/todo/` 的 14 份批次输入，并建立可审计的来源模型、真实格式探测和双轴候选分类能力。

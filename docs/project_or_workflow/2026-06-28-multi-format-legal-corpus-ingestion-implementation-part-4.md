@@ -1,5 +1,7 @@
 # 多格式法律语料摄取实施计划（分卷四）
 
+> **状态：已被替代。** 当前任务必须从[法规摄取能力路线图](./2026-06-29-legal-ingestion-capability-roadmap.md)进入对应里程碑计划；本文仅用于历史追溯。
+
 > 本分卷负责真实全量验收、文档同步和最终审计；入口见[实施计划总览](./2026-06-28-multi-format-legal-corpus-ingestion-implementation.md)。
 
 ## 阶段输入检查

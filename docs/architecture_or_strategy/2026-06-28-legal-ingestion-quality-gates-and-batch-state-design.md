@@ -2,8 +2,9 @@
 
 **状态：** 已批准设计  
 **日期：** 2026-06-28  
-**角色：** `architecture_or_strategy`  
+**角色：** `architecture_or_strategy` 总体架构下的专项分卷
 **适用范围：** `法律文本/todo/` 多格式法规从统一中间格式到逐文件 append-only 提交的质量判定、状态管理与审计
+**上位设计：** [法规摄取总体架构](./2026-06-29-legal-ingestion-overall-architecture.md)
 
 ## 1. 文档职责
 
@@ -285,13 +286,15 @@ stateDiagram-v2
 
 ## 17. 权威边界
 
-- [多格式法律语料摄取总设计](./2026-06-28-multi-format-legal-corpus-ingestion-design.md)：负责总体目标、组件关系、范围和核心决策。
+- [法规摄取总体架构](./2026-06-29-legal-ingestion-overall-architecture.md)：负责唯一入口、统一编排、策略注册、对外结果语义和跨组件边界。
+- [统一法规摄取入口 ADR](./2026-06-29-unified-legal-ingestion-entry-adr.md)：负责禁止组合 CLI、组合策略和旧提交旁路的决策。
+- [多格式法律语料摄取专项总设计](./2026-06-28-multi-format-legal-corpus-ingestion-design.md)：负责 `todo` 多格式处理目标、组件关系和范围。
 - [法律来源分类与提取专项设计](./2026-06-28-legal-source-classification-and-extraction-design.md)：负责 W/PT/PS/PX 探测、S1-S4 路由用途和提取器共同契约。
 - [目标法规正文边界与统一中间格式专项设计](./2026-06-28-legal-content-boundary-and-intermediate-model-design.md)：负责目标标题、正文首尾、排除内容规则和中间格式不变量。
 - [todo 法律语料评估基线](../reference_material/2026-06-28-todo-legal-corpus-assessment.md)：负责 14 份真实文件清单、当前分类与实测问题证据。
 - 现有 Append-Only 实施计划负责已实现的单文件 preflight、staging、commit、rollback 和 manifest 行为；若与本专项的质量判定或批次状态冲突，以本专项为准。
 
-若其他文档重复定义门禁结果、状态转换、提交资格、失败隔离、批次报告或真实测试不得 skip 的规则，以本文档为准。
+若其他文档重复定义门禁结果、状态转换、提交资格、失败隔离、批次报告或真实测试不得 skip 的规则，以本文档为准。本文的门禁结果 `fail` 汇总到总体编排结果时映射为 `failed`；`unsupported` 由统一编排器表达，不与门禁失败混用。
 
 ## 18. 设计结论
 

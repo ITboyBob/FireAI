@@ -4,6 +4,7 @@
 **适用范围：** `法律文本/todo/` 中待处理法律文件的格式探测、分类和文本提取  
 **不适用范围：** 正文边界识别细则、统一中间格式最终定义、质量门禁、批次状态、代码实施步骤  
 **依赖结论：** 本设计阶段无需新增依赖，沿用现有 conda 环境 `fire`；PDF 与 OCR 依赖仅定义能力边界，不在本文选型或安装
+**上位设计：** [法规摄取总体架构](./2026-06-29-legal-ingestion-overall-architecture.md)
 
 ## 1. 目标
 
@@ -36,12 +37,14 @@
 
 ### 2.3 与其他设计文档的权威关系
 
-- [多格式法律语料导入总设计](./2026-06-28-multi-format-legal-corpus-ingestion-design.md)：负责总体目标、组件关系、数据流和跨文档决策。
+- [法规摄取总体架构](./2026-06-29-legal-ingestion-overall-architecture.md)：负责唯一入口、统一编排、独立策略注册、结果语义和跨组件边界。
+- [统一法规摄取入口 ADR](./2026-06-29-unified-legal-ingestion-entry-adr.md)：负责记录禁止组合 CLI、组合策略和旧提交旁路的决策。
+- [多格式法律语料摄取专项总设计](./2026-06-28-multi-format-legal-corpus-ingestion-design.md)：负责 `todo` 多格式处理范围、组件关系和数据流。
 - [法律正文边界与统一中间格式专项设计](./2026-06-28-legal-content-boundary-and-intermediate-model-design.md)：负责正文保留范围、排除内容和正式中间格式。
 - [法律语料质量门禁与批次状态专项设计](./2026-06-28-legal-ingestion-quality-gates-and-batch-state-design.md)：负责质量门禁、人工复核状态、批次报告和提交条件。
 - [todo 法律文件评估基线](../reference_material/2026-06-28-todo-legal-corpus-assessment.md)：记录当前真实文件的分类证据和实测问题，不制定长期规则。
 
-上述文件可能与本文并行创建。分类与提取规则以本文为准，其他文档不得复制并形成第二套规则。
+分类与提取规则以本文为准，其他文档不得复制并形成第二套规则；本文不得把 W/PT/PS 与 S1—S4 固化为 W-S1 等组合策略。
 
 ## 3. 双轴分类模型
 
