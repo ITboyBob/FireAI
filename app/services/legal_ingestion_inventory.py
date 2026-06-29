@@ -1,8 +1,15 @@
 from hashlib import sha256
 import json
+from collections.abc import Sequence
 from pathlib import Path
 
-from app.services.legal_ingestion_models import FrozenBatchInput, SourceRef
+from app.services.legal_ingestion_models import (
+    ContentClass,
+    ExtractionClass,
+    FrozenBatchInput,
+    LegalSourceRecord,
+    SourceRef,
+)
 
 
 class LegalIngestionInventoryError(RuntimeError):
@@ -27,6 +34,25 @@ def freeze_batch_input(root: Path) -> FrozenBatchInput:
         root=resolved_root,
         sources=sources,
         batch_digest=_build_batch_digest(sources),
+    )
+
+
+def select_scope(
+    records: Sequence[LegalSourceRecord],
+    *,
+    extraction_class: ExtractionClass,
+    content_class: ContentClass,
+) -> tuple[LegalSourceRecord, ...]:
+    return tuple(
+        sorted(
+            (
+                record
+                for record in records
+                if record.extraction_class is extraction_class
+                and record.content_class is content_class
+            ),
+            key=lambda record: record.source.relative_path,
+        )
     )
 
 
