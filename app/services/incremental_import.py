@@ -5,7 +5,7 @@ from pathlib import Path
 import re
 import shutil
 import sqlite3
-from typing import Literal, cast
+from typing import TYPE_CHECKING, Literal, cast
 import uuid
 
 from app.services.chunk_builder import build_chunks, write_chunks
@@ -15,6 +15,15 @@ from app.services.keyword_index import append_keyword_index
 from app.services.normalizer import normalize_document
 from app.services.structure_parser import parse_legal_document, write_structured_document
 from app.services.vector_index import append_vector_index
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from app.services.legal_ingestion_models import LegalSourceRecord, SourceRef
+    from app.services.legal_strategy_registry import (
+        BoundaryStrategyRegistry,
+        ExtractionStrategyRegistry,
+    )
 
 
 class IncrementalImportError(RuntimeError):
@@ -49,6 +58,7 @@ class CommitPlan:
     document_id: str
     source_name: str
     source_path: str
+    source_file_type: Literal["doc", "docx"]
     chunk_count: int
     staging: ImportStaging
     data_dir: Path
@@ -116,41 +126,28 @@ def run_incremental_import(
     staging_root: Path,
     embedder: object,
     run_id: str | None = None,
+    classifier: "Callable[[SourceRef], LegalSourceRecord] | None" = None,
+    extraction_registry: "ExtractionStrategyRegistry | None" = None,
+    boundary_registry: "BoundaryStrategyRegistry | None" = None,
 ) -> IncrementalImportSummary:
-    if len(sources) != 1:
-        raise IncrementalImportError("第一版一次只能导入一个法规文件")
+    """保留兼容签名的单文件/批次导入入口，内部委托统一编排器。
 
-    actual_run_id = run_id or uuid.uuid4().hex
-    documents = resolve_explicit_sources(sources)
-    validate_append_only_preflight(
-        documents,
+    新增的三个可选参数用于测试注入 fake 策略；生产调用无需传入。
+    """
+    from app.services.legal_ingestion_orchestrator import run_legal_ingestion
+
+    return run_legal_ingestion(
+        sources=sources,
         data_dir=data_dir,
         index_dir=index_dir,
         manifest_path=manifest_path,
+        staging_root=staging_root,
+        embedder=embedder,
+        run_id=run_id,
+        classifier=classifier,
+        extraction_registry=extraction_registry,
+        boundary_registry=boundary_registry,
     )
-    staging = create_import_staging(staging_root, run_id=actual_run_id)
-    artifacts = generate_new_corpus_artifacts(documents, staging)
-    artifact_by_document_id = {item.document_id: item for item in artifacts}
-
-    committed: list[CommittedImport] = []
-    for document in documents:
-        artifact = artifact_by_document_id[document.document_id]
-        committed.append(
-            commit_staged_import(
-                CommitPlan(
-                    document_id=document.document_id,
-                    source_name=document.source_name,
-                    source_path=str(document.source_path),
-                    chunk_count=artifact.chunk_count,
-                    staging=staging,
-                    data_dir=data_dir,
-                    index_dir=index_dir,
-                    manifest_path=manifest_path,
-                    run_id=actual_run_id,
-                ),
-                embedder=embedder,
-            )
-        )
 
     return IncrementalImportSummary(
         run_id=actual_run_id,
@@ -233,7 +230,7 @@ def commit_staged_import(plan: CommitPlan, *, embedder: object) -> CommittedImpo
         document_id=plan.document_id,
         source_path=Path(plan.source_path),
         source_name=plan.source_name,
-        file_type="docx",
+        file_type=plan.source_file_type,
     )
     validate_append_only_preflight(
         [document],

@@ -1,4 +1,6 @@
 import json
+from dataclasses import dataclass
+from hashlib import sha256
 from pathlib import Path
 import sqlite3
 
@@ -17,6 +19,28 @@ from app.services.incremental_import import (
 )
 from app.services.incremental_manifest import append_import_record
 from app.services.keyword_index import build_keyword_index
+from app.services.legal_content_boundary import S1BoundaryStrategy
+from app.services.legal_extractor import (
+    ExtractedBlock,
+    ExtractedPage,
+    ExtractionResult,
+    SourceLocation,
+)
+from app.services.legal_ingestion_models import (
+    ClassificationDisposition,
+    ClassificationEvidence,
+    ContentClass,
+    ContentSignals,
+    ExtractionClass,
+    IngestionDisposition,
+    LegalSourceClassification,
+    LegalSourceRecord,
+    SourceProbe,
+)
+from app.services.legal_strategy_registry import (
+    build_boundary_strategy_registry,
+    build_extraction_strategy_registry,
+)
 
 
 def test_resolve_explicit_sources_accepts_only_doc_and_docx(tmp_path: Path):
@@ -346,25 +370,24 @@ def test_run_incremental_import_returns_committed_summary(tmp_path: Path, monkey
     _prepare_existing_keyword_db(index_dir / "retrieval.db", document_id="old_doc")
     _prepare_existing_fake_vector_index(index_dir, document_id="old_doc", vector_count=1)
 
-    def fake_normalize_document(document, output_dir):
-        output_path = output_dir / f"{document.document_id}.txt"
-        output_path.write_text("新消防规定\n第一条 新增法规正文。", encoding="utf-8")
-        return type("Result", (), {"output_path": output_path, "error_message": None})()
+    classifier = _fake_classifier(ContentClass.S1)
+    extraction_registry = build_extraction_strategy_registry(
+        word_extractor=_FakeWordExtractor()
+    )
+    boundary_registry = build_boundary_strategy_registry(
+        s1_strategy=S1BoundaryStrategy()
+    )
 
     def fake_vector_append(chunks, output_dir, **kwargs):
         (output_dir / "faiss.index").write_text("fake-vector-count=2", encoding="utf-8")
         vector_map = json.loads((output_dir / "vector_map.json").read_text(encoding="utf-8"))
-        vector_map.append({"position": 1, **chunks[0]})
+        vector_map.append({"position": len(vector_map), **chunks[0]})
         (output_dir / "vector_map.json").write_text(
             json.dumps(vector_map, ensure_ascii=False),
             encoding="utf-8",
         )
         return object()
 
-    monkeypatch.setattr(
-        "app.services.incremental_import.normalize_document",
-        fake_normalize_document,
-    )
     monkeypatch.setattr(
         "app.services.incremental_import.append_vector_index",
         fake_vector_append,
@@ -378,33 +401,132 @@ def test_run_incremental_import_returns_committed_summary(tmp_path: Path, monkey
         staging_root=data_dir / ".staging",
         embedder=object(),
         run_id="run-123",
+        classifier=classifier,
+        extraction_registry=extraction_registry,
+        boundary_registry=boundary_registry,
     )
 
     assert summary.run_id == "run-123"
-    assert summary.committed_document_ids == [summary.documents[0].document_id]
-    assert summary.total_chunks > 0
+    assert len(summary.committed_document_ids) == 1
     document_id = summary.committed_document_ids[0]
+    assert summary.documents[0].document_id == document_id
+    assert summary.total_chunks > 0
     assert (data_dir / "normalized" / f"{document_id}.txt").exists()
     assert (data_dir / "structured" / f"{document_id}.json").exists()
     assert (data_dir / "chunks" / f"{document_id}.jsonl").exists()
     assert summary.manifest_path.exists()
 
 
-def test_run_incremental_import_rejects_multiple_sources(tmp_path: Path):
-    first = tmp_path / "第一份.docx"
-    second = tmp_path / "第二份.docx"
-    first.write_text("placeholder", encoding="utf-8")
-    second.write_text("placeholder", encoding="utf-8")
+def test_run_incremental_import_rejects_unsupported_extraction_class(tmp_path: Path):
+    source = tmp_path / "新消防规定.docx"
+    source.write_text("placeholder", encoding="utf-8")
 
-    with pytest.raises(IncrementalImportError, match="第一版一次只能导入一个法规文件"):
+    def classifier(source_ref):
+        return _fake_source_record(source_ref, extraction_class=ExtractionClass.PT)
+
+    extraction_registry = build_extraction_strategy_registry()
+    boundary_registry = build_boundary_strategy_registry(s1_strategy=S1BoundaryStrategy())
+
+    with pytest.raises(IncrementalImportError, match="unsupported"):
         run_incremental_import(
-            sources=[first, second],
+            sources=[source],
             data_dir=tmp_path / "data",
             index_dir=tmp_path / "data" / "index",
             manifest_path=tmp_path / "data" / "manifests" / "incremental_imports.json",
             staging_root=tmp_path / "data" / ".staging",
             embedder=object(),
             run_id="run-123",
+            classifier=classifier,
+            extraction_registry=extraction_registry,
+            boundary_registry=boundary_registry,
+        )
+
+
+def _fake_classifier(content_class: ContentClass):
+    def classifier(source_ref: SourceRef) -> LegalSourceRecord:
+        return _fake_source_record(source_ref, content_class=content_class)
+
+    return classifier
+
+
+def _fake_source_record(
+    source_ref: SourceRef,
+    *,
+    extraction_class: ExtractionClass = ExtractionClass.W,
+    content_class: ContentClass = ContentClass.S1,
+) -> LegalSourceRecord:
+    return LegalSourceRecord(
+        source=source_ref,
+        probe=SourceProbe(
+            source_sha256=source_ref.source_sha256,
+            signature_kind="wordprocessingml",
+            detected_mime_type=None,
+            declared_extension=source_ref.declared_extension,
+            readable=True,
+        ),
+        classification=LegalSourceClassification(
+            extraction_class=extraction_class,
+            content_class=content_class,
+            disposition=ClassificationDisposition.READY,
+            evidence=ClassificationEvidence(
+                source_sha256=source_ref.source_sha256,
+                signature_kind="wordprocessingml",
+                detected_mime_type=None,
+                declared_extension=source_ref.declared_extension,
+                conversion_succeeded=True,
+                converted_character_count=42,
+            ),
+            content_signals=ContentSignals(
+                candidate_extracted=True,
+                title_count=1,
+                article_marker_count=1,
+            ),
+        ),
+    )
+
+
+@dataclass(frozen=True)
+class _FakeWordExtractor:
+    kind: str = ExtractionClass.W.value
+    version: str = "fake-v1"
+
+    def extract(self, request: ExtractionRequest) -> ExtractionResult:
+        title = request.source.source_path.stem
+        blocks = (
+            ExtractedBlock(
+                order=0,
+                text=title,
+                location=SourceLocation(
+                    logical_page=1,
+                    page_number=None,
+                    block_order=0,
+                    line_number=None,
+                ),
+            ),
+            ExtractedBlock(
+                order=1,
+                text="第一条 新增法规正文。",
+                location=SourceLocation(
+                    logical_page=1,
+                    page_number=None,
+                    block_order=1,
+                    line_number=None,
+                ),
+            ),
+        )
+        return ExtractionResult(
+            source_sha256=request.source.source_sha256,
+            extractor_kind=self.kind,
+            extractor_version=self.version,
+            pages=(
+                ExtractedPage(
+                    logical_page=1,
+                    page_number=None,
+                    block_orders=(0, 1),
+                ),
+            ),
+            text_blocks=blocks,
+            disposition=IngestionDisposition.READY,
         )
 
 
@@ -431,6 +553,7 @@ def _commit_plan(
         document_id=document_id,
         source_name="新法规",
         source_path="/tmp/new.docx",
+        source_file_type="docx",
         chunk_count=1,
         staging=staging,
         data_dir=data_dir,
