@@ -95,15 +95,19 @@ conda run -n fire python -m pip install -e ".[dev]"
 
 1. 准备本机 `.env` 配置。
 
-2. 如需追加一个全新法规，使用显式增量导入。
+2. 如需追加一个或多个全新法规，使用显式增量导入。
 
 ```bash
+# 单文件（兼容旧写法，也支持 --source）
 conda run -n fire python scripts/import_new_corpus.py /absolute/path/to/new-law.docx
+
+# 显式批次：只处理清单中 expected_extraction_class=W 且 expected_content_class=S1 的条目
+conda run -n fire python scripts/import_new_corpus.py --batch-manifest /absolute/path/to/manifest.json
 ```
 
-   第一版只支持一个 `.doc/.docx` 文件；不支持目录扫描、多文件导入、PDF/TXT/网页导入、旧法规修订替换或条文级 diff。若发现同 `document_id`、正式输出文件已存在、manifest 已记录、关键词索引已有记录或向量映射已有记录，会直接失败，不跳过、不覆盖。
+   单文件参数与 `--batch-manifest` 互斥；命令只接受显式指定的单个 `.doc/.docx` 文件，或一份显式批次清单。不支持目录扫描、PDF/TXT/网页导入、旧法规修订替换或条文级 diff。若发现同 `document_id`、正式输出文件已存在、manifest 已记录、关键词索引已有记录或向量映射已有记录，会直接失败，不跳过、不覆盖。
 
-   命令成功后会输出 `run_id`、导入法规、chunk 数量、manifest 路径，并提示：语义重复法规无法仅靠文件名或 hash 完整识别，第一版只做机械冲突检测。
+   命令成功后会输出 `run_id`、导入法规、chunk 数量、manifest 路径，并提示：语义重复法规无法只靠文件名或 hash 完整识别，第一版只做机械冲突检测。
 
 3. 启动后端服务。
 
