@@ -257,7 +257,7 @@ flowchart TD
 
 本文与分类和提取、正文边界和中间格式、质量门禁和批次状态三篇设计共同组成多格式专项分卷。专项分卷负责各自规则，不得覆盖总体架构或 ADR；若出现跨组件冲突，以总体架构和已接受 ADR 为准。
 
-实施工作以[多格式法律语料摄取实施计划](../project_or_workflow/2026-06-28-multi-format-legal-corpus-ingestion-implementation.md)及其分卷为执行入口。实施计划必须：
+实施工作先从[法规摄取能力路线图](../project_or_workflow/2026-06-29-legal-ingestion-capability-roadmap.md)选择当前里程碑；现阶段以[W-S1 端到端摄取实施计划](../project_or_workflow/2026-06-29-w-s1-end-to-end-ingestion-implementation.md)及其分卷为执行入口。实施计划必须：
 
 - 使用 SDD 与 TDD；
 - 按 Phase/Task 明确输入检查；

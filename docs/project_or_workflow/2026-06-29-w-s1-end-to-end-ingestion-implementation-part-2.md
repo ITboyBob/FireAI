@@ -18,7 +18,6 @@
 - [统一法规摄取入口 ADR](../architecture_or_strategy/2026-06-29-unified-legal-ingestion-entry-adr.md)
 - [文件分类与提取器路由设计](../architecture_or_strategy/2026-06-28-legal-source-classification-and-extraction-design.md)
 - [目标正文边界与统一中间格式设计](../architecture_or_strategy/2026-06-28-legal-content-boundary-and-intermediate-model-design.md)
-- [多格式摄取原分卷二](./2026-06-28-multi-format-legal-corpus-ingestion-implementation-part-2.md)
 - [真实文件评估基线](../reference_material/2026-06-28-todo-legal-corpus-assessment.md)
 
 执行本卷时使用 `@tdd-workflow`，严格执行红测、最小实现、绿测、真实上游验证。若本文与专项设计冲突，以专项设计为准。

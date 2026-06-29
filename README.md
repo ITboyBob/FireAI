@@ -139,7 +139,6 @@ conda run -n fire python -m uvicorn app.main:create_app --factory --reload --por
 - [法规摄取能力路线图](docs/project_or_workflow/2026-06-29-legal-ingestion-capability-roadmap.md)：当前能力、依赖、里程碑顺序和状态的总体规划入口。
 - [统一法规摄取入口 ADR](docs/architecture_or_strategy/2026-06-29-unified-legal-ingestion-entry-adr.md)：记录唯一薄 CLI 与独立策略路由的决策原因。
 - [多格式法律语料摄取组件设计](docs/architecture_or_strategy/2026-06-28-multi-format-legal-corpus-ingestion-design.md)：多格式数据流、组件职责和集成边界专项。
-- [旧多格式法律语料摄取实施计划](docs/project_or_workflow/2026-06-28-multi-format-legal-corpus-ingestion-implementation.md)：已被能力路线图和里程碑计划替代，仅用于历史追溯。
 - [W-S1 端到端摄取实施计划](docs/project_or_workflow/2026-06-29-w-s1-end-to-end-ingestion-implementation.md)：当前 W-S1 里程碑的任务分卷、质量资格和真实验收入口。
 
 `README.md` 只承担项目介绍、安装、运行和文档入口职责，不覆盖 PRD 或工程技术标准。
