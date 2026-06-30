@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from enum import Enum
 
+from app.services.legal_content_boundary import S1BoundaryStrategy
+from app.services.legal_s2_boundary import S2BoundaryStrategy
 from app.services.legal_extractor import LegalBoundaryStrategy, LegalExtractor
 from app.services.legal_ingestion_models import ContentClass, ExtractionClass
 
@@ -110,10 +112,13 @@ class BoundaryStrategyRegistry:
 def build_boundary_strategy_registry(
     *,
     s1_strategy: LegalBoundaryStrategy | None = None,
+    s2_strategy: LegalBoundaryStrategy | None = None,
 ) -> BoundaryStrategyRegistry:
     registry = BoundaryStrategyRegistry()
     if s1_strategy is not None:
         registry.register(ContentClass.S1, s1_strategy)
+    if s2_strategy is not None:
+        registry.register(ContentClass.S2, s2_strategy)
     return registry
 
 

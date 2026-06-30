@@ -17,6 +17,7 @@ from app.services.incremental_import import (
     create_import_staging,
 )
 from app.services.legal_content_boundary import S1BoundaryStrategy
+from app.services.legal_s2_boundary import S2BoundaryStrategy
 from app.services.legal_extractor import (
     ExtractionRequest,
     ExtractionResult,
@@ -327,7 +328,8 @@ def run_legal_ingestion(
         word_extractor=WordLegalExtractor()
     )
     boundary_registry = boundary_registry or build_boundary_strategy_registry(
-        s1_strategy=S1BoundaryStrategy()
+        s1_strategy=S1BoundaryStrategy(),
+        s2_strategy=S2BoundaryStrategy(),
     )
 
     orchestrator = LegalIngestionOrchestrator(

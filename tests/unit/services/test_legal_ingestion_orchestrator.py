@@ -32,6 +32,19 @@ from app.services.legal_strategy_registry import (
 )
 from app.services.legal_textutil import TextutilRunResult
 from app.services.legal_word_extractor import WordLegalExtractor
+from app.services.corpus_ingestor import build_document_id
+from app.services.incremental_import import CommitPlan, ImportStaging
+from app.services.legal_intermediate import (
+    BoundaryDecision,
+    ExtractionReport,
+    LegalDocumentIntermediate,
+    SourceSpan,
+    TargetMetadata,
+)
+from app.services.legal_ingestion_orchestrator import run_legal_ingestion
+from app.services.legal_qualified_import import CommitQualification
+from app.services.legal_quality_gates import GateOutcome, QualityReport
+from app.services.legal_s2_boundary import S2BoundaryStrategy
 
 
 def _record(
@@ -39,12 +52,13 @@ def _record(
     *,
     content_class=ContentClass.S1,
     disposition=ClassificationDisposition.READY,
+    source_name: str = "sample",
 ):
-    source_path = tmp_path / "sample.doc"
+    source_path = tmp_path / f"{source_name}.doc"
     source_path.write_bytes(b"sample")
     digest = sha256(b"sample").hexdigest()
     source = SourceRef(
-        relative_path="sample.doc",
+        relative_path=f"{source_name}.doc",
         source_path=source_path,
         source_sha256=digest,
         size_bytes=6,
@@ -129,6 +143,55 @@ class FakeBoundary:
 
     def identify(self, extraction, *, source, expected_title=None):
         return {"status": "confirmed", "source_sha256": source.source_sha256}
+
+
+@dataclass(frozen=True)
+class FakeS2ReviewBoundary:
+    kind: str = "S2"
+    version: str = "fake-v1"
+    status: str = "review_required"
+    reason: str = "test_review"
+
+    def identify(self, extraction, *, source, expected_title=None):
+        title = expected_title or source.source_path.stem
+        location = SourceLocation(
+            logical_page=1,
+            page_number=None,
+            block_order=0,
+            line_number=1,
+        )
+        span = SourceSpan(
+            start=location,
+            end=location,
+            start_char_offset=0,
+            end_char_offset=0,
+        )
+        target = TargetMetadata(title=title)
+        boundary = BoundaryDecision(
+            status=self.status,
+            start=None,
+            end=None,
+            ambiguities=(self.reason,),
+        )
+        report = ExtractionReport(
+            status=self.status,
+            extractor_kind=extraction.extractor_kind,
+            extractor_version=extraction.extractor_version,
+            warnings=(),
+        )
+        return LegalDocumentIntermediate(
+            schema_version="legal-intermediate-v2",
+            document_id=build_document_id(title),
+            source_ref=source,
+            extraction_class=ExtractionClass(extraction.extractor_kind),
+            content_class=ContentClass.S2,
+            target=target,
+            boundary=boundary,
+            body_text="",
+            body_units=(),
+            diagnostics=(self.reason,),
+            extraction_report=report,
+        )
 
 
 def test_default_orchestrator_returns_unsupported_without_writes(tmp_path, monkeypatch):
@@ -290,3 +353,82 @@ def test_orchestrator_short_circuits_s4_classification_review(tmp_path):
 
     assert outcome.disposition is IngestionDisposition.REVIEW_REQUIRED
     assert outcome.reason_code == "classification_review_required"
+
+
+S2_LINES = (
+    "某省人民政府",
+    "关于修改《某规定》的决定",
+    "某规定",
+    "（2020年1月1日公布）",
+    "第一章 总则",
+    "第一条 正文。",
+    "第二章 分则",
+    "第二条 末条。",
+)
+
+
+def test_orchestrator_resolves_w_s2_axes(tmp_path):
+    record = _record(tmp_path, content_class=ContentClass.S2, source_name="某规定")
+    extraction_registry = build_extraction_strategy_registry(
+        word_extractor=FakeExtractor(lines=S2_LINES)
+    )
+    boundary_registry = build_boundary_strategy_registry(
+        s1_strategy=S1BoundaryStrategy(),
+        s2_strategy=S2BoundaryStrategy(),
+    )
+    orchestrator = LegalIngestionOrchestrator(
+        classifier=lambda source: record,
+        extraction_registry=extraction_registry,
+        boundary_registry=boundary_registry,
+    )
+
+    outcome = orchestrator.prepare(
+        IngestionInput(single_source=record.source),
+        run_id="run-s2",
+    )[0]
+
+    assert outcome.disposition is IngestionDisposition.READY
+    assert outcome.extraction_class is ExtractionClass.W
+    assert outcome.content_class is ContentClass.S2
+    assert isinstance(outcome.boundary_result, LegalDocumentIntermediate)
+    assert outcome.boundary_result.content_class is ContentClass.S2
+    assert outcome.boundary_result.boundary.status == "confirmed"
+
+
+def test_run_legal_ingestion_dry_run_skips_downstream_for_s2_review(
+    tmp_path, monkeypatch
+):
+    record = _record(tmp_path, content_class=ContentClass.S2)
+    extraction_registry = build_extraction_strategy_registry(
+        word_extractor=FakeExtractor(lines=S2_LINES)
+    )
+    boundary_registry = build_boundary_strategy_registry(
+        s2_strategy=FakeS2ReviewBoundary()
+    )
+    calls = []
+
+    def fake_evaluate(*, outcome, **kwargs):
+        calls.append(outcome)
+        raise AssertionError("must not evaluate non-ready S2 outcome")
+
+    monkeypatch.setattr(
+        "app.services.legal_ingestion_orchestrator._evaluate_qualified_outcome",
+        fake_evaluate,
+    )
+
+    summary = run_legal_ingestion(
+        sources=[record.source.source_path],
+        data_dir=tmp_path / "data",
+        index_dir=tmp_path / "index",
+        manifest_path=tmp_path / "manifest.json",
+        staging_root=tmp_path / "staging",
+        embedder=object(),
+        run_id="run-s2-review",
+        dry_run=True,
+        classifier=lambda source: record,
+        extraction_registry=extraction_registry,
+        boundary_registry=boundary_registry,
+    )
+
+    assert not calls
+    assert summary.batch_report_path is not None

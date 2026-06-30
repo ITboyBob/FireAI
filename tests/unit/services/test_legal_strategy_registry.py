@@ -11,6 +11,7 @@ from app.services.legal_strategy_registry import (
     build_extraction_strategy_registry,
 )
 from app.services.legal_content_boundary import S1BoundaryStrategy
+from app.services.legal_s2_boundary import S2BoundaryStrategy
 from app.services.legal_textutil import TextutilRunResult
 from app.services.legal_word_extractor import WordLegalExtractor
 
@@ -27,6 +28,15 @@ class FakeExtractor:
 @dataclass(frozen=True)
 class FakeBoundary:
     kind: str = "S1"
+    version: str = "fake-v1"
+
+    def identify(self, extraction, *, source, expected_title=None):
+        return object()
+
+
+@dataclass(frozen=True)
+class FakeS2Boundary:
+    kind: str = "S2"
     version: str = "fake-v1"
 
     def identify(self, extraction, *, source, expected_title=None):
@@ -102,6 +112,32 @@ def test_boundary_registry_assembly_registers_only_s1_strategy():
     assert registry.resolve(ContentClass.S4).status is CapabilityStatus.REVIEW_REQUIRED
 
 
+def test_boundary_registry_assembly_registers_s1_and_s2_strategies():
+    s1 = S1BoundaryStrategy()
+    s2 = S2BoundaryStrategy()
+
+    registry = build_boundary_strategy_registry(s1_strategy=s1, s2_strategy=s2)
+
+    assert registry.resolve(ContentClass.S1).strategy is s1
+    assert registry.resolve(ContentClass.S2).strategy is s2
+    assert registry.resolve(ContentClass.S3).status is CapabilityStatus.UNSUPPORTED
+    assert registry.resolve(ContentClass.S4).status is CapabilityStatus.REVIEW_REQUIRED
+
+
+def test_boundary_registry_rejects_s2_kind_mismatch():
+    registry = build_boundary_strategy_registry()
+
+    with pytest.raises(ValueError, match="正文边界策略 kind 必须与内容轴键一致"):
+        registry.register(ContentClass.S2, FakeBoundary(kind="S1"))
+
+
+def test_boundary_registry_rejects_duplicate_s2():
+    registry = build_boundary_strategy_registry(s2_strategy=S2BoundaryStrategy())
+
+    with pytest.raises(ValueError, match="正文边界策略已注册"):
+        registry.register(ContentClass.S2, S2BoundaryStrategy(version="other"))
+
+
 @pytest.mark.parametrize("invalid_key", ["W-S1", ("W", "S1"), ExtractionClass.PX])
 def test_extraction_registry_rejects_combination_and_px_keys(invalid_key):
     registry = ExtractionStrategyRegistry()
@@ -110,7 +146,7 @@ def test_extraction_registry_rejects_combination_and_px_keys(invalid_key):
         registry.register(invalid_key, FakeExtractor())
 
 
-@pytest.mark.parametrize("invalid_key", ["W-S1", ("W", "S1")])
+@pytest.mark.parametrize("invalid_key", ["W-S1", ("W", "S1"), "W-S2", ("W", "S2")])
 def test_boundary_registry_rejects_combination_keys(invalid_key):
     registry = BoundaryStrategyRegistry()
 
