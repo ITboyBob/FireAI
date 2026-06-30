@@ -716,6 +716,7 @@ def _evaluate_qualified_outcome(
         document_id=intermediate.document_id,
         source_name=intermediate.source_ref.source_path.stem,
         source_path=str(intermediate.source_ref.source_path),
+        source_sha256=intermediate.source_ref.source_sha256,
         source_file_type=cast(
             Literal["doc", "docx"],
             intermediate.source_ref.declared_extension.lstrip("."),

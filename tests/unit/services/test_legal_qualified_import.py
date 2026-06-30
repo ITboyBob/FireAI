@@ -109,6 +109,7 @@ def _qualified_plan(
         document_id=document_id,
         source_name=source_name,
         source_path=str(source_path),
+        source_sha256=source_digest,
         source_file_type=source_file_type,  # type: ignore[arg-type]
         chunk_count=1,
         staging=staging,

@@ -101,6 +101,7 @@ def test_preflight_fails_when_manifest_has_document(tmp_path: Path):
         document_id=document.document_id,
         source_name=document.source_name,
         source_path=str(document.source_path),
+        source_sha256="0" * 64,
         chunk_count=1,
         run_id="run-existing",
     )
@@ -549,11 +550,13 @@ def _commit_plan(
     data_dir: Path,
     index_dir: Path,
     manifest_path: Path,
+    source_sha256: str = "0" * 64,
 ) -> CommitPlan:
     return CommitPlan(
         document_id=document_id,
         source_name="新法规",
         source_path="/tmp/new.docx",
+        source_sha256=source_sha256,
         source_file_type="docx",
         chunk_count=1,
         staging=staging,

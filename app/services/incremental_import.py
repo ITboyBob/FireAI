@@ -58,6 +58,7 @@ class CommitPlan:
     document_id: str
     source_name: str
     source_path: str
+    source_sha256: str
     source_file_type: Literal["doc", "docx"]
     chunk_count: int
     staging: ImportStaging
@@ -285,6 +286,7 @@ def commit_staged_import(plan: CommitPlan, *, embedder: object) -> CommittedImpo
             document_id=plan.document_id,
             source_name=plan.source_name,
             source_path=plan.source_path,
+            source_sha256=plan.source_sha256,
             chunk_count=plan.chunk_count,
             run_id=plan.run_id,
         )

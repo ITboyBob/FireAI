@@ -18,6 +18,7 @@ class IncrementalImportRecord:
     document_id: str
     source_name: str
     source_path: str
+    source_sha256: str
     chunk_count: int
     run_id: str
     status: Literal["committed"]
@@ -59,6 +60,7 @@ def load_manifest(path: Path) -> IncrementalImportManifest:
                     document_id=str(item["document_id"]),
                     source_name=str(item["source_name"]),
                     source_path=str(item["source_path"]),
+                    source_sha256=str(item["source_sha256"]),
                     chunk_count=int(item["chunk_count"]),
                     run_id=str(item["run_id"]),
                     status="committed",
@@ -77,6 +79,7 @@ def append_import_record(
     document_id: str,
     source_name: str,
     source_path: str,
+    source_sha256: str,
     chunk_count: int,
     run_id: str,
 ) -> IncrementalImportManifest:
@@ -92,6 +95,7 @@ def append_import_record(
                 document_id=document_id,
                 source_name=source_name,
                 source_path=source_path,
+                source_sha256=source_sha256,
                 chunk_count=chunk_count,
                 run_id=run_id,
                 status="committed",
