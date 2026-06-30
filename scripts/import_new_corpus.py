@@ -32,6 +32,8 @@ def _parse_manifest_path(value: str) -> Path:
 def _resolve_manifest_sources(
     manifest_path: Path,
     source_root: Path | None,
+    extraction_class: str,
+    content_class: str,
 ) -> list[Path]:
     raw = json.loads(manifest_path.read_text(encoding="utf-8"))
     if not isinstance(raw, list):
@@ -42,9 +44,9 @@ def _resolve_manifest_sources(
     for item in raw:
         if not isinstance(item, dict):
             raise IncrementalImportError("批次清单条目必须是对象")
-        if item.get("expected_extraction_class") != "W":
+        if item.get("expected_extraction_class") != extraction_class:
             continue
-        if item.get("expected_content_class") != "S1":
+        if item.get("expected_content_class") != content_class:
             continue
         relative_path = item.get("relative_path")
         if not relative_path:
@@ -125,7 +127,10 @@ def _print_batch_summary(
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="显式导入全新法规文件或批次")
+    parser = argparse.ArgumentParser(
+        description="显式导入全新法规文件或批次",
+        exit_on_error=False,
+    )
     parser.add_argument(
         "source_path",
         nargs="?",
@@ -145,7 +150,7 @@ def main(argv: list[str] | None = None) -> int:
         dest="batch_manifest",
         type=_parse_manifest_path,
         default=None,
-        help="显式批次清单 JSON 路径；只处理 expected_extraction_class=W 且 expected_content_class=S1 的条目",
+        help="显式批次清单 JSON 路径；默认只处理 expected_extraction_class=W 且 expected_content_class=S1 的条目",
     )
     parser.add_argument(
         "--source-root",
@@ -153,6 +158,22 @@ def main(argv: list[str] | None = None) -> int:
         type=_parse_source_path,
         default=None,
         help="批次清单中 relative_path 的解析根目录；默认使用清单所在目录",
+    )
+    parser.add_argument(
+        "--extraction-class",
+        dest="extraction_class",
+        type=str,
+        choices=["W", "PT", "PS", "PX"],
+        default="W",
+        help="批次清单筛选的提取策略轴；默认 W（Word 直接提取）",
+    )
+    parser.add_argument(
+        "--content-class",
+        dest="content_class",
+        type=str,
+        choices=["S1", "S2", "S3", "S4"],
+        default="S1",
+        help="批次清单筛选的内容类型轴；默认 S1（单一颁布文本）",
     )
     parser.add_argument(
         "--dry-run",
@@ -173,10 +194,15 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="批次或单文件运行 ID；省略则自动生成 UUID",
     )
-    args = parser.parse_args(argv)
+    try:
+        args = parser.parse_args(argv)
+    except argparse.ArgumentError as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
 
     has_single_source = args.source_path is not None or args.source_options
     has_batch = args.batch_manifest is not None
+    has_class_filter = args.extraction_class != "W" or args.content_class != "S1"
 
     if has_single_source and has_batch:
         print("单文件参数与 --batch-manifest 互斥", file=sys.stderr)
@@ -187,13 +213,21 @@ def main(argv: list[str] | None = None) -> int:
     if args.verify_source_only and not has_batch:
         print("--verify-source-only 只能与 --batch-manifest 一起使用", file=sys.stderr)
         return 2
+    if has_single_source and has_class_filter:
+        print("单文件参数与 --extraction-class/--content-class 互斥", file=sys.stderr)
+        return 2
 
     run_id = args.run_id or str(uuid.uuid4())
     settings = Settings()
 
     if has_batch:
         try:
-            sources = _resolve_manifest_sources(args.batch_manifest, args.source_root)
+            sources = _resolve_manifest_sources(
+                args.batch_manifest,
+                args.source_root,
+                extraction_class=args.extraction_class,
+                content_class=args.content_class,
+            )
         except (IncrementalImportError, json.JSONDecodeError, OSError) as exc:
             print(str(exc), file=sys.stderr)
             return 2

@@ -101,8 +101,22 @@ conda run -n fire python -m pip install -e ".[dev]"
 # 单文件（兼容旧写法，也支持 --source）
 conda run -n fire python scripts/import_new_corpus.py /absolute/path/to/new-law.docx
 
-# 显式批次：只处理清单中 expected_extraction_class=W 且 expected_content_class=S1 的条目
+# 显式批次：默认处理清单中 expected_extraction_class=W 且 expected_content_class=S1 的条目
 conda run -n fire python scripts/import_new_corpus.py --batch-manifest /absolute/path/to/manifest.json
+
+# 显式批次：只处理 W-S2（复合颁布文本）条目，先校验源文件
+conda run -n fire python scripts/import_new_corpus.py \
+  --batch-manifest /absolute/path/to/manifest.json \
+  --extraction-class W \
+  --content-class S2 \
+  --verify-source-only
+
+# 显式批次：只处理 W-S2 条目，执行完整 dry-run 生成质量报告但不提交
+conda run -n fire python scripts/import_new_corpus.py \
+  --batch-manifest /absolute/path/to/manifest.json \
+  --extraction-class W \
+  --content-class S2 \
+  --dry-run
 ```
 
    单文件参数与 `--batch-manifest` 互斥；命令只接受显式指定的单个 `.doc/.docx` 文件，或一份显式批次清单。不支持目录扫描、PDF/TXT/网页导入、旧法规修订替换或条文级 diff。若发现同 `document_id`、正式输出文件已存在、manifest 已记录、关键词索引已有记录或向量映射已有记录，会直接失败，不跳过、不覆盖。
