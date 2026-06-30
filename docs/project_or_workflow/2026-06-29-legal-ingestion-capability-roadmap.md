@@ -52,7 +52,7 @@
 
 ## 4. 当前能力矩阵
 
-当前建设基线是：现有 Append-Only 单文件提交已经可用，但统一安全入口、上游策略路由和法规语义质量资格尚待实施。W-S1 是第一个端到端里程碑，本阶段只实现 W 提取策略与 S1 正文边界策略。
+当前建设基线是：统一安全入口、上游策略路由、W 提取策略、S1 正文边界、法规语义质量资格和 Append-Only 提交已经完成实现与真实验收。W-S1 是第一个已完成的端到端里程碑；后续里程碑继续补充 PT、PS、S2、S3 等尚未实现的策略能力。
 
 | 能力 | 当前状态 | 当前结论 | 目标或完成证据 | 所属里程碑 |
 | --- | --- | --- | --- | --- |
@@ -68,13 +68,13 @@
 | 通用质量资格 | `implemented` | `CommitQualification` 绑定源摘要、质量报告和三类 staged 产物摘要；`commit_qualified_staged_import()` 在第一次 preflight 前校验绑定，失败零写入 | 资格绑定源摘要、质量报告和 staged 产物摘要，失败时零提交 | W-S1 |
 | Append-Only 单文件提交 | `implemented` | staging、两次 preflight、索引追加、回滚和 manifest 已有实现 | W-S1 只复用并回归验证，不重写提交事务 | 既有增量导入 |
 | 批次发现与逐文件隔离 | `implemented` | `_run_batch_legal_ingestion()` 实现逐文件评估、串行提交、独立质量报告和批次汇总；失败文件不阻断其他文件，也不回滚已提交文件 | 批次只负责发现、调度和汇总；每份文件独立提交，失败互不污染 | W-S1 |
-| 14 文件真实验收 | `in_progress` | 唯一 fixture 已与真实14文件核对；11份 Word 已完成只读真实分类；W-S1 8 份已完成端到端 dry-run 质量验收且全部门禁通过，尚未正式提交；剩余 3 份 Word（S2/S3）和 3 份 PDF 待后续策略里程碑覆盖 | 各能力里程碑逐步覆盖；最终 14 份均有处理状态和可追溯证据 | 跨里程碑收口 |
+| 14 文件真实验收 | `in_progress` | 唯一 fixture 已与真实14文件核对；11份 Word 已完成只读真实分类；W-S1 8 份已通过全部质量门禁并正式提交，批次 `8474b7ab-265a-41ce-8b7d-5fd64f9aecba` 为 `committed=8`；剩余 3 份 Word（S2/S3）和 3 份 PDF 待后续策略里程碑覆盖 | 各能力里程碑逐步覆盖；最终 14 份均有处理状态和可追溯证据 | 跨里程碑收口 |
 
 ## 5. 当前里程碑
 
 ### 5.1 W-S1 端到端摄取
 
-**状态：** `in_progress`
+**状态：** `implemented`
 
 本里程碑负责：
 
@@ -100,7 +100,7 @@ W-S1 完成不等于 14 文件全量摄取完成，也不等于多格式法规�
 
 建议的演进顺序不是固定承诺，应随证据更新：
 
-1. 完成 W-S1，验证统一入口和公共主干；
+1. 以已完成的 W-S1 统一入口和公共主干为复用基线；
 2. 在 W 已稳定的前提下实现 S2 或 S3，并做对应 W 组合验收；
 3. 完成 PT 真实探针和提取策略，再复用已实现的 S 类策略；
 4. PS 仅在 OCR 依赖获批并完成真实样本探针后进入实施；
@@ -114,3 +114,4 @@ W-S1 完成不等于 14 文件全量摄取完成，也不等于多格式法规�
 | 2026-06-29 | W-S1 开始实施；完成14文件基线冻结、来源模型、批次清单、11份真实 Word 探测与双轴分类 | 提交 `f22e6d3`、`b99ab63`、`9c51395` 及对应无 skip 测试 |
 | 2026-06-29 | 完成双轴注册与只读编排接缝、Word 内存候选提取、S1 边界和统一中间格式；能力保持 `in_progress` | 提交 `b6821ab`、`b02fb91`；Task 6 单元30项和4份真实样本验证 |
 | 2026-06-29 | W-S1 质量验收完成：`cross_layer_consistency` 修复 paragraph 子单元拼接，8 份真实 W-S1 文件 dry-run 全部门禁通过；W 提取策略与 S1 边界策略状态更新为 `implemented`；`test_incremental_import_real_smoke.py` 改为缺失即失败并修正真实文件路径 | `tests/unit/services/test_legal_quality_gates.py::test_cross_layer_article_with_paragraph_children_passes`、`tests/integration/pipeline/test_ws1_legal_corpus_quality.py`、批次 CLI dry-run `auto_passed=8` |
+| 2026-06-30 | W-S1 8 份真实文件完成正式 Append-Only 提交；里程碑更新为 `implemented`。正式语料、关键词索引、向量索引与 manifest 均包含全部 8 份文件，质量报告全部为 `pass` | 批次 `8474b7ab-265a-41ce-8b7d-5fd64f9aecba`：`selected=8`、`committed=8`、`failed=0`；正式索引共 17 份文档、771 个关键词 chunk、771 个 FAISS 向量，增量 manifest 共 11 条记录 |
