@@ -1,4 +1,4 @@
-from dataclasses import asdict, dataclass, replace
+from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 import json
 import re
@@ -6,6 +6,7 @@ import re
 from app.services.legal_intermediate import (
     BodyUnit,
     LegalDocumentIntermediate,
+    MetadataEvidence,
     SourceSpan,
     validate_legal_intermediate,
 )
@@ -44,6 +45,8 @@ class ParsedDocument:
     content_class: str | None = None
     boundary_status: str | None = None
     version_basis: str | None = None
+    revision_events: tuple[str, ...] = field(default_factory=tuple)
+    metadata_evidence: tuple[MetadataEvidence, ...] = field(default_factory=tuple)
 
 
 def parse_legal_document(document_id: str, raw_text: str) -> ParsedDocument:
@@ -114,6 +117,7 @@ def parse_legal_intermediate(
             strict=True,
         )
     ]
+    target = intermediate.target
     return replace(
         parsed,
         articles=bound_articles,
@@ -121,7 +125,37 @@ def parse_legal_intermediate(
         extraction_class=intermediate.extraction_class.value,
         content_class=intermediate.content_class.value,
         boundary_status=intermediate.boundary.status,
-        version_basis=intermediate.target.version_basis,
+        issuing_authority=(
+            target.issuing_authority
+            if target.issuing_authority is not None
+            else parsed.issuing_authority
+        ),
+        region=(
+            target.region
+            if target.region is not None
+            else parsed.region
+        ),
+        promulgated_on=(
+            target.promulgated_on
+            if target.promulgated_on is not None
+            else parsed.promulgated_on
+        ),
+        effective_on=(
+            target.effective_on
+            if target.effective_on is not None
+            else parsed.effective_on
+        ),
+        version_basis=(
+            target.version_basis
+            if target.version_basis is not None
+            else parsed.version_basis
+        ),
+        revision_events=(
+            target.revision_events
+            if target.revision_events
+            else parsed.revision_events
+        ),
+        metadata_evidence=target.evidence,
     )
 
 

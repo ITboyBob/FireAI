@@ -53,6 +53,8 @@ def build_chunks(
                     "region": structured.get("region"),
                     "promulgated_on": structured.get("promulgated_on"),
                     "effective_on": structured.get("effective_on"),
+                    "revision_events": structured.get("revision_events"),
+                    "version_basis": structured.get("version_basis"),
                     "chunk_index": chunk_index,
                     "chunk_total": chunk_total,
                 }
@@ -83,6 +85,25 @@ def build_intermediate_chunks(
         raise ValueError("结构化文档未绑定 confirmed 边界状态")
     if parsed.version_basis != intermediate.target.version_basis:
         raise ValueError("结构化文档的版本依据与中间格式不一致")
+    if (
+        intermediate.target.issuing_authority is not None
+        and parsed.issuing_authority != intermediate.target.issuing_authority
+    ):
+        raise ValueError("结构化文档的发布机关与中间格式不一致")
+    if (
+        intermediate.target.promulgated_on is not None
+        and parsed.promulgated_on != intermediate.target.promulgated_on
+    ):
+        raise ValueError("结构化文档的公布日期与中间格式不一致")
+    if (
+        intermediate.target.effective_on is not None
+        and parsed.effective_on != intermediate.target.effective_on
+    ):
+        raise ValueError("结构化文档的施行日期与中间格式不一致")
+    if parsed.revision_events != intermediate.target.revision_events:
+        raise ValueError("结构化文档的修订事件与中间格式不一致")
+    if parsed.metadata_evidence != intermediate.target.evidence:
+        raise ValueError("结构化文档的元数据证据与中间格式不一致")
     if not parsed.articles or any(
         article.source_span is None for article in parsed.articles
     ):
@@ -95,6 +116,18 @@ def build_intermediate_chunks(
     expected_article_indexes = set(range(1, len(parsed.articles) + 1))
     if covered_article_indexes != expected_article_indexes:
         raise ValueError("切块结果未完整覆盖 confirmed 条文")
+
+    for chunk in chunks:
+        if chunk.get("issuing_authority") != parsed.issuing_authority:
+            raise ValueError("切块发布机关与结构化文档不一致")
+        if chunk.get("promulgated_on") != parsed.promulgated_on:
+            raise ValueError("切块公布日期与结构化文档不一致")
+        if chunk.get("effective_on") != parsed.effective_on:
+            raise ValueError("切块施行日期与结构化文档不一致")
+        if chunk.get("revision_events") != parsed.revision_events:
+            raise ValueError("切块修订事件与结构化文档不一致")
+        if chunk.get("version_basis") != parsed.version_basis:
+            raise ValueError("切块版本依据与结构化文档不一致")
 
     enriched_chunks: list[dict[str, Any]] = []
     for chunk in chunks:

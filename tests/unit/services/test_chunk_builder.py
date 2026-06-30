@@ -11,6 +11,7 @@ from app.services.chunk_builder import (
     write_chunks,
 )
 from app.services.legal_content_boundary import identify_s1_target_body
+from app.services.legal_s2_boundary import S2BoundaryStrategy
 from app.services.legal_extractor import (
     ExtractedBlock,
     ExtractedPage,
@@ -70,6 +71,60 @@ def _confirmed_pair(tmp_path: Path):
     return intermediate, parse_legal_intermediate(intermediate)
 
 
+def _s2_confirmed_pair(tmp_path: Path):
+    source_path = tmp_path / "某规定.doc"
+    source_path.write_bytes(b"sample")
+    source = SourceRef(
+        relative_path="某规定.doc",
+        source_path=source_path,
+        source_sha256=sha256(b"sample").hexdigest(),
+        size_bytes=6,
+        declared_extension=".doc",
+    )
+    lines = (
+        "某省人民政府",
+        "关于修订《某规定》的决定",
+        "某规定",
+        "（2020年1月1日公布）",
+        "第一条 第一款正文。",
+        "第二款正文。",
+        "第二条 第二条正文。",
+    )
+    blocks = tuple(
+        ExtractedBlock(
+            order=order,
+            text=line,
+            location=SourceLocation(
+                logical_page=1,
+                page_number=None,
+                block_order=order,
+                line_number=order + 1,
+            ),
+        )
+        for order, line in enumerate(lines)
+    )
+    extraction = ExtractionResult(
+        source_sha256=source.source_sha256,
+        extractor_kind="W",
+        extractor_version="fake-v1",
+        pages=(
+            ExtractedPage(
+                logical_page=1,
+                page_number=None,
+                block_orders=tuple(range(len(blocks))),
+            ),
+        ),
+        text_blocks=blocks,
+        disposition=IngestionDisposition.READY,
+    )
+    intermediate = S2BoundaryStrategy().identify(
+        extraction,
+        source=source,
+        expected_title="某规定",
+    )
+    return intermediate, parse_legal_intermediate(intermediate)
+
+
 def test_build_chunks_preserves_article_path_and_metadata():
     structured = {
         "document_id": "xiaofangfa_2019",
@@ -105,6 +160,8 @@ def test_build_chunks_preserves_article_path_and_metadata():
             "region": "全国",
             "promulgated_on": None,
             "effective_on": "2009年5月1日",
+            "revision_events": None,
+            "version_basis": None,
             "chunk_index": 1,
             "chunk_total": 1,
         }
@@ -249,3 +306,86 @@ def test_build_intermediate_chunks_rejects_digest_mismatch_before_build(
         build_intermediate_chunks(intermediate, parsed)
 
     assert calls == []
+
+
+def test_build_intermediate_chunks_propagates_s2_metadata_to_chunks(tmp_path):
+    intermediate, parsed = _s2_confirmed_pair(tmp_path)
+
+    chunks = build_intermediate_chunks(intermediate, parsed)
+
+    assert len(chunks) == 2
+    assert all(
+        chunk["issuing_authority"] == parsed.issuing_authority
+        and chunk["promulgated_on"] == parsed.promulgated_on
+        and chunk["revision_events"] == parsed.revision_events
+        and chunk["version_basis"] == parsed.version_basis
+        and chunk["source_sha256"] == intermediate.source_ref.source_sha256
+        and chunk["content_class"] == "S2"
+        for chunk in chunks
+    )
+    assert "metadata_evidence" not in chunks[0]
+
+
+def test_build_intermediate_chunks_rejects_metadata_mismatch_with_intermediate(
+    tmp_path,
+):
+    intermediate, parsed = _s2_confirmed_pair(tmp_path)
+    parsed = type(parsed)(
+        document_id=parsed.document_id,
+        title=parsed.title,
+        issuing_authority=parsed.issuing_authority,
+        region=parsed.region,
+        promulgated_on=parsed.promulgated_on,
+        effective_on=parsed.effective_on,
+        articles=parsed.articles,
+        source_sha256=parsed.source_sha256,
+        extraction_class=parsed.extraction_class,
+        content_class=parsed.content_class,
+        boundary_status=parsed.boundary_status,
+        version_basis="mismatched",
+        revision_events=parsed.revision_events,
+        metadata_evidence=parsed.metadata_evidence,
+    )
+
+    with pytest.raises(ValueError, match="版本依据"):
+        build_intermediate_chunks(intermediate, parsed)
+
+
+def test_build_chunks_do_not_carry_full_metadata_evidence():
+    structured = {
+        "document_id": "doc-1",
+        "title": "某规定",
+        "issuing_authority": "某机关",
+        "region": None,
+        "promulgated_on": "2020年1月1日",
+        "effective_on": None,
+        "version_basis": "v1",
+        "revision_events": ("第一次修正",),
+        "metadata_evidence": (
+            {
+                "field_name": "issuing_authority",
+                "value": "某机关",
+                "source_span": {
+                    "start": {"logical_page": 1, "page_number": None, "block_order": 0, "line_number": 1},
+                    "end": {"logical_page": 1, "page_number": None, "block_order": 0, "line_number": 1},
+                    "start_char_offset": 0,
+                    "end_char_offset": 3,
+                },
+                "extraction_status": "confirmed",
+            },
+        ),
+        "articles": [
+            {
+                "article_no": "第一条",
+                "chapter_title": None,
+                "heading_path": [],
+                "text": "正文。",
+            }
+        ],
+    }
+
+    chunks = build_chunks(structured)
+
+    assert chunks[0]["issuing_authority"] == "某机关"
+    assert chunks[0]["revision_events"] == ("第一次修正",)
+    assert "metadata_evidence" not in chunks[0]

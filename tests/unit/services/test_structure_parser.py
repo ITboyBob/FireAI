@@ -4,6 +4,7 @@ import json
 import pytest
 
 from app.services.legal_content_boundary import identify_s1_target_body
+from app.services.legal_s2_boundary import S2BoundaryStrategy
 from app.services.legal_extractor import (
     ExtractedBlock,
     ExtractedPage,
@@ -68,6 +69,63 @@ def _confirmed_intermediate(tmp_path: Path):
         disposition=IngestionDisposition.READY,
     )
     return identify_s1_target_body(
+        extraction,
+        source=source,
+        expected_title="某规定",
+    )
+
+
+def _s2_intermediate(tmp_path: Path):
+    source_path = tmp_path / "某规定.doc"
+    source_path.write_bytes(b"sample")
+    from hashlib import sha256
+
+    source = SourceRef(
+        relative_path="某规定.doc",
+        source_path=source_path,
+        source_sha256=sha256(b"sample").hexdigest(),
+        size_bytes=6,
+        declared_extension=".doc",
+    )
+    lines = (
+        "某省人民政府",
+        "关于修订《某规定》的决定",
+        "某规定",
+        "（2020年1月1日公布）",
+        "第一章 总则",
+        "第一条 第一款正文。",
+        "第二款正文。",
+        "第二章 分则",
+        "第二条 第二条正文。",
+    )
+    blocks = tuple(
+        ExtractedBlock(
+            order=order,
+            text=line,
+            location=SourceLocation(
+                logical_page=1,
+                page_number=None,
+                block_order=order,
+                line_number=order + 1,
+            ),
+        )
+        for order, line in enumerate(lines)
+    )
+    extraction = ExtractionResult(
+        source_sha256=source.source_sha256,
+        extractor_kind="W",
+        extractor_version="fake-v1",
+        pages=(
+            ExtractedPage(
+                logical_page=1,
+                page_number=None,
+                block_orders=tuple(range(len(blocks))),
+            ),
+        ),
+        text_blocks=blocks,
+        disposition=IngestionDisposition.READY,
+    )
+    return S2BoundaryStrategy().identify(
         extraction,
         source=source,
         expected_title="某规定",
@@ -252,3 +310,35 @@ def test_parse_legal_intermediate_rejects_non_confirmed_before_parser(
         parse_legal_intermediate(ambiguous)
 
     assert calls == []
+
+
+def test_parse_legal_intermediate_prefers_target_metadata_for_s2(tmp_path):
+    intermediate = _s2_intermediate(tmp_path)
+
+    document = parse_legal_intermediate(intermediate)
+
+    assert document.issuing_authority == "某省人民政府"
+    assert document.promulgated_on == "2020年1月1日"
+    assert document.revision_events == (
+        "关于修订《某规定》的决定",
+    )
+    assert document.metadata_evidence == intermediate.target.evidence
+    assert any(
+        ev.field_name == "issuing_authority"
+        and ev.extraction_status == "confirmed"
+        for ev in document.metadata_evidence
+    )
+
+
+def test_parse_legal_intermediate_keeps_parsed_metadata_when_target_empty(
+    tmp_path,
+):
+    intermediate = _confirmed_intermediate(tmp_path)
+
+    document = parse_legal_intermediate(intermediate)
+
+    assert document.issuing_authority is None
+    assert document.promulgated_on is None
+    assert document.revision_events == ()
+    assert document.metadata_evidence == ()
+    assert document.version_basis is None
