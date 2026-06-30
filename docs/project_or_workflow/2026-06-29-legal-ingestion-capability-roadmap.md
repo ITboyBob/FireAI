@@ -62,13 +62,13 @@
 | PT：文本型 PDF 提取策略 | `planned` | 已有分类设计，尚未进入实现里程碑 | 后续计划只补 PT 提取与相关组合验收，不预写算法 | 后续里程碑待创建 |
 | PS：扫描型 PDF 提取策略 | `blocked` | OCR 引擎、中文资源和图像预处理依赖尚未获批 | 完成官方文档调研、依赖审批、真实样本探针后才能进入实施 | 后续里程碑待创建 |
 | S1：纯正文边界策略 | `implemented` | 已实现唯一标题、连续条号、尾部排除、confirmed 中间格式和 paragraph 子单元拼接的跨层一致性校验；评估基线 8 份 W-S1 文件全部 `boundary.status=confirmed`，条号连续唯一、条文非空、无页眉页脚和印发尾注污染 | `tests/integration/pipeline/test_ws1_legal_corpus_quality.py` 逐文件断言 `boundary_confirmed`、`article_start`、`article_numbers`、`article_non_empty`、`body_purity`、`cross_layer_consistency`、`chunk_coverage` 均通过 | W-S1 |
-| S2：复合发布边界策略 | `planned` | 仅登记接口与风险语义 | 后续只补前置发布材料处理和组合验收，不预写算法 | 后续里程碑待创建 |
+| S2：复合发布边界策略 | `planned` | 已创建 [S2 边界能力与 W-S2 组合验收计划](./2026-06-30-s2-boundary-and-w-s2-acceptance-implementation.md)，并完成 2 份 W-S2 真实样本的只读结构探测；当前代码仍未注册 S2，能力不可用 | 按计划实现前置发布材料隔离、带来源位置的元数据证据和 W-S2 组合验收；在真实提交前保持 `planned` 或实施中的 `in_progress` | W-S2 |
 | S3：正文后排除策略 | `planned` | 仅登记接口与风险语义 | 后续只补附件、评分表、模板等排除能力和组合验收，不预写算法 | 后续里程碑待创建 |
 | S4：混合不确定处理 | `planned` | 已确定不得自动提交，具体人工复核流程未实施 | 稳定输出 `review_required`，任何自动提交路径均被测试阻断 | 后续里程碑待创建 |
 | 通用质量资格 | `implemented` | `CommitQualification` 绑定源摘要、质量报告和三类 staged 产物摘要；`commit_qualified_staged_import()` 在第一次 preflight 前校验绑定，失败零写入 | 资格绑定源摘要、质量报告和 staged 产物摘要，失败时零提交 | W-S1 |
 | Append-Only 单文件提交 | `implemented` | staging、两次 preflight、索引追加、回滚和 manifest 已有实现 | W-S1 只复用并回归验证，不重写提交事务 | 既有增量导入 |
 | 批次发现与逐文件隔离 | `implemented` | `_run_batch_legal_ingestion()` 实现逐文件评估、串行提交、独立质量报告和批次汇总；失败文件不阻断其他文件，也不回滚已提交文件 | 批次只负责发现、调度和汇总；每份文件独立提交，失败互不污染 | W-S1 |
-| 14 文件真实验收 | `in_progress` | 唯一 fixture 已与真实14文件核对；11份 Word 已完成只读真实分类；W-S1 8 份已通过全部质量门禁并正式提交，批次 `8474b7ab-265a-41ce-8b7d-5fd64f9aecba` 为 `committed=8`；剩余 3 份 Word（S2/S3）和 3 份 PDF 待后续策略里程碑覆盖 | 各能力里程碑逐步覆盖；最终 14 份均有处理状态和可追溯证据 | 跨里程碑收口 |
+| 14 文件真实验收 | `in_progress` | 唯一 fixture 已与真实14文件核对；11份 Word 已完成只读真实分类；W-S1 8 份已通过全部质量门禁并正式提交，批次 `8474b7ab-265a-41ce-8b7d-5fd64f9aecba` 为 `committed=8`；2 份 W-S2 已完成计划前只读结构探测但尚未摄取，另有 1 份 W-S3 和 3 份 PDF 待后续策略覆盖 | W-S2 先按当前计划补 S2 能力并验收 2 份真实文件；最终 14 份均有处理状态和可追溯证据 | 跨里程碑收口 |
 
 ## 5. 当前里程碑
 
@@ -88,6 +88,21 @@
 
 W-S1 完成不等于 14 文件全量摄取完成，也不等于多格式法规摄取全部实现。
 
+### 5.2 S2 边界能力与 W-S2 组合验收
+
+**状态：** `planned`
+
+本里程碑已有 [执行计划总览](./2026-06-30-s2-boundary-and-w-s2-acceptance-implementation.md)，负责：
+
+- 复用已实现的 W 提取、统一编排、质量资格和 Append-Only 提交能力；
+- 实现独立 `ContentClass.S2` 复合发布边界策略；
+- 隔离目标法规之前的政府令、修改决定、签署机关和日期等材料；
+- 让版本依据、发布机关和日期等元数据带来源位置并跨层一致；
+- 把批次清单的双轴筛选从硬编码 W-S1 改为通用参数，同时保持旧命令兼容；
+- 用 `河北省消防设施管理规定.docx` 和 `社会消防安全教育培训规定.doc` 完成 W-S2 真实组合验收。
+
+本里程碑不实现 S3、PT、PS/OCR、人工复核工作台，也不新增 W-S2 组合策略或第二个 CLI。计划完成不代表能力可用；只有代码、质量门禁、两份真实提交、索引核对和 W-S1 回归全部通过后，才能把本节与 S2 能力标记为 `implemented`。
+
 ## 6. 后续里程碑安排原则
 
 后续里程碑在创建前必须先检查：
@@ -101,10 +116,11 @@ W-S1 完成不等于 14 文件全量摄取完成，也不等于多格式法规�
 建议的演进顺序不是固定承诺，应随证据更新：
 
 1. 以已完成的 W-S1 统一入口和公共主干为复用基线；
-2. 在 W 已稳定的前提下实现 S2 或 S3，并做对应 W 组合验收；
-3. 完成 PT 真实探针和提取策略，再复用已实现的 S 类策略；
-4. PS 仅在 OCR 依赖获批并完成真实样本探针后进入实施；
-5. 最后汇总 14 文件状态，完成跨策略全量验收。
+2. 按已创建的 W-S2 计划实现 S2，并完成 2 份 W-S2 组合验收；
+3. 在 W 和已有 S 类策略稳定后实现 S3，并完成对应 W 组合验收；
+4. 完成 PT 真实探针和提取策略，再复用已实现的 S 类策略；
+5. PS 仅在 OCR 依赖获批并完成真实样本探针后进入实施；
+6. 最后汇总 14 文件状态，完成跨策略全量验收。
 
 ## 7. 状态变更记录
 
@@ -116,3 +132,4 @@ W-S1 完成不等于 14 文件全量摄取完成，也不等于多格式法规�
 | 2026-06-29 | W-S1 质量验收完成：`cross_layer_consistency` 修复 paragraph 子单元拼接，8 份真实 W-S1 文件 dry-run 全部门禁通过；W 提取策略与 S1 边界策略状态更新为 `implemented`；`test_incremental_import_real_smoke.py` 改为缺失即失败并修正真实文件路径 | `tests/unit/services/test_legal_quality_gates.py::test_cross_layer_article_with_paragraph_children_passes`、`tests/integration/pipeline/test_ws1_legal_corpus_quality.py`、批次 CLI dry-run `auto_passed=8` |
 | 2026-06-30 | W-S1 8 份真实文件完成正式 Append-Only 提交；里程碑更新为 `implemented`。正式语料、关键词索引、向量索引与 manifest 均包含全部 8 份文件，质量报告全部为 `pass` | 批次 `8474b7ab-265a-41ce-8b7d-5fd64f9aecba`：`selected=8`、`committed=8`、`failed=0`；正式索引共 17 份文档、771 个关键词 chunk、771 个 FAISS 向量，增量 manifest 共 11 条记录 |
 | 2026-06-30 | `faiss-cpu` 从 1.13.2 升级到 1.14.3，依赖下限同步提高；Python 3.14 下的 3 条 SWIG `DeprecationWarning` 消失，既有 W-S1 正式索引无需重建 | 严格警告模式下 FAISS/检索单元测试 12 项、W-S1 真实回归 27 项通过；仓库完整回归 312 项通过；正式 `faiss.index` 仍为 384 维、771 个向量，并可命中 `消防监督检查规定` 第十条 |
+| 2026-06-30 | 创建 S2 边界能力与 W-S2 组合验收里程碑及三分卷执行计划；S2 保持 `planned`，未开始代码实现 | 两份 W-S2 真实 Word 只读探测确认 32/37 条目标正文及“修改决定在前”“联合发布信息在前”两类结构；计划明确复用 W 和公共主干、先 TDD 后真实提交 |
