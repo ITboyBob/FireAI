@@ -34,3 +34,6 @@ hf_cache/
 .DS_Store
 .vscode/
 .idea/
+
+# Claude Code local configuration
+.claude/
