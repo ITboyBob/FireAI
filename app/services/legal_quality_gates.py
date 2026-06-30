@@ -57,8 +57,15 @@ class QualityReport:
     measured: dict[str, object] = field(default_factory=dict)
 
 
-RULESET_VERSION = "legal-quality-v1"
+RULESET_VERSION = "legal-quality-v2"
 
+REVISION_SIGNAL_PATTERN = re.compile(r"修正|修订|修改")
+MULTI_AUTHORITY_SIGNAL_PATTERN = re.compile(r"[；;]|联合|会同")
+
+ARTICLE_IN_TEXT_PATTERN = re.compile(
+    r"^第([一二三四五六七八九十百千万零〇两0-9]+)条(?:\s|　|$)",
+    re.MULTILINE,
+)
 ARTICLE_PATTERN = re.compile(
     r"^第([一二三四五六七八九十百千万零〇两0-9]+)条(?:\s|　|$)(.*)$",
     re.DOTALL,
@@ -100,6 +107,10 @@ def evaluate_legal_quality(quality_input: QualityInput) -> QualityReport:
     gates.append(_gate_exclusion_isolation(quality_input))
     gates.append(_gate_cross_layer_consistency(quality_input))
     gates.append(_gate_chunk_coverage(quality_input))
+
+    if quality_input.content_class is ContentClass.S2:
+        gates.append(_gate_s2_leading_material_isolation(quality_input))
+        gates.append(_gate_s2_metadata_traceability(quality_input))
 
     return _build_report(quality_input, gates)
 
@@ -583,6 +594,259 @@ def _gate_chunk_coverage(quality_input: QualityInput) -> GateResult:
     )
 
 
+def _gate_s2_leading_material_isolation(quality_input: QualityInput) -> GateResult:
+    if quality_input.content_class is not ContentClass.S2:
+        return GateResult(
+            gate_id="s2_leading_material_isolation",
+            outcome=GateOutcome.PASS,
+            measured={"skipped": "not_S2"},
+            evidence_refs=(),
+        )
+
+    intermediate = quality_input.intermediate
+    excluded_ranges = intermediate.extraction_report.excluded_ranges
+    leading_ranges = [
+        r for r in excluded_ranges if r.kind == "leading_publication_material"
+    ]
+    if not leading_ranges:
+        return GateResult(
+            gate_id="s2_leading_material_isolation",
+            outcome=GateOutcome.FAIL,
+            measured={"leading_range_count": 0},
+            evidence_refs=(),
+            reason_code="missing_leading_material_exclusion",
+        )
+
+    boundary_start = _position_key(intermediate.boundary.start, 0)
+    body_unit_spans = [unit.source_span for unit in intermediate.body_units]
+    block_text_by_order = {
+        block.order: block.text for block in quality_input.extraction.text_blocks
+    }
+    target_article_numbers = _article_numbers_in_units(intermediate.body_units)
+
+    overlaps: list[str] = []
+    leading_article_conflicts: list[str] = []
+    for excluded in leading_ranges:
+        excluded_end = _position_key(
+            excluded.source_span.end,
+            excluded.source_span.end_char_offset,
+        )
+        if excluded_end > boundary_start:
+            overlaps.append(
+                f"{excluded.kind}:end_after_boundary:{excluded_end}>{boundary_start}"
+            )
+        for unit_span in body_unit_spans:
+            if _spans_overlap(excluded.source_span, unit_span):
+                overlaps.append(f"{excluded.kind}:overlaps_body")
+                break
+        excluded_text = _extract_excluded_text(
+            excluded.source_span, block_text_by_order
+        )
+        excluded_numbers = _article_numbers_in_text(excluded_text)
+        conflict = target_article_numbers & excluded_numbers
+        if conflict:
+            leading_article_conflicts.append(
+                f"conflict_numbers:{sorted(conflict)}"
+            )
+
+    if overlaps:
+        return GateResult(
+            gate_id="s2_leading_material_isolation",
+            outcome=GateOutcome.FAIL,
+            measured={"overlaps": overlaps},
+            evidence_refs=tuple(overlaps),
+            reason_code="leading_material_overlaps_body",
+        )
+
+    if leading_article_conflicts:
+        return GateResult(
+            gate_id="s2_leading_material_isolation",
+            outcome=GateOutcome.FAIL,
+            measured={"leading_article_conflicts": leading_article_conflicts},
+            evidence_refs=tuple(leading_article_conflicts),
+            reason_code="leading_article_numbers_in_body",
+        )
+
+    return GateResult(
+        gate_id="s2_leading_material_isolation",
+        outcome=GateOutcome.PASS,
+        measured={"leading_range_count": len(leading_ranges)},
+        evidence_refs=(),
+    )
+
+
+def _gate_s2_metadata_traceability(quality_input: QualityInput) -> GateResult:
+    if quality_input.content_class is not ContentClass.S2:
+        return GateResult(
+            gate_id="s2_metadata_traceability",
+            outcome=GateOutcome.PASS,
+            measured={"skipped": "not_S2"},
+            evidence_refs=(),
+        )
+
+    intermediate = quality_input.intermediate
+    target = intermediate.target
+    block_text_by_order = {
+        block.order: block.text for block in quality_input.extraction.text_blocks
+    }
+
+    target_values = {
+        "issuing_authority": target.issuing_authority,
+        "promulgated_on": target.promulgated_on,
+        "effective_on": target.effective_on,
+        "revision_events": target.revision_events,
+        "version_basis": target.version_basis,
+    }
+    valued_fields = {
+        field
+        for field, value in target_values.items()
+        if value is not None and value != ()
+    }
+    evidence_by_field: dict[str, list[MetadataEvidence]] = {
+        field: [] for field in ALLOWED_METADATA_EVIDENCE_FIELDS
+    }
+    for evidence in target.evidence:
+        evidence_by_field[evidence.field_name].append(evidence)
+
+    for evidence in target.evidence:
+        if evidence.field_name not in ALLOWED_METADATA_EVIDENCE_FIELDS:
+            return GateResult(
+                gate_id="s2_metadata_traceability",
+                outcome=GateOutcome.FAIL,
+                measured={"invalid_field": evidence.field_name},
+                evidence_refs=(evidence.field_name,),
+                reason_code="invalid_evidence_field",
+            )
+        if not _is_span_within_blocks(
+            evidence.source_span, block_text_by_order
+        ):
+            return GateResult(
+                gate_id="s2_metadata_traceability",
+                outcome=GateOutcome.FAIL,
+                measured={
+                    "field": evidence.field_name,
+                    "span": str(evidence.source_span),
+                },
+                evidence_refs=(evidence.field_name,),
+                reason_code="evidence_span_invalid",
+            )
+        expected_value = target_values[evidence.field_name]
+        if evidence.field_name == "revision_events":
+            if evidence.value not in expected_value:
+                return GateResult(
+                    gate_id="s2_metadata_traceability",
+                    outcome=GateOutcome.FAIL,
+                    measured={
+                        "field": evidence.field_name,
+                        "expected": expected_value,
+                        "actual": evidence.value,
+                    },
+                    evidence_refs=(evidence.field_name,),
+                    reason_code="evidence_value_mismatch",
+                )
+        elif evidence.value != expected_value:
+            return GateResult(
+                gate_id="s2_metadata_traceability",
+                outcome=GateOutcome.FAIL,
+                measured={
+                    "field": evidence.field_name,
+                    "expected": expected_value,
+                    "actual": evidence.value,
+                },
+                evidence_refs=(evidence.field_name,),
+                reason_code="evidence_value_mismatch",
+            )
+
+    missing_evidence = {
+        field
+        for field in valued_fields
+        if not evidence_by_field.get(field)
+    }
+    if missing_evidence:
+        return GateResult(
+            gate_id="s2_metadata_traceability",
+            outcome=GateOutcome.REVIEW_REQUIRED,
+            measured={"fields_without_evidence": sorted(missing_evidence)},
+            evidence_refs=tuple(sorted(missing_evidence)),
+            reason_code="metadata_value_without_evidence",
+        )
+
+    if target.issuing_authority and MULTI_AUTHORITY_SIGNAL_PATTERN.search(
+        target.issuing_authority
+    ):
+        authority_evidence = evidence_by_field.get("issuing_authority", ())
+        date_evidence = evidence_by_field.get("promulgated_on", ())
+        if not any(
+            ev.extraction_status == "confirmed" for ev in authority_evidence
+        ) or not any(
+            ev.extraction_status == "confirmed" for ev in date_evidence
+        ):
+            return GateResult(
+                gate_id="s2_metadata_traceability",
+                outcome=GateOutcome.REVIEW_REQUIRED,
+                measured={
+                    "multi_authority_signal": True,
+                    "authority_confirmed": any(
+                        ev.extraction_status == "confirmed"
+                        for ev in authority_evidence
+                    ),
+                    "date_confirmed": any(
+                        ev.extraction_status == "confirmed"
+                        for ev in date_evidence
+                    ),
+                },
+                evidence_refs=(),
+                reason_code="multi_authority_without_confirmed_evidence",
+            )
+
+    if any(
+        evidence.extraction_status == "review_required"
+        for evidence in target.evidence
+    ):
+        return GateResult(
+            gate_id="s2_metadata_traceability",
+            outcome=GateOutcome.REVIEW_REQUIRED,
+            measured={"review_required_evidence_fields": sorted(
+                {ev.field_name for ev in target.evidence if ev.extraction_status == "review_required"}
+            )},
+            evidence_refs=(),
+            reason_code="metadata_evidence_review_required",
+        )
+
+    extraction_text = "\n".join(block.text for block in quality_input.extraction.text_blocks)
+    if (
+        REVISION_SIGNAL_PATTERN.search(extraction_text)
+        and not target.revision_events
+        and target.version_basis is None
+    ):
+        return GateResult(
+            gate_id="s2_metadata_traceability",
+            outcome=GateOutcome.REVIEW_REQUIRED,
+            measured={"revision_signal": True},
+            evidence_refs=(),
+            reason_code="revision_signal_without_traceability",
+        )
+
+    return GateResult(
+        gate_id="s2_metadata_traceability",
+        outcome=GateOutcome.PASS,
+        measured={"evidence_field_count": len(target.evidence)},
+        evidence_refs=tuple(
+            f"{ev.field_name}:block:{ev.source_span.start.block_order}"
+            for ev in target.evidence
+        ),
+    )
+
+
+ALLOWED_METADATA_EVIDENCE_FIELDS = {
+    "issuing_authority",
+    "promulgated_on",
+    "effective_on",
+    "revision_events",
+    "version_basis",
+}
+
+
 def _article_number_value(value: str) -> int:
     if value.isdigit():
         return int(value)
@@ -613,7 +877,11 @@ def _article_number_value(value: str) -> int:
     return total + current
 
 
-def _span_key(span):
+def _position_key(location, char_offset: int) -> tuple[int, int]:
+    return (location.block_order, char_offset)
+
+
+def _span_key(span) -> tuple[int, int, int, int]:
     return (
         span.start.block_order,
         span.start_char_offset,
@@ -628,3 +896,67 @@ def _spans_overlap(first, second) -> bool:
     second_start = _span_key(second)[:2]
     second_end = _span_key(second)[2:]
     return first_start <= second_end and second_start <= first_end
+
+
+def _extract_excluded_text(
+    span,
+    block_text_by_order: dict[int, str],
+) -> str:
+    start_order = span.start.block_order
+    end_order = span.end.block_order
+    if start_order not in block_text_by_order or end_order not in block_text_by_order:
+        return ""
+
+    start_text = block_text_by_order[start_order]
+    end_text = block_text_by_order[end_order]
+    start_offset = min(span.start_char_offset, len(start_text))
+    end_offset = min(span.end_char_offset, len(end_text))
+
+    if start_order == end_order:
+        return start_text[start_offset:end_offset]
+
+    parts = [start_text[start_offset:]]
+    for order in range(start_order + 1, end_order):
+        text = block_text_by_order.get(order)
+        if text is not None:
+            parts.append(text)
+    parts.append(end_text[:end_offset])
+    return "\n".join(parts)
+
+
+def _article_numbers_in_units(units) -> set[int]:
+    numbers: set[int] = set()
+    for unit in units:
+        if unit.kind != "article":
+            continue
+        match = ARTICLE_PATTERN.match(unit.text)
+        if match is not None:
+            numbers.add(_article_number_value(match.group(1)))
+    return numbers
+
+
+def _article_numbers_in_text(text: str) -> set[int]:
+    numbers: set[int] = set()
+    for match in ARTICLE_IN_TEXT_PATTERN.finditer(text):
+        numbers.add(_article_number_value(match.group(1)))
+    return numbers
+
+
+def _is_span_within_blocks(
+    span,
+    block_text_by_order: dict[int, str],
+) -> bool:
+    start_order = span.start.block_order
+    end_order = span.end.block_order
+    if start_order not in block_text_by_order or end_order not in block_text_by_order:
+        return False
+    start_text = block_text_by_order[start_order]
+    end_text = block_text_by_order[end_order]
+    if not (
+        0 <= span.start_char_offset <= len(start_text)
+        and 0 <= span.end_char_offset <= len(end_text)
+    ):
+        return False
+    if end_order < start_order:
+        return False
+    return True
