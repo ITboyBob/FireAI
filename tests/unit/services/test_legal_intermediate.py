@@ -15,6 +15,7 @@ from app.services.legal_intermediate import (
     ExcludedRange,
     ExtractionReport,
     LegalDocumentIntermediate,
+    MetadataEvidence,
     SourceSpan,
     TargetMetadata,
     validate_legal_intermediate,
@@ -193,3 +194,66 @@ def test_intermediate_is_invalid_after_source_digest_changes(tmp_path):
 
     with pytest.raises(ValueError, match="摘要"):
         validate_legal_intermediate(intermediate)
+
+
+def test_metadata_evidence_requires_known_field_and_non_empty_value():
+    span = _span(0, "示例文本")
+
+    evidence = MetadataEvidence(
+        field_name="promulgated_on",
+        value="2020-01-01",
+        source_span=span,
+        extraction_status="confirmed",
+    )
+    assert evidence.field_name == "promulgated_on"
+
+    with pytest.raises(ValueError, match="字段名"):
+        MetadataEvidence(
+            field_name="",
+            value="2020-01-01",
+            source_span=span,
+            extraction_status="confirmed",
+        )
+
+    with pytest.raises(ValueError, match="不支持"):
+        MetadataEvidence(
+            field_name="unknown_field",
+            value="2020-01-01",
+            source_span=span,
+            extraction_status="confirmed",
+        )
+
+    with pytest.raises(ValueError, match="值不能为空"):
+        MetadataEvidence(
+            field_name="effective_on",
+            value="",
+            source_span=span,
+            extraction_status="confirmed",
+        )
+
+    with pytest.raises(ValueError, match="状态"):
+        MetadataEvidence(
+            field_name="version_basis",
+            value="2020-01-01",
+            source_span=span,
+            extraction_status="unknown",
+        )
+
+
+def test_target_metadata_carries_evidence_tuple():
+    span = _span(0, "示例文本")
+    evidence = MetadataEvidence(
+        field_name="issuing_authority",
+        value="河北省人民政府",
+        source_span=span,
+        extraction_status="confirmed",
+    )
+    target = TargetMetadata(title="河北省消防设施管理规定", evidence=(evidence,))
+
+    assert len(target.evidence) == 1
+    assert target.evidence[0].value == "河北省人民政府"
+
+
+def test_target_metadata_rejects_non_evidence_in_evidence():
+    with pytest.raises(ValueError, match="只能包含 MetadataEvidence"):
+        TargetMetadata(title="某规定", evidence=("not evidence",))  # type: ignore[arg-type]

@@ -57,6 +57,36 @@ class BodyUnit:
             raise ValueError("正文单元文本不能为空")
 
 
+ALLOWED_METADATA_EVIDENCE_FIELDS = frozenset(
+    {
+        "issuing_authority",
+        "promulgated_on",
+        "effective_on",
+        "revision_events",
+        "version_basis",
+    }
+)
+MetadataEvidenceStatus = Literal["confirmed", "review_required"]
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class MetadataEvidence:
+    field_name: str
+    value: str
+    source_span: SourceSpan
+    extraction_status: MetadataEvidenceStatus
+
+    def __post_init__(self) -> None:
+        if not self.field_name:
+            raise ValueError("元数据证据字段名不能为空")
+        if self.field_name not in ALLOWED_METADATA_EVIDENCE_FIELDS:
+            raise ValueError(f"不支持的元数据证据字段: {self.field_name}")
+        if not self.value:
+            raise ValueError("元数据证据值不能为空")
+        if self.extraction_status not in {"confirmed", "review_required"}:
+            raise ValueError("未知的元数据证据提取状态")
+
+
 @dataclass(frozen=True, slots=True, kw_only=True)
 class TargetMetadata:
     title: str
@@ -66,10 +96,14 @@ class TargetMetadata:
     effective_on: str | None = None
     revision_events: tuple[str, ...] = field(default_factory=tuple)
     version_basis: str | None = None
+    evidence: tuple[MetadataEvidence, ...] = field(default_factory=tuple)
 
     def __post_init__(self) -> None:
         if not self.title.strip():
             raise ValueError("目标法规标题不能为空")
+        for item in self.evidence:
+            if not isinstance(item, MetadataEvidence):
+                raise ValueError("target.evidence 只能包含 MetadataEvidence")
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

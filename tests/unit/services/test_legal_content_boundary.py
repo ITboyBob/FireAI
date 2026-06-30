@@ -246,3 +246,23 @@ def test_s1_strategy_does_not_require_word_extraction_axis(tmp_path):
 
     assert intermediate.boundary.status == "confirmed"
     assert intermediate.extraction_class.value == "PT"
+
+
+def test_s1_boundary_keeps_empty_metadata_evidence_for_backward_compatibility(
+    tmp_path,
+):
+    source = _source(tmp_path)
+    extraction = _extraction(
+        source,
+        ("某规定", "第一条 正文"),
+    )
+
+    intermediate = identify_s1_target_body(
+        extraction,
+        source=source,
+        expected_title="某规定",
+    )
+
+    assert intermediate.boundary.status == "confirmed"
+    assert intermediate.target.evidence == ()
+    validate_legal_intermediate(intermediate)
