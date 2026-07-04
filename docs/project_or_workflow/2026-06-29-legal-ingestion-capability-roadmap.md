@@ -63,7 +63,7 @@
 | PS：扫描型 PDF 提取策略 | `blocked` | OCR 引擎、中文资源和图像预处理依赖尚未获批 | 完成官方文档调研、依赖审批、真实样本探针后才能进入实施 | 后续里程碑待创建 |
 | S1：纯正文边界策略 | `implemented` | 已实现唯一标题、连续条号、尾部排除、confirmed 中间格式和 paragraph 子单元拼接的跨层一致性校验；评估基线 8 份 W-S1 文件全部 `boundary.status=confirmed`，条号连续唯一、条文非空、无页眉页脚和印发尾注污染 | `tests/integration/pipeline/test_ws1_legal_corpus_quality.py` 逐文件断言 `boundary_confirmed`、`article_start`、`article_numbers`、`article_non_empty`、`body_purity`、`cross_layer_consistency`、`chunk_coverage` 均通过 | W-S1 |
 | S2：复合发布边界策略 | `implemented` | 已实现 `LegalDocumentIntermediate` 复合发布边界、`leading_publication_material` 排除范围、发布机关/日期/版本依据等元数据证据与跨层一致性校验；2 份 W-S2 真实文件质量门禁全部 `pass` 并正式提交 | `tests/integration/pipeline/test_ws2_formal_index_state.py` 对真实 data/ 目录断言两份 W-S2 文件 manifest、语料、关键词索引、向量映射和结构条数一致；`tests/integration/pipeline/test_ws2_qualified_incremental_import.py` 覆盖隔离失败与回滚 | W-S2 |
-| S3：正文后排除策略 | `planned` | 仅登记接口与风险语义 | 后续只补附件、评分表、模板等排除能力和组合验收，不预写算法 | 后续里程碑待创建 |
+| S3：正文后排除策略 | `planned` | S3 尾部排除专项设计与“总览 + 2 分卷”实施计划已完成，已明确正文锚点、独立策略、v3 门禁、TDD 顺序和真实提交门禁；当前代码仍为 `unsupported` | 按 W-S3 实施计划完成独立策略、质量门禁、29 条真实正文验收和正式提交后才能更新为 `implemented` | W-S3 |
 | S4：混合不确定处理 | `planned` | 已确定不得自动提交，具体人工复核流程未实施 | 稳定输出 `review_required`，任何自动提交路径均被测试阻断 | 后续里程碑待创建 |
 | 通用质量资格 | `implemented` | `CommitQualification` 绑定源摘要、质量报告和三类 staged 产物摘要；`commit_qualified_staged_import()` 在第一次 preflight 前校验绑定，失败零写入 | 资格绑定源摘要、质量报告和 staged 产物摘要，失败时零提交 | W-S1 |
 | Append-Only 单文件提交 | `implemented` | staging、两次 preflight、索引追加、回滚和 manifest 已有实现 | W-S1 只复用并回归验证，不重写提交事务 | 既有增量导入 |
@@ -107,6 +107,22 @@ W-S1 完成不等于 14 文件全量摄取完成，也不等于多格式法规�
 - `tests/integration/pipeline/test_ws2_qualified_incremental_import.py` 覆盖 digest 失败隔离与 manifest 写入失败回滚；
 - 完整回归 `pytest -q` 376 项通过。
 
+### 5.3 S3 边界能力与 W-S3 组合验收
+
+**状态：** `planned`
+
+本里程碑已经在 Linear“消防AI”项目中创建为“W-S3 尾部排除内容”，当前已完成专项设计和实施计划，不表示代码已实现。
+
+本里程碑负责：
+
+- 复用已实现的 W 提取、统一编排、质量资格和 Append-Only 提交能力；
+- 实现独立 `ContentClass.S3` 正文后排除策略；
+- 在确认完整法规正文后，排除印发信息、附件目录、文书模板、评分表和页码域；
+- 增加 S3 专属尾部存在、位置、覆盖和输出纯净门禁；
+- 用 `河北省消防救援机构执法过错责任追究规定.doc` 完成 29 条正文的 W-S3 真实组合验收。
+
+本里程碑不实现 PS-S3、PDF/OCR、S4 人工复核工作台、组合策略或第二个 CLI。当前设计入口为 [S3 正文后排除边界专项设计](../architecture_or_strategy/2026-07-04-s3-trailing-exclusion-boundary-design.md)，执行入口为 [S3 边界能力与 W-S3 组合验收计划](./2026-07-04-s3-boundary-and-w-s3-acceptance-implementation.md)。
+
 ## 6. 后续里程碑安排原则
 
 后续里程碑在创建前必须先检查：
@@ -138,3 +154,5 @@ W-S1 完成不等于 14 文件全量摄取完成，也不等于多格式法规�
 | 2026-06-30 | `faiss-cpu` 从 1.13.2 升级到 1.14.3，依赖下限同步提高；Python 3.14 下的 3 条 SWIG `DeprecationWarning` 消失，既有 W-S1 正式索引无需重建 | 严格警告模式下 FAISS/检索单元测试 12 项、W-S1 真实回归 27 项通过；仓库完整回归 312 项通过；正式 `faiss.index` 仍为 384 维、771 个向量，并可命中 `消防监督检查规定` 第十条 |
 | 2026-06-30 | 创建 S2 边界能力与 W-S2 组合验收里程碑及三分卷执行计划；S2 保持 `planned`，未开始代码实现 | 两份 W-S2 真实 Word 只读探测确认 32/37 条目标正文及“修改决定在前”“联合发布信息在前”两类结构；计划明确复用 W 和公共主干、先 TDD 后真实提交 |
 | 2026-06-30 | S2 边界策略与 W-S2 组合验收完成：`leading_publication_material` 隔离、元数据证据与跨层一致性校验落地；2 份 W-S2 真实文件正式提交；S2 与 W-S2 里程碑状态更新为 `implemented`；manifest 兼容旧记录并完成 `source_sha256` 迁移 | 单次导入 `doc_0e84d13a099b`（33 chunks）与 `doc_aa2b9b6c20ab`（38 chunks）；`tests/integration/pipeline/test_ws2_formal_index_state.py` 通过；完整回归 376 项通过；正式索引共 19 份文档、842 关键词 chunks、842 FAISS 向量，manifest 13 条记录 |
+| 2026-07-04 | 批准 S3 正文后排除专项设计并登记 W-S3 里程碑；S3 保持 `planned`，尚未编写实施计划或业务代码 | 唯一 W-S3 真实文件只读探针确认 29 条正文，正文后存在印发信息、附件目录、5 套文书模板和页码域；专项设计明确多信号边界、零写入和真实验收规则 |
+| 2026-07-04 | 完成 W-S3“总览 + 2 分卷”实施计划；S3 仍为 `planned`，未开始业务代码或正式导入 | 计划拆为 8 个 Task，固定官方契约核验、TDD、v3 门禁、真实预演、临时回滚、正式导入和逐 Task 中文 commit 策略 |

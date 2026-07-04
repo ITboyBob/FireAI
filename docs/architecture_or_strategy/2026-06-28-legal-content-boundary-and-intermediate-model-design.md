@@ -321,6 +321,7 @@ S4 不得自动生成可提交产物。人工复核只能确认边界或退回�
 - [统一法规摄取入口 ADR](./2026-06-29-unified-legal-ingestion-entry-adr.md)：负责禁止组合 CLI、组合策略和旧提交旁路的决策。
 - [多格式法规摄取专项总设计](./2026-06-28-multi-format-legal-corpus-ingestion-design.md)：负责 `todo` 多格式处理范围、组件关系和与 Append-Only 机制的整体衔接。
 - [文件分类与提取器专项设计](./2026-06-28-legal-source-classification-and-extraction-design.md)：负责格式探测、W/PT/PS/PX 分类和各提取器统一输出要求。
+- [S3 正文后排除边界专项设计](./2026-07-04-s3-trailing-exclusion-boundary-design.md)：在本文通用原则下细化 S3 尾部信号、排除范围、歧义处置和专属质量门禁。
 - [质量门禁与批次状态专项设计](./2026-06-28-legal-ingestion-quality-gates-and-batch-state-design.md)：负责检查项、通过标准、人工复核状态、批次失败隔离和提交资格。
 - [todo 法律文本评估基线](../reference_material/2026-06-28-todo-legal-corpus-assessment.md)：负责当前文件清单、实测证据、分类结果和逐文件验收基线。
 

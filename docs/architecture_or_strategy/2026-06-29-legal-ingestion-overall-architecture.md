@@ -224,6 +224,7 @@ CLI 应为三类非提交结果提供稳定错误码和退出码。参数错误�
 - [多格式法律语料摄取专项总设计](./2026-06-28-multi-format-legal-corpus-ingestion-design.md)负责 `todo` 多格式处理范围、数据流和组件职责。
 - [分类与提取专项设计](./2026-06-28-legal-source-classification-and-extraction-design.md)负责真实格式探测、双轴分类证据和提取器共同契约。
 - [正文边界与中间格式专项设计](./2026-06-28-legal-content-boundary-and-intermediate-model-design.md)负责目标正文边界、排除内容和中间格式不变量。
+- [S3 正文后排除边界专项设计](./2026-07-04-s3-trailing-exclusion-boundary-design.md)负责 S3 尾部强信号、边界流程、排除类型和专属质量门禁。
 - [质量门禁与批次状态专项设计](./2026-06-28-legal-ingestion-quality-gates-and-batch-state-design.md)负责门禁、状态机、提交资格和批次审计。
 - [统一法规摄取入口 ADR](./2026-06-29-unified-legal-ingestion-entry-adr.md)记录唯一薄 CLI 决策的背景、备选方案和兼容性后果。
 

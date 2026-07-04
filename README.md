@@ -166,6 +166,8 @@ conda run -n fire python -m uvicorn app.main:create_app --factory --reload --por
 - [法规摄取能力路线图](docs/project_or_workflow/2026-06-29-legal-ingestion-capability-roadmap.md)：当前能力、依赖、里程碑顺序和状态的总体规划入口。
 - [统一法规摄取入口 ADR](docs/architecture_or_strategy/2026-06-29-unified-legal-ingestion-entry-adr.md)：记录唯一薄 CLI 与独立策略路由的决策原因。
 - [多格式法律语料摄取组件设计](docs/architecture_or_strategy/2026-06-28-multi-format-legal-corpus-ingestion-design.md)：多格式数据流、组件职责和集成边界专项。
+- [S3 正文后排除边界专项设计](docs/architecture_or_strategy/2026-07-04-s3-trailing-exclusion-boundary-design.md)：S3 尾部附件、评分表、模板和印发材料的边界信号、排除契约与质量门禁。
+- [S3 边界能力与 W-S3 组合验收计划](docs/project_or_workflow/2026-07-04-s3-boundary-and-w-s3-acceptance-implementation.md)：S3 独立策略、v3 门禁、W-S3 真实预演、正式导入和状态收口步骤。
 - [W-S1 端到端摄取实施计划](docs/project_or_workflow/2026-06-29-w-s1-end-to-end-ingestion-implementation.md)：W-S1 里程碑的任务分卷、质量资格和真实验收入口。
 - [S2 边界能力与 W-S2 组合验收计划](docs/project_or_workflow/2026-06-30-s2-boundary-and-w-s2-acceptance-implementation.md)：S2 边界、元数据证据、W-S2 真实验收和正式导入步骤；当前已随两份 W-S2 文件正式提交完成。
 
