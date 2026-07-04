@@ -70,7 +70,7 @@ def test_real_ws2_dry_run_report_matches_expectations(tmp_path, monkeypatch, cap
         quality = json.loads(
             Path(item["quality_report_path"]).read_text(encoding="utf-8")
         )
-        assert quality["ruleset_version"] == "legal-quality-v2"
+        assert quality["ruleset_version"] == "legal-quality-v3"
         assert quality["overall"] == "pass"
 
         gate_ids = {gate["gate_id"] for gate in quality["gates"]}
