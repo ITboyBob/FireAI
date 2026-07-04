@@ -2,16 +2,15 @@ import re
 from dataclasses import dataclass
 
 from app.services.corpus_ingestor import build_document_id
-from app.services.legal_content_boundary import (
+from app.services.legal_boundary_common import (
     ARTICLE_PATTERN,
     HEADING_PATTERN,
-    _article_number,
-    _build_body_units,
-    _chinese_number_to_int,
-    _find_tail_boundary,
-    _is_footer_line,
-    _is_tail_marker,
-    _normalize_title,
+    article_number,
+    build_body_units,
+    find_tail_boundary,
+    is_footer_line,
+    is_tail_marker,
+    normalize_title,
 )
 from app.services.legal_extractor import (
     ExtractedBlock,
@@ -103,11 +102,11 @@ def identify_s2_target_body(
             reason="block_order_invalid",
         )
 
-    normalized_expected = _normalize_title(expected_title)
+    normalized_expected = normalize_title(expected_title)
     title_indexes = tuple(
         index
         for index, block in enumerate(blocks)
-        if _normalize_title(block.text) == normalized_expected
+        if normalize_title(block.text) == normalized_expected
     )
     if not title_indexes:
         return _s2_review(
@@ -159,7 +158,7 @@ def identify_s2_target_body(
     body_end = candidate["body_end"]
     tail_start = candidate["tail_start"]
 
-    body_units = _build_body_units(
+    body_units = build_body_units(
         blocks,
         title_index=title_index,
         first_article_index=first_article_index,
@@ -257,22 +256,22 @@ def _evaluate_candidate(
     )
     if not article_indexes:
         return False, "first_article_missing", None
-    if _article_number(blocks[article_indexes[0]]) != 1:
+    if article_number(blocks[article_indexes[0]]) != 1:
         return False, "first_article_missing", None
     article_numbers = tuple(
-        _article_number(blocks[index]) for index in article_indexes
+        article_number(blocks[index]) for index in article_indexes
     )
     if article_numbers != tuple(range(1, len(article_numbers) + 1)):
         return False, "article_sequence_broken", None
     first_article_index = article_indexes[0]
     last_article_index = article_indexes[-1]
     if any(
-        _is_tail_marker(blocks[index].text.strip())
+        is_tail_marker(blocks[index].text.strip())
         for index in range(first_article_index, last_article_index)
     ):
         return False, "tail_noise_inside_article_block", None
 
-    tail_start, body_end, tail_ambiguous = _find_tail_boundary_in_region(
+    tail_start, body_end, tail_ambiguous = find_tail_boundary(
         blocks,
         last_article_index=last_article_index,
         region_end=region_end,
@@ -287,31 +286,6 @@ def _evaluate_candidate(
         "body_end": body_end,
         "tail_start": tail_start,
     }
-
-
-def _find_tail_boundary_in_region(
-    blocks: tuple[ExtractedBlock, ...],
-    *,
-    last_article_index: int,
-    region_end: int,
-) -> tuple[int | None, int, bool]:
-    tail_start: int | None = None
-    body_end = last_article_index
-    blank_seen = False
-    for index in range(last_article_index + 1, region_end):
-        text = blocks[index].text.strip()
-        if tail_start is not None:
-            continue
-        if not text:
-            blank_seen = True
-            continue
-        if _is_tail_marker(text) or (blank_seen and _is_footer_line(text)):
-            tail_start = index
-            continue
-        if blank_seen:
-            return None, body_end, True
-        body_end = index
-    return tail_start, body_end, False
 
 
 def _s2_excluded_ranges(

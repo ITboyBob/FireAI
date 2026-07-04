@@ -1,10 +1,17 @@
 from dataclasses import dataclass
-import re
-import unicodedata
 
 from app.services.corpus_ingestor import build_document_id
+from app.services.legal_boundary_common import (
+    ARTICLE_PATTERN,
+    HEADING_PATTERN,
+    article_number,
+    build_body_units,
+    find_tail_boundary,
+    is_footer_line,
+    is_tail_marker,
+    normalize_title,
+)
 from app.services.legal_extractor import (
-    ExtractedBlock,
     ExtractionResult,
     SourceLocation,
 )
@@ -15,7 +22,6 @@ from app.services.legal_ingestion_models import (
     SourceRef,
 )
 from app.services.legal_intermediate import (
-    BodyUnit,
     BoundaryDecision,
     ExcludedRange,
     ExtractionReport,
@@ -23,27 +29,6 @@ from app.services.legal_intermediate import (
     SourceSpan,
     TargetMetadata,
     validate_legal_intermediate,
-)
-
-
-ARTICLE_PATTERN = re.compile(
-    r"^第([一二三四五六七八九十百千万零〇两0-9]+)条(?:\s|　|$)"
-)
-HEADING_PATTERN = re.compile(
-    r"^第[一二三四五六七八九十百千万零〇两0-9]+([编章节])(?:\s|　|$)"
-)
-PAGE_FIELD_PATTERN = re.compile(r"(?:PAGE|MERGEFORMAT)")
-PAGE_LINE_PATTERN = re.compile(r"^第?\s*\d+\s*页?$")
-PRINT_RECORD_PATTERN = re.compile(
-    r"\d{4}\s*年\s*\d{1,2}\s*月\s*\d{1,2}\s*日\s*印发[。.]?$"
-)
-COPY_DISTRIBUTION_PATTERN = re.compile(r"^抄送\s*[：:]")
-ADMIN_OFFICE_FOOTER_PATTERN = re.compile(
-    r"^[^，,；;：:]{2,40}(?:办公室|办公厅)[。.]?$"
-)
-LOCAL_GOVERNMENT_REGULATION_FOOTER_PATTERN = re.compile(
-    r"^(?!本(?:规定|办法|细则|条例))[\u4e00-\u9fff]{1,16}"
-    r"(?:省|市|自治区|自治州|县)人民政府规章[。.]?$"
 )
 
 
@@ -98,11 +83,11 @@ def identify_s1_target_body(
             reason="block_order_invalid",
         )
 
-    normalized_expected = _normalize_title(expected_title)
+    normalized_expected = normalize_title(expected_title)
     title_indexes = tuple(
         index
         for index, block in enumerate(blocks)
-        if _normalize_title(block.text) == normalized_expected
+        if normalize_title(block.text) == normalized_expected
     )
     if not title_indexes:
         return _review(
@@ -125,14 +110,14 @@ def identify_s1_target_body(
         for index in range(title_index + 1, len(blocks))
         if ARTICLE_PATTERN.match(blocks[index].text.strip())
     )
-    if not article_indexes or _article_number(blocks[article_indexes[0]]) != 1:
+    if not article_indexes or article_number(blocks[article_indexes[0]]) != 1:
         return _review(
             extraction,
             source=source,
             expected_title=expected_title,
             reason="first_article_missing",
         )
-    article_numbers = tuple(_article_number(blocks[index]) for index in article_indexes)
+    article_numbers = tuple(article_number(blocks[index]) for index in article_indexes)
     if article_numbers != tuple(range(1, len(article_numbers) + 1)):
         return _review(
             extraction,
@@ -143,7 +128,7 @@ def identify_s1_target_body(
     first_article_index = article_indexes[0]
     last_article_index = article_indexes[-1]
     if any(
-        _is_tail_marker(blocks[index].text.strip())
+        is_tail_marker(blocks[index].text.strip())
         for index in range(first_article_index, last_article_index)
     ):
         return _review(
@@ -153,7 +138,7 @@ def identify_s1_target_body(
             reason="tail_noise_inside_article_block",
         )
 
-    tail_start, body_end, tail_ambiguous = _find_tail_boundary(
+    tail_start, body_end, tail_ambiguous = find_tail_boundary(
         blocks,
         last_article_index=last_article_index,
     )
@@ -165,7 +150,7 @@ def identify_s1_target_body(
             reason="trailing_content_ambiguous",
         )
 
-    body_units = _build_body_units(
+    body_units = build_body_units(
         blocks,
         title_index=title_index,
         first_article_index=first_article_index,
@@ -224,123 +209,6 @@ def identify_s1_target_body(
     )
     validate_legal_intermediate(intermediate)
     return intermediate
-
-
-def _find_tail_boundary(
-    blocks: tuple[ExtractedBlock, ...],
-    *,
-    last_article_index: int,
-) -> tuple[int | None, int, bool]:
-    tail_start: int | None = None
-    body_end = last_article_index
-    blank_seen = False
-    for index in range(last_article_index + 1, len(blocks)):
-        text = blocks[index].text.strip()
-        if tail_start is not None:
-            continue
-        if not text:
-            blank_seen = True
-            continue
-        if _is_tail_marker(text) or (blank_seen and _is_footer_line(text)):
-            tail_start = index
-            continue
-        if blank_seen:
-            return None, body_end, True
-        body_end = index
-    return tail_start, body_end, False
-
-
-def _build_body_units(
-    blocks: tuple[ExtractedBlock, ...],
-    *,
-    title_index: int,
-    first_article_index: int,
-    body_end: int,
-    expected_title: str,
-) -> tuple[BodyUnit, ...]:
-    units: list[BodyUnit] = [
-        _body_unit(
-            block=blocks[title_index],
-            unit_id="unit-0",
-            kind="title",
-            text=expected_title,
-        )
-    ]
-    current_parent = "unit-0"
-    current_article: str | None = None
-    for index in range(title_index + 1, body_end + 1):
-        block = blocks[index]
-        text = block.text.strip()
-        if not text:
-            continue
-        heading_match = HEADING_PATTERN.match(text)
-        article_match = ARTICLE_PATTERN.match(text)
-        if index < first_article_index and not heading_match:
-            continue
-        if heading_match:
-            kind = {
-                "编": "part",
-                "章": "chapter",
-                "节": "section",
-            }[heading_match.group(1)]
-            unit_id = f"unit-{len(units)}"
-            units.append(
-                _body_unit(
-                    block=block,
-                    unit_id=unit_id,
-                    kind=kind,
-                    text=text,
-                    parent_unit_id="unit-0",
-                )
-            )
-            current_parent = unit_id
-            continue
-        if article_match:
-            unit_id = f"unit-{len(units)}"
-            units.append(
-                _body_unit(
-                    block=block,
-                    unit_id=unit_id,
-                    kind="article",
-                    text=text,
-                    parent_unit_id=current_parent,
-                )
-            )
-            current_article = unit_id
-            continue
-        if current_article is not None:
-            units.append(
-                _body_unit(
-                    block=block,
-                    unit_id=f"unit-{len(units)}",
-                    kind="paragraph",
-                    text=text,
-                    parent_unit_id=current_article,
-                )
-            )
-    return tuple(units)
-
-
-def _body_unit(
-    *,
-    block: ExtractedBlock,
-    unit_id: str,
-    kind: str,
-    text: str,
-    parent_unit_id: str | None = None,
-) -> BodyUnit:
-    return BodyUnit(
-        unit_id=unit_id,
-        kind=kind,
-        text=text,
-        source_span=SourceSpan(
-            start=block.location,
-            end=block.location,
-            start_char_offset=0,
-            end_char_offset=len(block.text),
-        ),
-        parent_unit_id=parent_unit_id,
-    )
 
 
 def _excluded_tail_range(
@@ -419,61 +287,3 @@ def _blocked_intermediate(
     )
     validate_legal_intermediate(intermediate)
     return intermediate
-
-
-def _article_number(block: ExtractedBlock) -> int:
-    match = ARTICLE_PATTERN.match(block.text.strip())
-    if match is None:
-        raise ValueError("条文块缺少条号")
-    return _chinese_number_to_int(match.group(1))
-
-
-def _chinese_number_to_int(value: str) -> int:
-    if value.isdigit():
-        return int(value)
-    digits = {
-        "零": 0,
-        "〇": 0,
-        "一": 1,
-        "二": 2,
-        "两": 2,
-        "三": 3,
-        "四": 4,
-        "五": 5,
-        "六": 6,
-        "七": 7,
-        "八": 8,
-        "九": 9,
-    }
-    units = {"十": 10, "百": 100, "千": 1000, "万": 10000}
-    total = 0
-    current = 0
-    for character in value:
-        if character in digits:
-            current = digits[character]
-            continue
-        unit = units[character]
-        total += (current or 1) * unit
-        current = 0
-    return total + current
-
-
-def _normalize_title(value: str) -> str:
-    normalized = unicodedata.normalize("NFKC", value).strip()
-    return re.sub(r"[\s《》]+", "", normalized)
-
-
-def _is_tail_marker(text: str) -> bool:
-    return (
-        bool(PAGE_FIELD_PATTERN.search(text))
-        or bool(PAGE_LINE_PATTERN.fullmatch(text))
-        or bool(PRINT_RECORD_PATTERN.search(text))
-    )
-
-
-def _is_footer_line(text: str) -> bool:
-    return (
-        bool(ADMIN_OFFICE_FOOTER_PATTERN.fullmatch(text))
-        or bool(LOCAL_GOVERNMENT_REGULATION_FOOTER_PATTERN.fullmatch(text))
-        or bool(COPY_DISTRIBUTION_PATTERN.match(text))
-    )
