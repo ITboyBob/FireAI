@@ -250,6 +250,36 @@ def test_ws3_qualified_incremental_import_rolls_back_source_digest_failure(
     assert any(hit["document_id"] == good_document_id for hit in hits)
 
 
+def test_ws3_single_source_with_force_batch_returns_batch_report(
+    seeded_data_dir: Path,
+) -> None:
+    """单来源在 force_batch=True 时仍走批次路径并返回 batch_report_path。"""
+    data_dir = seeded_data_dir
+    case = _load_ws3_case()
+    source_path = TODO_ROOT / case["relative_path"]
+
+    summary = run_legal_ingestion(
+        sources=[source_path],
+        data_dir=data_dir,
+        index_dir=data_dir / "index",
+        manifest_path=data_dir / "manifests" / "incremental_imports.json",
+        staging_root=data_dir / ".staging",
+        embedder=WS3FakeEmbedder(),
+        run_id="ws3-force-batch",
+        dry_run=False,
+        force_batch=True,
+    )
+
+    assert len(summary.committed_document_ids) == 1
+    assert summary.batch_report_path is not None
+    assert summary.batch_report_path.exists()
+
+    report = json.loads(summary.batch_report_path.read_text(encoding="utf-8"))
+    assert len(report["results"]) == 1
+    assert report["results"][0]["document_id"] == summary.committed_document_ids[0]
+    assert report["results"][0]["final_state"] == "committed"
+
+
 def test_ws3_qualified_incremental_import_rolls_back_staged_digest_failure(
     seeded_data_dir: Path,
     tmp_path: Path,

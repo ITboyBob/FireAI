@@ -136,7 +136,16 @@ conda run -n fire python scripts/import_new_corpus.py \
   --extraction-class W \
   --content-class S3 \
   --dry-run
+
+# W-S3 真实导入：dry-run 验证通过后执行，会写入正式语料、索引和 manifest
+conda run -n fire python scripts/import_new_corpus.py \
+  --batch-manifest tests/fixtures/legal_ingestion/todo_baseline.json \
+  --source-root 法律文本/todo \
+  --extraction-class W \
+  --content-class S3
 ```
+
+> 本项目已完成 W-S3 真实导入：批次 `run_id=c132d0f3-aa52-40cc-a1c8-7e26cb0209e1`，`selected=1`、`committed=1`、`failed=0`，`河北省消防救援机构执法过错责任追究规定.doc` 成功提交。详情见 [法规摄取能力路线图](docs/project_or_workflow/2026-06-29-legal-ingestion-capability-roadmap.md)。
 
    单文件参数与 `--batch-manifest` 互斥；命令只接受显式指定的单个 `.doc/.docx` 文件，或一份显式批次清单。不支持目录扫描、PDF/TXT/网页导入、旧法规修订替换或条文级 diff。若发现同 `document_id`、正式输出文件已存在、manifest 已记录、关键词索引已有记录或向量映射已有记录，会直接失败，不跳过、不覆盖。
 

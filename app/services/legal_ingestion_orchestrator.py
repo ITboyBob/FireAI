@@ -312,6 +312,7 @@ def run_legal_ingestion(
     embedder: object,
     run_id: str | None = None,
     dry_run: bool = False,
+    force_batch: bool = False,
     classifier: Callable[[SourceRef], LegalSourceRecord] | None = None,
     extraction_registry: ExtractionStrategyRegistry | None = None,
     boundary_registry: BoundaryStrategyRegistry | None = None,
@@ -344,7 +345,7 @@ def run_legal_ingestion(
     ingestion_input = _build_ingestion_input(source_refs)
     outcomes = orchestrator.prepare(ingestion_input, run_id=actual_run_id)
 
-    if len(source_refs) == 1 and not dry_run:
+    if len(source_refs) == 1 and not dry_run and not force_batch:
         return _run_single_legal_ingestion(
             outcome=outcomes[0],
             data_dir=data_dir,

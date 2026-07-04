@@ -291,6 +291,7 @@ def main(argv: list[str] | None = None) -> int:
                 embedder=embedder,
                 run_id=run_id,
                 dry_run=args.dry_run,
+                force_batch=True,
             )
         except IncrementalImportError as exc:
             print(str(exc), file=sys.stderr)
