@@ -12,6 +12,7 @@ from app.services.chunk_builder import (
 )
 from app.services.legal_content_boundary import identify_s1_target_body
 from app.services.legal_s2_boundary import S2BoundaryStrategy
+from app.services.legal_s3_boundary import S3BoundaryStrategy
 from app.services.legal_extractor import (
     ExtractedBlock,
     ExtractedPage,
@@ -118,6 +119,66 @@ def _s2_confirmed_pair(tmp_path: Path):
         disposition=IngestionDisposition.READY,
     )
     intermediate = S2BoundaryStrategy().identify(
+        extraction,
+        source=source,
+        expected_title="某规定",
+    )
+    return intermediate, parse_legal_intermediate(intermediate)
+
+
+def _s3_confirmed_pair(tmp_path: Path):
+    source_path = tmp_path / "某规定.doc"
+    source_path.write_bytes(b"sample")
+    source = SourceRef(
+        relative_path="某规定.doc",
+        source_path=source_path,
+        source_sha256=sha256(b"sample").hexdigest(),
+        size_bytes=6,
+        declared_extension=".doc",
+    )
+    lines = (
+        "某规定",
+        "第一条 第一款正文。",
+        "第二款正文。",
+        "第二条 第二条正文。",
+        "",
+        "某机关 2026年6月29日印发",
+        "",
+        "附件：",
+        "",
+        "行政执法监督文书1：",
+        "审批表",
+        "姓名：",
+        "单位：",
+    )
+    blocks = tuple(
+        ExtractedBlock(
+            order=order,
+            text=line,
+            location=SourceLocation(
+                logical_page=1,
+                page_number=None,
+                block_order=order,
+                line_number=order + 1,
+            ),
+        )
+        for order, line in enumerate(lines)
+    )
+    extraction = ExtractionResult(
+        source_sha256=source.source_sha256,
+        extractor_kind="W",
+        extractor_version="fake-v1",
+        pages=(
+            ExtractedPage(
+                logical_page=1,
+                page_number=None,
+                block_orders=tuple(range(len(blocks))),
+            ),
+        ),
+        text_blocks=blocks,
+        disposition=IngestionDisposition.READY,
+    )
+    intermediate = S3BoundaryStrategy().identify(
         extraction,
         source=source,
         expected_title="某规定",
@@ -349,6 +410,29 @@ def test_build_intermediate_chunks_rejects_metadata_mismatch_with_intermediate(
 
     with pytest.raises(ValueError, match="版本依据"):
         build_intermediate_chunks(intermediate, parsed)
+
+
+def test_build_intermediate_chunks_propagates_s3_confirmed_source_contract(
+    tmp_path,
+):
+    intermediate, parsed = _s3_confirmed_pair(tmp_path)
+
+    chunks = build_intermediate_chunks(intermediate, parsed)
+
+    assert len(chunks) == 2
+    assert all(
+        chunk["source_sha256"] == intermediate.source_ref.source_sha256
+        and chunk["extraction_class"] == "W"
+        and chunk["content_class"] == "S3"
+        and chunk["boundary_status"] == "confirmed"
+        for chunk in chunks
+    )
+    assert chunks[0]["source_span"] == asdict(parsed.articles[0].source_span)
+    assert chunks[1]["source_span"] == asdict(parsed.articles[1].source_span)
+    for chunk in chunks:
+        assert "附件" not in chunk["text"]
+        assert "审批表" not in chunk["text"]
+        assert "姓名" not in chunk["text"]
 
 
 def test_build_chunks_do_not_carry_full_metadata_evidence():

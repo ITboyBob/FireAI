@@ -113,12 +113,15 @@ def build_boundary_strategy_registry(
     *,
     s1_strategy: LegalBoundaryStrategy | None = None,
     s2_strategy: LegalBoundaryStrategy | None = None,
+    s3_strategy: LegalBoundaryStrategy | None = None,
 ) -> BoundaryStrategyRegistry:
     registry = BoundaryStrategyRegistry()
     if s1_strategy is not None:
         registry.register(ContentClass.S1, s1_strategy)
     if s2_strategy is not None:
         registry.register(ContentClass.S2, s2_strategy)
+    if s3_strategy is not None:
+        registry.register(ContentClass.S3, s3_strategy)
     return registry
 
 

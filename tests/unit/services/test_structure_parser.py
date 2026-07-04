@@ -5,6 +5,7 @@ import pytest
 
 from app.services.legal_content_boundary import identify_s1_target_body
 from app.services.legal_s2_boundary import S2BoundaryStrategy
+from app.services.legal_s3_boundary import S3BoundaryStrategy
 from app.services.legal_extractor import (
     ExtractedBlock,
     ExtractedPage,
@@ -126,6 +127,67 @@ def _s2_intermediate(tmp_path: Path):
         disposition=IngestionDisposition.READY,
     )
     return S2BoundaryStrategy().identify(
+        extraction,
+        source=source,
+        expected_title="某规定",
+    )
+
+
+def _s3_intermediate(tmp_path: Path):
+    source_path = tmp_path / "某规定.doc"
+    source_path.write_bytes(b"sample")
+    from hashlib import sha256
+
+    source = SourceRef(
+        relative_path="某规定.doc",
+        source_path=source_path,
+        source_sha256=sha256(b"sample").hexdigest(),
+        size_bytes=6,
+        declared_extension=".doc",
+    )
+    lines = (
+        "某规定",
+        "第一条 第一款正文。",
+        "第二款正文。",
+        "第二条 第二条正文。",
+        "",
+        "某机关 2026年6月29日印发",
+        "",
+        "附件：",
+        "",
+        "行政执法监督文书1：",
+        "审批表",
+        "姓名：",
+        "单位：",
+    )
+    blocks = tuple(
+        ExtractedBlock(
+            order=order,
+            text=line,
+            location=SourceLocation(
+                logical_page=1,
+                page_number=None,
+                block_order=order,
+                line_number=order + 1,
+            ),
+        )
+        for order, line in enumerate(lines)
+    )
+    extraction = ExtractionResult(
+        source_sha256=source.source_sha256,
+        extractor_kind="W",
+        extractor_version="fake-v1",
+        pages=(
+            ExtractedPage(
+                logical_page=1,
+                page_number=None,
+                block_orders=tuple(range(len(blocks))),
+            ),
+        ),
+        text_blocks=blocks,
+        disposition=IngestionDisposition.READY,
+    )
+    return S3BoundaryStrategy().identify(
         extraction,
         source=source,
         expected_title="某规定",
@@ -342,3 +404,24 @@ def test_parse_legal_intermediate_keeps_parsed_metadata_when_target_empty(
     assert document.revision_events == ()
     assert document.metadata_evidence == ()
     assert document.version_basis is None
+
+
+def test_parse_legal_intermediate_binds_s3_confirmed_source_contract_and_spans(
+    tmp_path,
+):
+    intermediate = _s3_intermediate(tmp_path)
+
+    document = parse_legal_intermediate(intermediate)
+
+    assert document.document_id == intermediate.document_id
+    assert document.title == "某规定"
+    assert document.source_sha256 == intermediate.source_ref.source_sha256
+    assert document.extraction_class == "W"
+    assert document.content_class == "S3"
+    assert document.boundary_status == "confirmed"
+    assert len(document.articles) == 2
+    assert document.articles[0].article_no == "第一条"
+    assert document.articles[0].text == "第一款正文。\n第二款正文。"
+    assert document.articles[1].article_no == "第二条"
+    assert document.articles[1].text == "第二条正文。"
+    assert all(article.source_span is not None for article in document.articles)

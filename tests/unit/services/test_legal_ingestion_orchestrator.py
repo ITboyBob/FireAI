@@ -45,6 +45,7 @@ from app.services.legal_ingestion_orchestrator import run_legal_ingestion
 from app.services.legal_qualified_import import CommitQualification
 from app.services.legal_quality_gates import GateOutcome, QualityReport
 from app.services.legal_s2_boundary import S2BoundaryStrategy
+from app.services.legal_s3_boundary import S3BoundaryStrategy
 
 
 def _record(
@@ -367,6 +368,22 @@ S2_LINES = (
 )
 
 
+S3_LINES = (
+    "某规定",
+    "第一条 正文。",
+    "第二条 末条。",
+    "",
+    "某机关 2026年6月29日印发",
+    "",
+    "附件：",
+    "",
+    "行政执法监督文书1：",
+    "审批表",
+    "姓名：",
+    "单位：",
+)
+
+
 def test_orchestrator_resolves_w_s2_axes(tmp_path):
     record = _record(tmp_path, content_class=ContentClass.S2, source_name="某规定")
     extraction_registry = build_extraction_strategy_registry(
@@ -392,6 +409,35 @@ def test_orchestrator_resolves_w_s2_axes(tmp_path):
     assert outcome.content_class is ContentClass.S2
     assert isinstance(outcome.boundary_result, LegalDocumentIntermediate)
     assert outcome.boundary_result.content_class is ContentClass.S2
+    assert outcome.boundary_result.boundary.status == "confirmed"
+
+
+def test_orchestrator_resolves_w_s3_axes(tmp_path):
+    record = _record(tmp_path, content_class=ContentClass.S3, source_name="某规定")
+    extraction_registry = build_extraction_strategy_registry(
+        word_extractor=FakeExtractor(lines=S3_LINES)
+    )
+    boundary_registry = build_boundary_strategy_registry(
+        s1_strategy=S1BoundaryStrategy(),
+        s2_strategy=S2BoundaryStrategy(),
+        s3_strategy=S3BoundaryStrategy(),
+    )
+    orchestrator = LegalIngestionOrchestrator(
+        classifier=lambda source: record,
+        extraction_registry=extraction_registry,
+        boundary_registry=boundary_registry,
+    )
+
+    outcome = orchestrator.prepare(
+        IngestionInput(single_source=record.source),
+        run_id="run-s3",
+    )[0]
+
+    assert outcome.disposition is IngestionDisposition.READY
+    assert outcome.extraction_class is ExtractionClass.W
+    assert outcome.content_class is ContentClass.S3
+    assert isinstance(outcome.boundary_result, LegalDocumentIntermediate)
+    assert outcome.boundary_result.content_class is ContentClass.S3
     assert outcome.boundary_result.boundary.status == "confirmed"
 
 
@@ -424,6 +470,45 @@ def test_run_legal_ingestion_dry_run_skips_downstream_for_s2_review(
         staging_root=tmp_path / "staging",
         embedder=object(),
         run_id="run-s2-review",
+        dry_run=True,
+        classifier=lambda source: record,
+        extraction_registry=extraction_registry,
+        boundary_registry=boundary_registry,
+    )
+
+    assert not calls
+    assert summary.batch_report_path is not None
+
+
+def test_run_legal_ingestion_dry_run_skips_downstream_for_s3_review(
+    tmp_path, monkeypatch
+):
+    record = _record(tmp_path, content_class=ContentClass.S3)
+    extraction_registry = build_extraction_strategy_registry(
+        word_extractor=FakeExtractor(lines=S3_LINES[:4])
+    )
+    boundary_registry = build_boundary_strategy_registry(
+        s3_strategy=FakeS2ReviewBoundary(kind="S3")
+    )
+    calls = []
+
+    def fake_evaluate(*, outcome, **kwargs):
+        calls.append(outcome)
+        raise AssertionError("must not evaluate non-ready S3 outcome")
+
+    monkeypatch.setattr(
+        "app.services.legal_ingestion_orchestrator._evaluate_qualified_outcome",
+        fake_evaluate,
+    )
+
+    summary = run_legal_ingestion(
+        sources=[record.source.source_path],
+        data_dir=tmp_path / "data",
+        index_dir=tmp_path / "index",
+        manifest_path=tmp_path / "manifest.json",
+        staging_root=tmp_path / "staging",
+        embedder=object(),
+        run_id="run-s3-review",
         dry_run=True,
         classifier=lambda source: record,
         extraction_registry=extraction_registry,
