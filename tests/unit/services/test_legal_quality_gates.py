@@ -36,7 +36,8 @@ from app.services.legal_quality_gates import (
     _gate_s2_leading_material_isolation,
     evaluate_legal_quality,
 )
-from app.services.structure_parser import ParsedArticle, ParsedDocument
+from app.services.legal_s3_boundary import S3BoundaryStrategy
+from app.services.structure_parser import ParsedArticle, ParsedDocument, parse_legal_intermediate
 
 
 def _location(order: int) -> SourceLocation:
@@ -218,6 +219,60 @@ def _s2_source_and_extraction(tmp_path: Path):
         "第二条 正文二。",
     )
     return source, _extraction(source, lines)
+
+
+def _s3_source_and_extraction(
+    tmp_path: Path,
+    lines: tuple[str, ...] = (
+        "某规定",
+        "第一条 正文一。",
+        "第二条 正文二。",
+        "",
+        "某机关 2026年6月29日印发",
+        "",
+        "附件：",
+        "",
+        "行政执法监督文书1：",
+        "审批表",
+        "姓名：",
+        "单位：",
+    ),
+):
+    title = lines[0]
+    path = tmp_path / f"{title}.doc"
+    path.write_text("\n".join(lines), encoding="utf-8")
+    digest = sha256(path.read_bytes()).hexdigest()
+    source = SourceRef(
+        relative_path=f"{title}.doc",
+        source_path=path,
+        source_sha256=digest,
+        size_bytes=path.stat().st_size,
+        declared_extension=".doc",
+    )
+    extraction = _extraction(source, lines)
+    return source, extraction
+
+
+def _s3_quality_input(tmp_path: Path) -> QualityInput:
+    source, extraction = _s3_source_and_extraction(tmp_path)
+    intermediate = S3BoundaryStrategy().identify(
+        extraction,
+        source=source,
+        expected_title="某规定",
+    )
+    parsed = parse_legal_intermediate(intermediate)
+    chunks = build_intermediate_chunks(intermediate, parsed)
+    return QualityInput(
+        source_sha256=source.source_sha256,
+        document_id=intermediate.document_id,
+        extraction_class=intermediate.extraction_class,
+        content_class=intermediate.content_class,
+        source=source,
+        extraction=extraction,
+        intermediate=intermediate,
+        parsed=parsed,
+        chunks=tuple(chunks),
+    )
 
 
 def _s2_intermediate(
@@ -700,7 +755,7 @@ def test_s2_gates_pass_for_valid_s2(tmp_path):
     gate_ids = {g.gate_id for g in report.gates}
     assert "s2_leading_material_isolation" in gate_ids
     assert "s2_metadata_traceability" in gate_ids
-    assert report.ruleset_version == "legal-quality-v2"
+    assert report.ruleset_version == "legal-quality-v3"
 
 
 def test_s2_missing_leading_exclusion_fails(tmp_path):
@@ -943,7 +998,192 @@ def test_s1_skips_s2_specific_gates_and_remains_pass(tmp_path):
     gate_ids = {g.gate_id for g in report.gates}
     assert "s2_leading_material_isolation" not in gate_ids
     assert "s2_metadata_traceability" not in gate_ids
-    assert report.ruleset_version == "legal-quality-v2"
+    assert report.ruleset_version == "legal-quality-v3"
+
+
+def test_s3_gates_pass_for_valid_s3(tmp_path):
+    quality_input = _s3_quality_input(tmp_path)
+
+    report = evaluate_legal_quality(quality_input)
+
+    assert report.overall == GateOutcome.PASS, [
+        (g.gate_id, g.outcome, g.reason_code)
+        for g in report.gates
+        if g.outcome != GateOutcome.PASS
+    ]
+    gate_ids = {g.gate_id for g in report.gates}
+    assert "s3_tail_exclusion_presence" in gate_ids
+    assert "s3_tail_position" in gate_ids
+    assert "s3_tail_coverage" in gate_ids
+    assert "s3_output_purity" in gate_ids
+    assert report.ruleset_version == "legal-quality-v3"
+
+
+def test_s3_missing_tail_exclusion_fails(tmp_path):
+    quality_input = _s3_quality_input(tmp_path)
+    intermediate = quality_input.intermediate
+    intermediate = dataclass_replace(
+        intermediate,
+        extraction_report=dataclass_replace(
+            intermediate.extraction_report,
+            excluded_ranges=(),
+        ),
+    )
+    quality_input = quality_input.replace(intermediate=intermediate)
+
+    report = evaluate_legal_quality(quality_input)
+
+    assert report.overall == GateOutcome.FAIL
+    gate = next(g for g in report.gates if g.gate_id == "s3_tail_exclusion_presence")
+    assert gate.outcome == GateOutcome.FAIL
+    assert gate.reason_code == "missing_tail_exclusion"
+
+
+def test_s3_tail_exclusion_overlaps_body_fails(tmp_path):
+    quality_input = _s3_quality_input(tmp_path)
+    intermediate = quality_input.intermediate
+    bad_range = ExcludedRange(
+        source_span=SourceSpan(
+            start=_location(0),
+            end=_location(0),
+            start_char_offset=0,
+            end_char_offset=2,
+        ),
+        kind="attachment_index",
+        reason="attachment_index_after_last_article",
+    )
+    intermediate = dataclass_replace(
+        intermediate,
+        extraction_report=dataclass_replace(
+            intermediate.extraction_report,
+            excluded_ranges=intermediate.extraction_report.excluded_ranges + (bad_range,),
+        ),
+    )
+    quality_input = quality_input.replace(intermediate=intermediate)
+
+    report = evaluate_legal_quality(quality_input)
+
+    assert report.overall == GateOutcome.FAIL
+    gate = next(g for g in report.gates if g.gate_id == "s3_tail_position")
+    assert gate.outcome == GateOutcome.FAIL
+    assert gate.reason_code == "tail_exclusion_before_body"
+
+
+def test_s3_tail_exclusion_out_of_order_fails(tmp_path):
+    quality_input = _s3_quality_input(tmp_path)
+    intermediate = quality_input.intermediate
+    ranges = list(intermediate.extraction_report.excluded_ranges)
+    if len(ranges) >= 2:
+        ranges[0], ranges[1] = ranges[1], ranges[0]
+    intermediate = dataclass_replace(
+        intermediate,
+        extraction_report=dataclass_replace(
+            intermediate.extraction_report,
+            excluded_ranges=tuple(ranges),
+        ),
+    )
+    quality_input = quality_input.replace(intermediate=intermediate)
+
+    report = evaluate_legal_quality(quality_input)
+
+    assert report.overall == GateOutcome.FAIL
+    gate = next(g for g in report.gates if g.gate_id == "s3_tail_position")
+    assert gate.outcome == GateOutcome.FAIL
+    assert gate.reason_code == "tail_exclusion_out_of_order"
+
+
+def test_s3_tail_coverage_gap_requires_review(tmp_path):
+    quality_input = _s3_quality_input(tmp_path)
+    intermediate = quality_input.intermediate
+    extraction = quality_input.extraction
+    blocks = extraction.text_blocks
+    # 人为在末尾追加一个未解释的非空块
+    extra_block = ExtractedBlock(
+        order=len(blocks),
+        text="未解释尾部块",
+        location=SourceLocation(
+            logical_page=1,
+            page_number=None,
+            block_order=len(blocks),
+            line_number=len(blocks) + 1,
+        ),
+    )
+    new_blocks = blocks + (extra_block,)
+    new_extraction = dataclass_replace(extraction, text_blocks=new_blocks)
+    # 保持原排除范围不变，新块未被覆盖
+    quality_input = quality_input.replace(
+        intermediate=intermediate,
+        extraction=new_extraction,
+    )
+
+    report = evaluate_legal_quality(quality_input)
+
+    assert report.overall == GateOutcome.REVIEW_REQUIRED
+    gate = next(g for g in report.gates if g.gate_id == "s3_tail_coverage")
+    assert gate.outcome == GateOutcome.REVIEW_REQUIRED
+    assert gate.reason_code == "unclassified_tail_block"
+
+
+def test_s3_output_purity_tail_text_in_body_fails(tmp_path):
+    quality_input = _s3_quality_input(tmp_path)
+    intermediate = quality_input.intermediate
+    intermediate = dataclass_replace(
+        intermediate,
+        body_text=intermediate.body_text + "\n姓名：张三",
+    )
+    quality_input = quality_input.replace(intermediate=intermediate)
+
+    report = evaluate_legal_quality(quality_input)
+
+    assert report.overall == GateOutcome.FAIL
+    gate = next(g for g in report.gates if g.gate_id == "s3_output_purity")
+    assert gate.outcome == GateOutcome.FAIL
+    assert gate.reason_code == "tail_marker_in_body"
+
+
+def test_s3_output_purity_tail_text_in_chunk_fails(tmp_path):
+    quality_input = _s3_quality_input(tmp_path)
+    contaminated_chunk = dict(quality_input.chunks[0])
+    contaminated_chunk["text"] = "单位：某机关"
+    quality_input = quality_input.replace(chunks=(contaminated_chunk,))
+
+    report = evaluate_legal_quality(quality_input)
+
+    assert report.overall == GateOutcome.FAIL
+    gate = next(g for g in report.gates if g.gate_id == "s3_output_purity")
+    assert gate.outcome == GateOutcome.FAIL
+    assert gate.reason_code == "tail_marker_in_chunk"
+
+
+def test_s1_skips_s3_specific_gates_and_remains_pass(tmp_path):
+    quality_input = _quality_input(tmp_path)
+
+    report = evaluate_legal_quality(quality_input)
+
+    assert report.overall == GateOutcome.PASS
+    gate_ids = {g.gate_id for g in report.gates}
+    assert "s3_tail_exclusion_presence" not in gate_ids
+    assert "s3_tail_position" not in gate_ids
+    assert "s3_tail_coverage" not in gate_ids
+    assert "s3_output_purity" not in gate_ids
+
+
+def test_s3_review_or_fail_does_not_produce_qualification(tmp_path):
+    quality_input = _s3_quality_input(tmp_path)
+    intermediate = quality_input.intermediate
+    intermediate = dataclass_replace(
+        intermediate,
+        extraction_report=dataclass_replace(
+            intermediate.extraction_report,
+            excluded_ranges=(),
+        ),
+    )
+    quality_input = _s3_quality_input_from_intermediate(tmp_path, intermediate, quality_input.extraction)
+
+    report = evaluate_legal_quality(quality_input)
+
+    assert report.overall == GateOutcome.FAIL
+    assert all(g.outcome != GateOutcome.PASS for g in report.gates if g.gate_id == "s3_tail_exclusion_presence")
 
 
 def _s2_quality_input_from_intermediate(
@@ -952,6 +1192,26 @@ def _s2_quality_input_from_intermediate(
     extraction: ExtractionResult,
 ) -> QualityInput:
     parsed = _s2_parsed(intermediate)
+    chunks = build_intermediate_chunks(intermediate, parsed)
+    return QualityInput(
+        source_sha256=intermediate.source_ref.source_sha256,
+        document_id=intermediate.document_id,
+        extraction_class=intermediate.extraction_class,
+        content_class=intermediate.content_class,
+        source=intermediate.source_ref,
+        extraction=extraction,
+        intermediate=intermediate,
+        parsed=parsed,
+        chunks=tuple(chunks),
+    )
+
+
+def _s3_quality_input_from_intermediate(
+    tmp_path: Path,
+    intermediate: LegalDocumentIntermediate,
+    extraction: ExtractionResult,
+) -> QualityInput:
+    parsed = parse_legal_intermediate(intermediate)
     chunks = build_intermediate_chunks(intermediate, parsed)
     return QualityInput(
         source_sha256=intermediate.source_ref.source_sha256,

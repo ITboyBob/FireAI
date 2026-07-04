@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from app.services.legal_ingestion_batch import load_batch_report
+from app.services.legal_ingestion_models import ContentClass, ExtractionClass
 from app.services.legal_ingestion_orchestrator import run_legal_ingestion
 
 
@@ -15,23 +16,23 @@ BASELINE_PATH = (
 )
 
 
-def _load_ws2_cases() -> list[dict]:
+def _load_ws3_cases() -> list[dict]:
     baseline = json.loads(BASELINE_PATH.read_text(encoding="utf-8"))
     return [
         item
         for item in baseline
-        if item["expected_extraction_class"] == "W"
-        and item["expected_content_class"] == "S2"
+        if item["expected_extraction_class"] == ExtractionClass.W.value
+        and item["expected_content_class"] == ContentClass.S3.value
     ]
 
 
-@pytest.mark.parametrize("case", _load_ws2_cases(), ids=lambda c: c["relative_path"])
-def test_ws2_legal_corpus_quality_passes(case: dict, tmp_path: Path) -> None:
+@pytest.mark.parametrize("case", _load_ws3_cases(), ids=lambda c: c["relative_path"])
+def test_ws3_legal_corpus_quality_passes(case: dict, tmp_path: Path) -> None:
     source_path = TODO_ROOT / case["relative_path"]
     assert source_path.exists(), f"缺失真实源文件: {case['relative_path']}"
 
     before_digest = sha256(source_path.read_bytes()).hexdigest()
-    run_id = f"ws2-quality-{sha256(case['relative_path'].encode('utf-8')).hexdigest()[:12]}"
+    run_id = f"ws3-quality-{sha256(case['relative_path'].encode('utf-8')).hexdigest()[:12]}"
 
     data_dir = tmp_path / "data"
     summary = run_legal_ingestion(
@@ -77,8 +78,10 @@ def test_ws2_legal_corpus_quality_passes(case: dict, tmp_path: Path) -> None:
         "exclusion_isolation",
         "cross_layer_consistency",
         "chunk_coverage",
-        "s2_leading_material_isolation",
-        "s2_metadata_traceability",
+        "s3_tail_exclusion_presence",
+        "s3_tail_position",
+        "s3_tail_coverage",
+        "s3_output_purity",
     ]
     for gate_id in required_gates:
         assert gate_id in gates, f"缺少门禁 {gate_id}"
@@ -93,16 +96,26 @@ def test_ws2_legal_corpus_quality_passes(case: dict, tmp_path: Path) -> None:
     assert gates["chunk_coverage"]["measured"]["article_count"] == case[
         "expected_article_count"
     ]
-    assert gates["s2_leading_material_isolation"]["measured"][
-        "leading_range_count"
+    assert gates["s3_tail_exclusion_presence"]["measured"][
+        "tail_range_count"
     ] >= 1
+
+    excluded_kinds = {
+        er["kind"]
+        for er in gates["s3_tail_exclusion_presence"]["measured"].get(
+            "tail_ranges", []
+        )
+    }
+    assert "attachment_index" in excluded_kinds
+    assert "form_template" in excluded_kinds
+    assert "trailing_print_metadata" in excluded_kinds
 
     assert all(gate["outcome"] == "pass" for gate in quality_report["gates"])
 
 
-def test_ws2_scope_has_exactly_two_word_cases() -> None:
-    cases = _load_ws2_cases()
-    assert len(cases) == 2
+def test_ws3_scope_has_exactly_one_word_case() -> None:
+    cases = _load_ws3_cases()
+    assert len(cases) == 1
     assert all(
         set(item)
         == {

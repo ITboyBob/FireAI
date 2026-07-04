@@ -57,7 +57,16 @@ class QualityReport:
     measured: dict[str, object] = field(default_factory=dict)
 
 
-RULESET_VERSION = "legal-quality-v2"
+RULESET_VERSION = "legal-quality-v3"
+
+S3_TAIL_MARKER_PATTERNS = (
+    re.compile(r"PAGE\s*\\\s*\*\s*MERGEFORMAT"),
+    re.compile(r"NUMPAGES"),
+    re.compile(r"HYPERLINK"),
+    re.compile(r"姓名[：:]"),
+    re.compile(r"单位[：:]"),
+    re.compile(r"行政执法监督文书"),
+)
 
 REVISION_SIGNAL_PATTERN = re.compile(r"修正|修订|修改")
 MULTI_AUTHORITY_SIGNAL_PATTERN = re.compile(r"[；;]|联合|会同")
@@ -111,6 +120,12 @@ def evaluate_legal_quality(quality_input: QualityInput) -> QualityReport:
     if quality_input.content_class is ContentClass.S2:
         gates.append(_gate_s2_leading_material_isolation(quality_input))
         gates.append(_gate_s2_metadata_traceability(quality_input))
+
+    if quality_input.content_class is ContentClass.S3:
+        gates.append(_gate_s3_tail_exclusion_presence(quality_input))
+        gates.append(_gate_s3_tail_position(quality_input))
+        gates.append(_gate_s3_tail_coverage(quality_input))
+        gates.append(_gate_s3_output_purity(quality_input))
 
     return _build_report(quality_input, gates)
 
@@ -835,6 +850,245 @@ def _gate_s2_metadata_traceability(quality_input: QualityInput) -> GateResult:
             f"{ev.field_name}:block:{ev.source_span.start.block_order}"
             for ev in target.evidence
         ),
+    )
+
+
+def _gate_s3_tail_exclusion_presence(quality_input: QualityInput) -> GateResult:
+    if quality_input.content_class is not ContentClass.S3:
+        return GateResult(
+            gate_id="s3_tail_exclusion_presence",
+            outcome=GateOutcome.PASS,
+            measured={"skipped": "not_S3"},
+            evidence_refs=(),
+        )
+
+    excluded_ranges = quality_input.intermediate.extraction_report.excluded_ranges
+    tail_ranges = [
+        r
+        for r in excluded_ranges
+        if r.kind
+        in {
+            "attachment_index",
+            "form_template",
+            "score_table",
+            "trailing_print_metadata",
+            "word_page_field",
+        }
+    ]
+    if not tail_ranges:
+        return GateResult(
+            gate_id="s3_tail_exclusion_presence",
+            outcome=GateOutcome.FAIL,
+            measured={"tail_range_count": 0},
+            evidence_refs=(),
+            reason_code="missing_tail_exclusion",
+        )
+
+    return GateResult(
+        gate_id="s3_tail_exclusion_presence",
+        outcome=GateOutcome.PASS,
+        measured={
+            "tail_range_count": len(tail_ranges),
+            "tail_ranges": [
+                {
+                    "kind": r.kind,
+                    "start": r.source_span.start.block_order,
+                    "end": r.source_span.end.block_order,
+                }
+                for r in tail_ranges
+            ],
+        },
+        evidence_refs=tuple(f"{r.kind}:{r.source_span.start.block_order}" for r in tail_ranges),
+    )
+
+
+def _gate_s3_tail_position(quality_input: QualityInput) -> GateResult:
+    if quality_input.content_class is not ContentClass.S3:
+        return GateResult(
+            gate_id="s3_tail_position",
+            outcome=GateOutcome.PASS,
+            measured={"skipped": "not_S3"},
+            evidence_refs=(),
+        )
+
+    excluded_ranges = quality_input.intermediate.extraction_report.excluded_ranges
+    if not excluded_ranges:
+        return GateResult(
+            gate_id="s3_tail_position",
+            outcome=GateOutcome.PASS,
+            measured={"skipped": "no_excluded_ranges"},
+            evidence_refs=(),
+        )
+
+    body_units = quality_input.intermediate.body_units
+    if not body_units:
+        return GateResult(
+            gate_id="s3_tail_position",
+            outcome=GateOutcome.PASS,
+            measured={"skipped": "no_body_units"},
+            evidence_refs=(),
+        )
+
+    last_unit = body_units[-1]
+    body_end = _position_key(
+        last_unit.source_span.end,
+        last_unit.source_span.end_char_offset,
+    )
+
+    for excluded in excluded_ranges:
+        excluded_start = _position_key(
+            excluded.source_span.start,
+            excluded.source_span.start_char_offset,
+        )
+        if excluded_start <= body_end:
+            return GateResult(
+                gate_id="s3_tail_position",
+                outcome=GateOutcome.FAIL,
+                measured={
+                    "body_end": body_end,
+                    "excluded_start": excluded_start,
+                    "excluded_kind": excluded.kind,
+                },
+                evidence_refs=(f"{excluded.kind}:{excluded_start}",),
+                reason_code="tail_exclusion_before_body",
+            )
+
+    for index in range(len(excluded_ranges) - 1):
+        prev_end = _position_key(
+            excluded_ranges[index].source_span.end,
+            excluded_ranges[index].source_span.end_char_offset,
+        )
+        next_start = _position_key(
+            excluded_ranges[index + 1].source_span.start,
+            excluded_ranges[index + 1].source_span.start_char_offset,
+        )
+        if next_start <= prev_end:
+            return GateResult(
+                gate_id="s3_tail_position",
+                outcome=GateOutcome.FAIL,
+                measured={
+                    "prev_end": prev_end,
+                    "next_start": next_start,
+                    "prev_kind": excluded_ranges[index].kind,
+                    "next_kind": excluded_ranges[index + 1].kind,
+                },
+                evidence_refs=(),
+                reason_code="tail_exclusion_out_of_order",
+            )
+
+    return GateResult(
+        gate_id="s3_tail_position",
+        outcome=GateOutcome.PASS,
+        measured={"tail_range_count": len(excluded_ranges)},
+        evidence_refs=(),
+    )
+
+
+def _gate_s3_tail_coverage(quality_input: QualityInput) -> GateResult:
+    if quality_input.content_class is not ContentClass.S3:
+        return GateResult(
+            gate_id="s3_tail_coverage",
+            outcome=GateOutcome.PASS,
+            measured={"skipped": "not_S3"},
+            evidence_refs=(),
+        )
+
+    excluded_ranges = quality_input.intermediate.extraction_report.excluded_ranges
+    if not excluded_ranges:
+        return GateResult(
+            gate_id="s3_tail_coverage",
+            outcome=GateOutcome.PASS,
+            measured={"skipped": "no_excluded_ranges"},
+            evidence_refs=(),
+        )
+
+    blocks = quality_input.extraction.text_blocks
+    if not blocks:
+        return GateResult(
+            gate_id="s3_tail_coverage",
+            outcome=GateOutcome.PASS,
+            measured={"skipped": "no_blocks"},
+            evidence_refs=(),
+        )
+
+    tail_start = min(r.source_span.start.block_order for r in excluded_ranges)
+    non_empty_after_tail = {
+        block.order
+        for block in blocks[tail_start:]
+        if block.text.strip()
+    }
+
+    covered: set[int] = set()
+    for excluded in excluded_ranges:
+        for order in range(
+            excluded.source_span.start.block_order,
+            excluded.source_span.end.block_order + 1,
+        ):
+            covered.add(order)
+
+    missing = sorted(non_empty_after_tail - covered)
+    if missing:
+        return GateResult(
+            gate_id="s3_tail_coverage",
+            outcome=GateOutcome.REVIEW_REQUIRED,
+            measured={"unclassified_blocks": missing},
+            evidence_refs=tuple(f"block:{order}" for order in missing),
+            reason_code="unclassified_tail_block",
+        )
+
+    return GateResult(
+        gate_id="s3_tail_coverage",
+        outcome=GateOutcome.PASS,
+        measured={
+            "tail_range_count": len(excluded_ranges),
+            "covered_block_count": len(covered),
+        },
+        evidence_refs=(),
+    )
+
+
+def _gate_s3_output_purity(quality_input: QualityInput) -> GateResult:
+    if quality_input.content_class is not ContentClass.S3:
+        return GateResult(
+            gate_id="s3_output_purity",
+            outcome=GateOutcome.PASS,
+            measured={"skipped": "not_S3"},
+            evidence_refs=(),
+        )
+
+    contaminants: list[dict[str, str]] = []
+
+    def _check_text(text: str, location: str) -> None:
+        for pattern in S3_TAIL_MARKER_PATTERNS:
+            if pattern.search(text):
+                contaminants.append({"location": location, "pattern": pattern.pattern})
+                break
+
+    _check_text(quality_input.intermediate.body_text, "body_text")
+    for article in quality_input.parsed.articles:
+        _check_text(article.text, f"article:{article.article_no}")
+    for index, chunk in enumerate(quality_input.chunks):
+        _check_text(chunk.get("text", ""), f"chunk:{index}")
+
+    if contaminants:
+        reason_code = (
+            "tail_marker_in_body"
+            if contaminants[0]["location"] == "body_text"
+            else "tail_marker_in_chunk"
+        )
+        return GateResult(
+            gate_id="s3_output_purity",
+            outcome=GateOutcome.FAIL,
+            measured={"contaminants": contaminants},
+            evidence_refs=tuple(f"{c['location']}:{c['pattern']}" for c in contaminants),
+            reason_code=reason_code,
+        )
+
+    return GateResult(
+        gate_id="s3_output_purity",
+        outcome=GateOutcome.PASS,
+        measured={"contaminant_count": 0},
+        evidence_refs=(),
     )
 
 
