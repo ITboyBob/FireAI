@@ -121,11 +121,21 @@ conda run -n fire python scripts/import_new_corpus.py \
 对于本项目当前 fixture，可使用：
 
 ```bash
+# W-S2（复合颁布文本）
 conda run -n fire python scripts/import_new_corpus.py \
   --batch-manifest tests/fixtures/legal_ingestion/todo_baseline.json \
   --source-root 法律文本/todo \
   --extraction-class W \
   --content-class S2
+
+# W-S3（Word 直接提取 + 尾部排除：附件、文书模板、页码域等）
+# 先 dry-run 验证 v3 质量门禁和干净 chunk 数，不写入正式语料
+conda run -n fire python scripts/import_new_corpus.py \
+  --batch-manifest tests/fixtures/legal_ingestion/todo_baseline.json \
+  --source-root 法律文本/todo \
+  --extraction-class W \
+  --content-class S3 \
+  --dry-run
 ```
 
    单文件参数与 `--batch-manifest` 互斥；命令只接受显式指定的单个 `.doc/.docx` 文件，或一份显式批次清单。不支持目录扫描、PDF/TXT/网页导入、旧法规修订替换或条文级 diff。若发现同 `document_id`、正式输出文件已存在、manifest 已记录、关键词索引已有记录或向量映射已有记录，会直接失败，不跳过、不覆盖。
