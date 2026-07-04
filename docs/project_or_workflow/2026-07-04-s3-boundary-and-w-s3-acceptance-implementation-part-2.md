@@ -1,5 +1,7 @@
 # S3 边界能力与 W-S3 组合验收实施计划（分卷二）
 
+> **执行状态：已完成。** Task 6—8 已分别由提交 `62d4e0b`、`c8b96c2`、`f184086` 完成并验证。下文保留正式写入门禁和命令作为审计记录。
+>
 > 本卷执行 Task 6—8：完成真实 CLI 预演、临时 Append-Only 与回滚验收，再正式导入唯一 W-S3 文件。只有全部前置门禁通过，Task 8 才能写正式 `data/`。
 
 **目标：** 使用唯一 CLI 显式选择 `W + S3`，让真实文件经过 v3 质量资格、临时提交与完整回归后，正式进入语料、关键词索引、FAISS 索引和 manifest。
@@ -21,9 +23,9 @@
 
 Task 6 只允许生成 dry-run 报告；Task 7 只能写临时目录；Task 8 是本计划唯一允许写正式 `data/` 的 Task，且只允许提交唯一清单内 W-S3 文件。
 
-## Phase 2：真实验收、正式提交与收口
+## Phase 2：真实验收、正式提交与收口（已完成）
 
-### 已确认
+### 执行前已确认
 
 - 分卷一 Task 1—5 必须全部通过；
 - W-S3 应形成 quality v3 overall PASS；
@@ -32,10 +34,10 @@ Task 6 只允许生成 dry-run 报告；Task 7 只能写临时目录；Task 8 �
 - 正式导入不可通过简单覆盖修复，必须先完成 dry-run 和临时提交；
 - 正式提交前必须知道干净 chunk 数，但不得沿用污染的 37。
 
-### 缺失
+### 执行前待补齐（现已完成）
 
-- Task 6 开始前，干净 chunk 数仍需通过 confirmed 29 条正文、生成结果和人工核对共同冻结；
-- Task 8 的源摘要、正式 document/chunk/vector/manifest 数量和 run_id 必须运行时生成；
+- Task 6 已通过 confirmed 29 条正文、生成结果和人工核对把干净 chunk 数冻结为 34；
+- Task 8 已生成并核验源摘要、正式 20/876/876 索引数量、14 条 manifest 记录和正式批次标识；
 - 若正式数据在 Task 6—8 期间被其他进程修改，必须重新建立基线。
 
 ### 默认值
@@ -301,7 +303,7 @@ conda run -n fire python -m pytest tests/integration/pipeline/test_ws3_formal_in
 - 路线图记录真实 run_id、最终数量、测试结果和 commit 证据；
 - README 将 W-S3 命令更新为已支持用法；
 - 新增或移动文档时同步索引、读取规则和所有入口；
-- Linear 里程碑更新为 100%，描述写入 29 条正文、v3 门禁、正式索引和回归证据；
+- Linear 里程碑描述已写入 29 条正文、v3 门禁、正式索引和回归证据并标记完成；当前无关联 issue，计算型 `progress` 仍为 0，不作为能力状态依据；
 - 不创建后续 issue，不开始 PT/PS/OCR。
 
 若正式提交未成功，仓库和 Linear 只能如实记录 `in_progress` 或失败状态，禁止写成 implemented。
