@@ -142,8 +142,29 @@ def _on_file_selectbox_change() -> None:
         _select_document(doc_id)
 
 
-def _render_empty_state() -> None:
-    st.info("你还没有任何评测结果，先去评测一下吧")
+def _recovery_hint(category: str) -> str:
+    hints = {
+        "missing_file": "请确认 report.json 和 errors.json 同时存在。",
+        "json_error": "请检查 JSON 文件语法。",
+        "unsupported_schema": "该 Run 使用了 Dashboard 不支持的 schema 版本。",
+        "validation_error": "请检查报告字段是否符合共享 schema。",
+        "cross_file_inconsistent": "请确认 report.json 与 errors.json 的 run_id、schema_version、created_at 一致。",
+        "cross_field_inconsistent": "请确认 summary、documents、questions 的计数和引用关系一致。",
+    }
+    return hints.get(category, "请检查 Run 目录内容。")
+
+
+def _render_empty_state(snapshot: dashboard_loader.DashboardSnapshot) -> None:
+    if snapshot.catalog.invalid_runs:
+        st.error("发现不可用报告目录，无法展示评测结果。")
+        for invalid in snapshot.catalog.invalid_runs:
+            with st.container(border=True):
+                st.markdown(f"**路径**：`{invalid.path}`")
+                st.markdown(f"**类别**：{invalid.category}")
+                st.markdown(f"**原因**：{invalid.reason}")
+                st.caption(_recovery_hint(invalid.category))
+    else:
+        st.info("你还没有任何评测结果，先去评测一下吧")
 
 
 def _render_overview(snapshot: dashboard_loader.DashboardSnapshot) -> None:
@@ -531,7 +552,7 @@ def main() -> None:
         st.error(f"刷新失败：{st.session_state.dashboard_load_error}")
 
     if not snapshot.catalog.valid_runs:
-        _render_empty_state()
+        _render_empty_state(snapshot)
         return
 
     if selected_view == "总览":

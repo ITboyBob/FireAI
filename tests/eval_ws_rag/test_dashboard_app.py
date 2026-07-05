@@ -224,3 +224,70 @@ class TestComparisonUnavailable:
         assert "变好" not in full_text
         assert "变差" not in full_text
         assert "修复" not in full_text
+
+
+
+class TestRefreshAndErrorStates:
+    def test_refresh_replaces_snapshot_atomically(self, streamlit_app, tmp_path, monkeypatch):
+        monkeypatch.setenv("EVAL_DASHBOARD_REPORT_ROOT", str(tmp_path))
+        _write_run(tmp_path, "run_001")
+
+        at = streamlit_app.run()
+        assert len(at.session_state["dashboard_snapshot"].catalog.valid_runs) == 1
+
+        _write_run(tmp_path, "run_002")
+        refresh_button = next(b for b in at.sidebar.button if b.label == "刷新报告")
+        at = refresh_button.click().run()
+        assert not at.exception
+
+        snapshot = at.session_state["dashboard_snapshot"]
+        assert len(snapshot.catalog.valid_runs) == 2
+        # Refresh keeps the previously selected Run when it is still valid.
+        assert snapshot.current_run.run_id == "run_001"
+
+    def test_refresh_keeps_current_run_or_enters_empty_state(self, streamlit_app, tmp_path, monkeypatch):
+        monkeypatch.setenv("EVAL_DASHBOARD_REPORT_ROOT", str(tmp_path))
+        _write_run(tmp_path, "run_001")
+
+        at = streamlit_app.run()
+        at.session_state["dashboard_snapshot"] = dashboard_loader.build_snapshot(
+            tmp_path, current_run_id="run_001"
+        )
+        at = at.run()
+
+        import shutil
+
+        shutil.rmtree(tmp_path / "run_001")
+        refresh_button = next(b for b in at.sidebar.button if b.label == "刷新报告")
+        at = refresh_button.click().run()
+        assert not at.exception
+
+        snapshot = at.session_state["dashboard_snapshot"]
+        assert snapshot.current_run is None
+        infos = [str(i.value) for i in at.info]
+        assert any("还没有任何评测结果" in i for i in infos)
+
+    def test_invalid_run_shows_diagnostic_without_partial_content(self, streamlit_app, tmp_path, monkeypatch):
+        monkeypatch.setenv("EVAL_DASHBOARD_REPORT_ROOT", str(tmp_path))
+        bad_dir = tmp_path / "run_missing_errors"
+        bad_dir.mkdir()
+        report = _load_report_dict()
+        report["run_id"] = "run_missing_errors"
+        (bad_dir / "report.json").write_text(json.dumps(report, ensure_ascii=False), encoding="utf-8")
+
+        at = streamlit_app.run()
+        assert not at.exception
+
+        all_text = " ".join(str(e.value) for e in list(at.error) + list(at.markdown))
+        assert "缺少 report.json 或 errors.json" in all_text
+
+        # No business metrics should appear for an invalid Run.
+        assert len(at.metric) == 0
+
+    def test_empty_catalog_shows_empty_state(self, streamlit_app, tmp_path, monkeypatch):
+        monkeypatch.setenv("EVAL_DASHBOARD_REPORT_ROOT", str(tmp_path))
+
+        at = streamlit_app.run()
+        assert not at.exception
+        infos = [str(i.value) for i in at.info]
+        assert any("还没有任何评测结果" in i for i in infos)
