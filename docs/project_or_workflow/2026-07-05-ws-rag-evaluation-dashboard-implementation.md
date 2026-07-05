@@ -2,9 +2,9 @@
 
 > 本计划用于在当前工作区直接分批执行。
 >
-> **执行状态：** 待执行。本文完成只代表计划可用，不代表 Dashboard 已实现。
+> **执行状态：** 待执行。本文首轮只交付单 mock Run 的 `mock_mvp`，不代表 Dashboard 已实现。
 
-**目标：** 在 `fire` conda 环境中实现独立、只读的 Streamlit 本机 Dashboard，安全展示主评测链路发布的完整 Run。
+**目标：** 在 `fire` conda 环境中实现独立、只读的 Streamlit 本机 Dashboard，用一个符合共享 schema 的 mock Run 验证加载、展示、下钻、刷新和错误状态。
 
 **架构：** Dashboard 复用主评测链路的共享报告 schema，通过独立 loader 发现和校验 Run，再用单页 Streamlit 应用展示四类视图。Dashboard 不改动 `app/`，不重算评测结论，不读取未完整发布的 Run。
 
@@ -37,7 +37,8 @@
 ### 2.1 已确认
 
 - Dashboard 是本机开发者工具，不是正式产品前端；
-- 四类视图、显式刷新和只读边界已经确定；
+- 总览、文件、问题下钻和“暂无可比较 Run”四类视图已经确定；
+- 首轮只使用一个合法 mock Run，不读取真实 Run、不构造第二个 mock Run；
 - `pyproject.toml` 已声明 `streamlit>=1.58.0,<2.0`；
 - 前端不使用 npm、pnpm 或 yarn；
 - 所有代码和测试必须通过 conda 环境 `fire` 执行。
@@ -46,10 +47,9 @@
 
 - 2026-07-05 当前实测 `fire` 环境尚未安装 Streamlit；进入 Phase 2 前必须报备并取得安装确认；
 - 主评测计划是否已完成共享 `report_models.py`、稳定错误代码和合法 Run fixture；
-- 是否已有可用于最终核对的真实 Run；
 - 当前工作区是否存在无法安全避开的用户改动。
 
-缺少前两项时不得开始 UI 实现。缺少真实 Run 时允许完成 mock/fixture 驱动开发，但不得完成 Phase 3 收口。
+缺少 Streamlit 安装确认或共享 schema/合法单 Run fixture 时不得开始 UI 实现。真实 Run 不是本轮输入。
 
 ### 2.3 默认值
 
@@ -93,17 +93,17 @@ conda run -n fire python -m pip install "streamlit>=1.58.0,<2.0"
 为保持每卷低于 420 行预警线，本计划拆为：
 
 1. 本文：范围、依赖、顺序、硬门禁、全局验证和 Git 策略；
-2. [分卷一：共享契约、Run 发现与比较 loader](./2026-07-05-ws-rag-evaluation-dashboard-implementation-part-1.md)；
+2. [分卷一：共享契约、单 Run 发现与 loader](./2026-07-05-ws-rag-evaluation-dashboard-implementation-part-1.md)；
 3. [分卷二：Streamlit 页面、状态与错误处理](./2026-07-05-ws-rag-evaluation-dashboard-implementation-part-2.md)；
-4. [分卷三：浏览器、真实 Run 与文档收口](./2026-07-05-ws-rag-evaluation-dashboard-implementation-part-3.md)。
+4. [分卷三：mock Run 浏览器验证与文档收口](./2026-07-05-ws-rag-evaluation-dashboard-implementation-part-3.md)。
 
 ## 5. Phase 顺序
 
 | Phase | 任务 | 前置条件 | 完成证据 |
 | --- | --- | --- | --- |
-| Phase 1 | 共享契约、Run 发现、诊断与比较 loader | 主评测共享 schema 可用 | loader 单元测试通过 |
-| Phase 2 | 页面骨架、四视图、session state、刷新与错误态 | Streamlit 依赖获批并可导入；Phase 1 完成 | `AppTest` 通过 |
-| Phase 3 | 浏览器、真实 Run、完整回归和文档收口 | 主评测真实 Run 可用；Phase 2 完成 | 字段核对、浏览器验证、完整回归通过 |
+| Phase 1 | 共享契约、单 Run 发现、诊断与 loader | 主评测共享 schema 可用 | loader 单元测试通过 |
+| Phase 2 | 页面骨架、四类状态、session state、刷新与错误态 | Streamlit 依赖获批并可导入；Phase 1 完成 | `AppTest` 通过 |
+| Phase 3 | 单个 mock Run 浏览器验证、完整回归和文档收口 | Phase 2 完成 | mock 字段核对、浏览器验证、完整回归通过 |
 
 禁止跳过 Phase 1 直接根据 mock JSON 手写页面字段。
 
@@ -116,19 +116,19 @@ conda run -n fire python -m pip install "streamlit>=1.58.0,<2.0"
 5. 不内置另一套阈值；
 6. 忽略暂存目录、隐藏目录、符号链接和不完整 Run；
 7. schema、计数或引用一致性失败时，不展示部分业务结果；
-8. 非同口径 Run 不显示涨跌、箭头、修复或退化结论；
+8. 单个 mock Run 的对比视图只能显示不可比较空状态；
 9. 普通交互不得重新扫描磁盘，只有显式刷新替换 Run 快照；
 10. 不启用 `unsafe_allow_html=True`；
 11. Streamlit 默认只绑定 `127.0.0.1`；
 12. 新依赖必须先报备，禁止计划执行者自行扩大依赖；
-13. mock、AppTest 或计划完成不能把能力标记为 `implemented`；
-14. 真实 Run、浏览器和完整回归未通过时不得收口。
+13. 本轮完成只能标记为 `mock_mvp`，能力状态继续保持 `planned`；
+14. 单个 mock Run、浏览器和完整回归未通过时不得完成本轮收口。
 
 ## 7. 全局验证命令
 
 ### 7.1 loader
 
-**意图：** 验证 Run 发现、校验、诊断和比较门禁。
+**意图：** 验证单个 mock Run 的发现、校验和诊断。
 
 ```bash
 conda run -n fire python -m pytest tests/eval_ws_rag/test_dashboard_loader.py -q
@@ -138,7 +138,7 @@ conda run -n fire python -m pytest tests/eval_ws_rag/test_dashboard_loader.py -q
 
 ### 7.2 Streamlit `AppTest`
 
-**意图：** 验证页面状态与四类视图。
+**意图：** 验证页面状态、三个内容视图和不可比较空状态。
 
 ```bash
 conda run -n fire python -m pytest tests/eval_ws_rag/test_dashboard_app.py -q
@@ -148,7 +148,7 @@ conda run -n fire python -m pytest tests/eval_ws_rag/test_dashboard_app.py -q
 
 ### 7.3 评测系统与 Dashboard 联合测试
 
-**意图：** 验证共享 schema 和真实报告兼容。
+**意图：** 验证共享 schema 和单个 mock Run 兼容。
 
 ```bash
 conda run -n fire python -m pytest tests/eval_ws_rag -q
@@ -172,11 +172,11 @@ conda run -n fire python -m pytest -q
 
 | 范围 | 中文 commit 说明 |
 | --- | --- |
-| Phase 1 | `feat(eval): 实现 Dashboard Run 加载与比较门禁` |
+| Phase 1 | `feat(eval): 实现 Dashboard 单Run加载与诊断` |
 | Phase 2A | `feat(eval): 实现 Dashboard 骨架与总览文件视图` |
-| Phase 2B | `feat(eval): 实现问题下钻与双轮对比视图` |
+| Phase 2B | `feat(eval): 实现问题下钻与不可比较状态` |
 | Phase 2C | `feat(eval): 完成 Dashboard 刷新和错误状态` |
-| Phase 3 | `docs(eval): 完成 Dashboard 真实报告验收与状态收口` |
+| Phase 3 | `docs(eval): 完成 Dashboard mock验收与状态收口` |
 
 - 每次提交前运行 `git diff --cached --check` 并检查 staged diff；
 - 不夹带用户已有改动；
@@ -185,13 +185,12 @@ conda run -n fire python -m pytest -q
 
 ## 9. 完成定义
 
-只有以下证据同时存在，Dashboard 才能标记为 `implemented`：
+只有以下证据同时存在，本轮 Dashboard 才能标记为 `mock_mvp`：
 
-- 主评测链路发布的真实 Run 通过共享 schema 和一致性校验；
+- 唯一合法 mock Run 通过共享 schema 和一致性校验；
 - loader、`AppTest`、评测专项和仓库完整回归通过；
-- 浏览器中四类视图、选择兜底、刷新和错误态通过；
-- 至少一组同口径双 Run 比较通过；
-- 真实 Run 的 summary、文件、问题、证据、引文和错误字段完成人工核对；
+- 浏览器中三个内容视图、不可比较空状态、选择兜底、刷新和错误态通过；
+- mock Run 的 summary、文件、问题、证据、引文和错误字段完成字段核对；
 - 文档索引、读取规则、路线图和能力状态与事实一致。
 
-计划完成、依赖声明、mock 页面或单个测试通过都不是完成证据。
+`mock_mvp` 不等于 `implemented`；真实 Run 和双 Run 比较必须通过未来独立验收后才能升级能力状态。

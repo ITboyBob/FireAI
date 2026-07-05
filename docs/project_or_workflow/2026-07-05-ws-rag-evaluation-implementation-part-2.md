@@ -13,14 +13,14 @@
 
 ### 缺失输入
 
-- 正式 Judge 模型、API 地址和密钥；
-- 答案生成模型配置；
 - 分卷一产出的 `dataset_id` 和 `dataset_fingerprint`。
 
 ### 默认值
 
 - 检索 `top_k=5`，保留 Retriever 原始排序；
 - Judge 重复 3 次，run seed 控制证据顺序；
+- 答案生成读取现有 `CHAT_*`；Judge 读取 `WS_RAG_JUDGE_*`，模型为 `doubao-seed-2-1-pro-260628`、温度为 `0`；
+- 答案生成与 Judge 串行执行，临时失败后最多额外重试 1 次；
 - 致命错误只写 `var/ws_rag_eval/<run_id>/debug.json`，不发布正式 run；
 - 无需新增依赖，全部使用 conda 环境 `fire`。
 
@@ -31,8 +31,8 @@
 **阶段输入检查：**
 
 - 已确认：dataset 已固化且真实索引存在；
-- 缺失：正式运行需答案生成模型凭据；
-- 默认：Runner 不过滤跨文档召回，由后续规则显式判定。
+- 缺失：无用户侧关键缺失；正式运行只验证现有 `CHAT_*` 可用；
+- 默认：Runner 不过滤跨文档召回，由后续规则显式判定；每题答案生成严格串行。
 
 **依赖与包管理：** 后端使用 conda 环境 `fire`，复用现有 FAISS、OpenAI SDK 和服务代码，无需新增依赖；前端和其他运行环境不涉及。
 
@@ -52,6 +52,8 @@
 - 空召回正常进入拒答，不伪造成检索错误；
 - query normalization、keyword、vector encoding/search、fusion 异常带阶段标识；
 - 索引缺失和融合异常为致命错误，单题格式异常可恢复。
+- 答案模型配置只读取现有 `CHAT_*`，不接受 CLI 模型覆盖；
+- 临时模型错误只额外重试 1 次，当前题完成前不得开始下一题。
 
 **Step 2：确认预期失败。**
 
@@ -105,8 +107,8 @@ conda run -n fire python -m pytest tests/eval_ws_rag/test_rag_runner.py -q -k re
 **阶段输入检查：**
 
 - 已确认：Judge 与答案生成必须解耦，且要对冲位置偏见；
-- 缺失：正式 Judge 模型与凭据；
-- 默认：重复 3 次、温度 0、证据顺序按 `seed + question_id + repetition` 稳定打乱。
+- 缺失：无用户侧关键缺失；正式运行前验证 Judge 环境变量和 provider 能力；
+- 默认：模型 `doubao-seed-2-1-pro-260628`、重复 3 次、温度 0、证据顺序按 `seed + question_id + repetition` 稳定打乱。
 
 **依赖与包管理：** 后端使用 conda 环境 `fire` 与现有 OpenAI SDK/Pydantic，无需新增依赖；前端和其他运行环境不涉及。
 
@@ -143,7 +145,8 @@ conda run -n fire python -c "import openai; print(openai.__version__)"
 - 三次 evidence 顺序不同但可由 seed 复现；
 - 聚合取算术平均，保留每次原始判定；
 - prompt 明确忽略长度，Judge 输入不暴露被测版本名；
-- 429/临时错误按有限重试处理，最终失败抛 run 级致命错误；
+- 429/临时错误最多额外重试 1 次，第二次失败抛 run 级致命错误；
+- 三次 Judge 重复评分逐次串行，任一问题完成前不得开始下一问题；
 - schema 非法、缺字段、越界分数立即失败。
 
 **Step 2：确认预期失败。**
@@ -158,10 +161,11 @@ conda run -n fire python -m pytest tests/eval_ws_rag/test_eval_chat_client.py te
 
 **Step 3：最小实现。**
 
-- `StructuredEvalClient.complete(messages, response_model)` 复用 OpenAI SDK、base URL、timeout 和重试思想；
+- `StructuredEvalClient.complete(messages, response_model)` 复用 OpenAI SDK，从 `WS_RAG_JUDGE_API_KEY`、`WS_RAG_JUDGE_BASE_URL`、`WS_RAG_JUDGE_MODEL`、`WS_RAG_JUDGE_TEMPERATURE` 读取配置；
 - 不 import 或调用在线 `_build_response_format()`；
 - `JudgeResult` 保存三项 LLM 指标、claim/context 明细、重复次数和 prompt version；
 - Judge 配置显式传入，不读取答案生成模型名作为默认值；
+- `WS_RAG_MODEL_MAX_RETRIES` 默认并固定验收值为 `1`；所有模型调用串行；
 - 不提供默认文本 JSON fallback；provider 不支持本计划的严格结构化输出时按 Step 0 停止。
 
 **Step 4：通过测试。**

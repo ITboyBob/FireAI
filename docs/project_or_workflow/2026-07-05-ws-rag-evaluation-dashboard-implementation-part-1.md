@@ -62,7 +62,7 @@ class DashboardRunError(ValueError):
 
 完成状态：Dashboard loader 复用共享 schema，没有第二套报告模型。
 
-## Task 2：TDD 实现 Run 发现与排序
+## Task 2：TDD 实现单 Run 发现
 
 **依赖：** 无需新增依赖。
 **文件：**
@@ -76,13 +76,13 @@ class DashboardRunError(ValueError):
 
 ```python
 def test_discover_runs_ignores_staging_hidden_and_symlink(tmp_path): ...
-def test_discover_runs_sorts_by_created_at_desc(tmp_path): ...
+def test_discover_runs_loads_the_single_valid_mock_run(tmp_path): ...
 def test_discover_runs_rejects_directory_run_id_mismatch(tmp_path): ...
 ```
 
 fixture 必须同时创建：
 
-- 两个合法 Run，目录 mtime 与 `created_at` 顺序相反；
+- 一个合法 mock Run；
 - 一个 `.<run_id>.tmp`；
 - 一个缺少 `errors.json` 的目录；
 - 一个符号链接；
@@ -114,7 +114,7 @@ def discover_runs(root_dir: Path) -> RunCatalog:
 - 拒绝符号链接和根目录逃逸；
 - 忽略隐藏/暂存目录；
 - 同时读取两份文件并复用共享 schema；
-- 按 `created_at` 倒序，不按 mtime 代表评测时间；
+- 读取并保留 `created_at`，不以目录 mtime 代表评测时间；
 - 不删除、不改名、不修复任何目录。
 
 ### Step 4：运行目标测试
@@ -153,7 +153,7 @@ conda run -n fire python -m pytest tests/eval_ws_rag/test_dashboard_loader.py -q
 
 ```python
 def test_build_snapshot_keeps_previous_snapshot_when_refresh_fails(): ...
-def test_build_snapshot_selects_latest_when_current_run_disappears(): ...
+def test_build_snapshot_becomes_empty_when_the_only_run_disappears(): ...
 ```
 
 ### Step 2：运行失败测试
@@ -188,7 +188,7 @@ def build_snapshot(root_dir: Path, current_run_id: str | None) -> DashboardSnaps
 
 完成状态：刷新可以整体替换快照，不会产生旧新混合页面。
 
-## Task 4：TDD 实现比较门禁和展示派生
+## Task 4：TDD 实现单 Run 展示派生与不可比较状态
 
 **依赖：** 无需新增依赖。
 **文件：**
@@ -196,39 +196,36 @@ def build_snapshot(root_dir: Path, current_run_id: str | None) -> DashboardSnaps
 - Modify: `scripts/eval_ws_rag/dashboard_loader.py`
 - Modify: `tests/eval_ws_rag/test_dashboard_loader.py`
 
-### Step 1：写比较失败测试
+### Step 1：写失败测试
 
 ```python
-def test_compare_blocks_different_dataset_fingerprint(): ...
-def test_compare_blocks_different_protocol_fingerprint(): ...
-def test_compare_blocks_unaligned_question_ids(): ...
-def test_compare_allows_system_version_changes(): ...
+def test_single_run_derives_failure_and_error_counts(): ...
+def test_single_run_comparison_state_is_unavailable(): ...
+def test_single_run_never_exposes_directional_deltas(): ...
 ```
 
 ### Step 2：确认失败
 
 ```bash
-conda run -n fire python -m pytest tests/eval_ws_rag/test_dashboard_loader.py -k "compare" -q
+conda run -n fire python -m pytest tests/eval_ws_rag/test_dashboard_loader.py -k "derive or comparison_state" -q
 ```
 
-**预期输出：** FAIL，原因是比较接口缺失。
+**预期输出：** FAIL，原因是展示派生或不可比较状态接口缺失。
 
-### Step 3：实现门禁结果
+### Step 3：实现单 Run 状态
 
 ```python
-def assess_comparability(
-    baseline: RunRecord,
-    current: RunRecord,
-) -> ComparisonAssessment:
+def build_single_run_view(run: RunRecord) -> SingleRunView:
     ...
 ```
 
-`ComparisonAssessment` 必须包含：
+`SingleRunView` 必须包含：
 
-- `comparable`；
-- 稳定 `reason_codes`；
-- 可并排展示的元信息；
-- 仅在同口径时存在的差值。
+- 报告原始 summary、文件和问题；
+- 稳定失败代码和错误阶段计数；
+- `comparison_available=false`；
+- 固定中文原因“当前只有一个 Run，暂无可比较对象”；
+- 不存在差值、箭头或改进/退化字段。
 
 ### Step 4：实现展示派生
 
@@ -236,18 +233,16 @@ def assess_comparability(
 
 - `failure_reasons[].code` 计数；
 - `errors[].stage` 计数；
-- 同口径 Run 的指标差值；
-- 文件从通过到失败或从失败到通过的状态。
 
 禁止派生：
 
 - 重新计算 `passed`；
 - 用 Dashboard 阈值重新计算通过率；
-- 在非同口径时计算方向结论。
+- 为单个 Run 计算方向结论。
 
 ### Step 5：运行测试
 
-**预期输出：** compare 和全部 loader 测试 PASS。
+**预期输出：** 单 Run 派生和全部 loader 测试 PASS。
 
 ### Step 6：Phase 1 真实 fixture 验证
 
@@ -264,7 +259,7 @@ conda run -n fire python -m pytest tests/eval_ws_rag/test_dashboard_loader.py -q
 提交范围只包括 loader、测试及必要 fixture 调整：
 
 ```bash
-git commit -m "feat(eval): 实现 Dashboard Run 加载与比较门禁"
+git commit -m "feat(eval): 实现 Dashboard 单Run加载与诊断"
 ```
 
 提交前必须检查 staged diff，不得夹带其他 Phase 或用户改动。

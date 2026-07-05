@@ -161,7 +161,7 @@ conda run -n fire python -m pytest tests/eval_ws_rag/test_dashboard_app.py -k "d
 git commit -m "feat(eval): 实现 Dashboard 问题下钻视图"
 ```
 
-## Task 8：TDD 实现两轮对比
+## Task 8：TDD 实现不可比较空状态
 
 **依赖：** 无需新增依赖。
 **文件：**
@@ -172,40 +172,33 @@ git commit -m "feat(eval): 实现 Dashboard 问题下钻视图"
 ### Step 1：写失败测试
 
 ```python
-def test_comparable_runs_show_deltas_and_file_transitions(): ...
-def test_non_comparable_runs_show_reason_without_direction_claims(): ...
+def test_single_run_comparison_view_shows_unavailable_message(): ...
+def test_single_run_comparison_view_has_no_direction_claims(): ...
 ```
 
 ### Step 2：确认失败
 
 ```bash
-conda run -n fire python -m pytest tests/eval_ws_rag/test_dashboard_app.py -k "comparable or non_comparable" -q
+conda run -n fire python -m pytest tests/eval_ws_rag/test_dashboard_app.py -k "comparison_view" -q
 ```
 
 **预期输出：** FAIL。
 
-### Step 3：实现同口径视图
+### Step 3：实现空状态
 
-- summary 和六指标差值；
-- 文件状态变化；
-- 被测系统变量差异；
-- 新增失败与修复文件。
+- 显示“当前只有一个 Run，暂无可比较对象”；
+- 展示当前 Run ID、dataset ID 和 protocol fingerprint，帮助未来定位比较口径；
+- 不提供第二 Run 选择器；
+- 不渲染差值、箭头、红绿变化、文件修复或改进/退化文案。
 
-### Step 4：实现非同口径视图
-
-- 并排元信息；
-- 不一致字段；
-- 原始 summary；
-- 不渲染箭头、红绿变化和改进/退化文案。
-
-### Step 5：运行测试
+### Step 4：运行测试
 
 **预期输出：** Task 8 测试 PASS。
 
-### Step 6：提交 Task 8
+### Step 5：提交 Task 8
 
 ```bash
-git commit -m "feat(eval): 实现 Dashboard 双轮对比视图"
+git commit -m "feat(eval): 实现 Dashboard 不可比较空状态"
 ```
 
 ## Task 9：TDD 实现显式刷新和错误状态
@@ -220,7 +213,7 @@ git commit -m "feat(eval): 实现 Dashboard 双轮对比视图"
 
 ```python
 def test_refresh_replaces_snapshot_atomically(): ...
-def test_refresh_keeps_current_run_or_falls_back_to_latest(): ...
+def test_refresh_keeps_current_run_or_enters_empty_state(): ...
 def test_invalid_run_shows_diagnostic_without_partial_content(): ...
 def test_empty_catalog_shows_empty_state(): ...
 ```

@@ -69,7 +69,7 @@
 | Append-Only 单文件提交 | `implemented` | staging、两次 preflight、索引追加、回滚和 manifest 已有实现 | W-S1 只复用并回归验证，不重写提交事务 | 既有增量导入 |
 | 批次发现与逐文件隔离 | `implemented` | `_run_batch_legal_ingestion()` 实现逐文件评估、串行提交、独立质量报告和批次汇总；失败文件不阻断其他文件，也不回滚已提交文件 | 批次只负责发现、调度和汇总；每份文件独立提交，失败互不污染 | W-S1 |
 | 14 文件真实验收 | `in_progress` | 唯一 fixture 已与真实 14 文件核对；11 份 Word 已完成只读真实分类；W-S1 8 份、W-S2 2 份、W-S3 1 份已全部通过质量门禁并正式提交，正式索引共 20 份文档、876 个关键词 chunk、876 个 FAISS 向量，manifest 共 14 条记录；3 份 PDF 待 PT/PS 策略覆盖 | 继续按当前计划实现 PT、PS 策略并完成对应真实文件验收；最终 14 份均有处理状态和可追溯证据 | 跨里程碑收口 |
-| Word/W 单文件 RAG 问答评测 | `planned` | 1.0 版设计与“总览 + 3 分卷”执行计划已存在；问题集与评测执行、共享报告 schema、目录级原子发布、校准和基线门禁已规划；尚无评测代码、自动化测试和真实评测报告 | 按执行计划完成代码、单元与集成测试、W-S1/W-S2 真实文件评测、50～100 条人工校准及同 dataset 基线后再升级状态 | 建立并完成Word文档的评测系统 |
+| Word/W 单文件 RAG 问答评测 | `planned` | 1.0 版设计与“总览 + 3 分卷”执行计划已存在；模型环境变量、两份目标法规、每类问题数量、目录级原子发布、未校准限制和首个 baseline 登记已规划；尚无评测代码、自动化测试和真实评测报告 | 按执行计划完成代码、测试、两份目标法规共 6 题真实评测、未校准声明及首个 baseline 登记后再升级工程能力状态 | 建立并完成Word文档的评测系统 |
 
 ## 5. 当前里程碑
 
@@ -147,15 +147,20 @@ W-S1 完成不等于 14 文件全量摄取完成，也不等于多格式法规�
 - 1.0 版 [Word/W 阶段单文件 RAG 问答评测设计](../architecture_or_strategy/2026-07-04-ws-rag-evaluation-design.md) 已存在；
 - [Word/W 单文件 RAG 问答评测实施计划](./2026-07-05-ws-rag-evaluation-implementation.md) 已按“总览 + 3 分卷”建立；
 - 评测范围、指标、Judge 协议、报告结构、错误处理和真实验证目标已有设计；
-- 执行计划已固定问题集与评测执行分离、`dataset_id`/`dataset_fingerprint`、共享 `report_models.py`、run 目录级原子发布、50～100 条正式人工校准及同 dataset 基线比较门禁；
+- 执行计划已固定问题集与评测执行分离、`dataset_id`/`dataset_fingerprint`、共享 `report_models.py`、run 目录级原子发布和同 dataset 比较门禁；
+- 答案生成沿用 `CHAT_*`；问题生成使用 `deepseek-v4-pro-260425`，Judge 使用 `doubao-seed-2-1-pro-260628`，两者 Key、URL 首轮与 `CHAT_*` 取值相同但由独立环境变量控制；
+- 三类模型串行调用，临时失败最多额外重试 1 次；Judge 温度为 `0`；
+- 真实目标固定为 W-S1 `doc_d97773f1500c` 和 W-S2 `doc_0e84d13a099b`，每份高频、边界、多样性各 1 条；
+- 本轮不执行人工校准，报告必须声明 `judge_calibrated=false`；首个真实 Run 只登记 baseline，比较延期；
+- Dashboard 首轮只使用一个 mock Run，完成态仅为 `mock_mvp`，不消费真实 Run、不实现双 Run 比较且能力继续保持 `planned`；
 - 当前文档阶段无需新增依赖，沿用现有 `fire` conda 环境。
 
 当前缺口：
 
 - `scripts/eval_ws_rag/`、`scripts/evaluate_ws_rag.py` 及对应自动化测试尚不存在；
-- 尚无 W-S1/W-S2 真实文件评测报告、Judge 人工校准结果或可复现基线。
+- 尚无 W-S1/W-S2 真实文件评测报告或可复现 baseline；Dashboard 也尚无 mock MVP 实现证据。
 
-只有完成执行计划规定的代码、测试、真实文件评测、正式校准和基线证据后，才能把本能力更新为 `implemented`。前端 Dashboard 使用[独立实施计划](./2026-07-05-ws-rag-evaluation-dashboard-implementation.md)，不作为当前已有能力记录，也不与主评测步骤重复。
+只有完成执行计划规定的代码、测试、两份真实文件评测、未校准限制声明和首个 baseline 证据后，才能把主评测工程能力更新为 `implemented`；该状态不代表 Judge 已获法律专家校准。前端 Dashboard 使用[独立实施计划](./2026-07-05-ws-rag-evaluation-dashboard-implementation.md)，首轮只交付单 mock Run 的 `mock_mvp`，不作为已实现能力记录。
 
 ## 6. 后续里程碑安排原则
 
@@ -193,3 +198,4 @@ W-S1 完成不等于 14 文件全量摄取完成，也不等于多格式法规�
 | 2026-07-04 | S3 边界策略与 W-S3 组合验收完成：独立正文后排除策略落地，29 条正文真实文件正式提交；S3 与 W-S3 里程碑状态更新为 `implemented`；单文件批次导入新增 `force_batch` 参数以修复 CLI 单来源批次路径 | 正式批次 `c132d0f3-aa52-40cc-a1c8-7e26cb0209e1`：`selected=1`、`committed=1`、`failed=0`；`tests/integration/pipeline/test_ws3_formal_index_state.py` 与 `test_ws3_qualified_incremental_import.py` 通过；完整回归 471 项通过；正式索引共 20 份文档、876 关键词 chunks、876 FAISS 向量，manifest 14 条记录 |
 | 2026-07-04 | 登记 Word/W 单文件 RAG 问答评测里程碑；设计文档已形成 1.0 版，设计与执行计划编写进行中；能力保持 `planned` | Linear 里程碑“建立并完成Word文档的评测系统”进度 25%，唯一附属 issue `BOB-20` 为 `In Progress`；仓库未发现实施计划、评测代码、自动化测试或真实评测报告 |
 | 2026-07-05 | 完成 Word/W 单文件 RAG 问答评测“总览 + 3 分卷”实施计划；固定不可变 dataset、共享报告 schema、真实 RAG/Judge、目录级原子发布、校准、基线和真实验收顺序；能力保持 `planned` | [Word/W 单文件 RAG 问答评测实施计划](./2026-07-05-ws-rag-evaluation-implementation.md)及三个分卷；尚无业务代码、自动化测试、真实报告或校准证据 |
+| 2026-07-05 | 收敛主评测与 Dashboard 首轮输入：三类模型改由环境变量控制并串行、额外重试 1 次；固定两份法规和每类 1 题；取消本轮人工校准，首个真实 Run 只登记 baseline；Dashboard 只使用一个 mock Run | 用户确认的模型、文档、问题数量、调用和基线策略；主评测与 Dashboard 设计/计划同步更新，能力仍为 `planned` |

@@ -2,7 +2,7 @@
 
 > 本计划用于在当前工作区直接按批次执行。
 
-**目标：** 为已导入的 W-S1/W-S2 法规建立可复现的单文件 RAG 问答评测链路，分离问题集生成与评测执行，产出可校准、可比较、可原子发布的版本化 JSON 报告。
+**目标：** 为已确认的 W-S1/W-S2 法规建立可复现的单文件 RAG 问答评测链路，分离问题集生成与评测执行，产出可追溯、可登记基线、可原子发布的版本化 JSON 报告。
 
 **架构：** 评测代码只新增到 `scripts/eval_ws_rag/` 及两个薄 CLI，不改动 `app/` 核心服务。问题集先独立生成并以 `dataset_id`、`dataset_fingerprint` 固化；评测执行复用真实 `Retriever.search()` 与 `build_answer()`，再由规则校验和独立 Judge 打分。报告先在 run 级暂存目录完成双文件校验，再以目录重命名一次性发布。
 
@@ -39,8 +39,8 @@ Dashboard 是下游只读消费者，其设计和实现均由独立文档负责�
 - 聚合问题级、文件级和 run 级指标；
 - 生成共享 `report_models.py`，作为主评测写入器与 Dashboard 读取器的唯一 Python schema；
 - 以 run 目录为单位暂存、自校验和原子发布 `report.json`、`errors.json`；
-- 完成人工校准、不可变基线登记、同 dataset 两轮比较；
-- 用 W-S1、W-S2 各至少一份真实文件完成端到端验收。
+- 登记首个不可变 baseline；同 dataset 两轮比较能力只做确定性测试，本轮不生成第二个 current Run；
+- 用 `doc_d97773f1500c`《消防监督检查规定》和 `doc_0e84d13a099b`《河北省消防设施管理规定》完成端到端验收。
 
 ### 2.2 不纳入范围
 
@@ -50,6 +50,7 @@ Dashboard 是下游只读消费者，其设计和实现均由独立文档负责�
 - 把 Dashboard 作为评测执行入口，或让 Dashboard 修改阈值、问题集和报告；
 - 自动发布到远端、云部署、多用户权限或定时评测；
 - 仅凭 LLM 分数自动作出法律专家结论。
+- 人工校准、专家裁决和把 Judge 分数解释为法律专业准确率。
 
 ## 3. 已确认输入、缺失输入与默认值
 
@@ -59,24 +60,29 @@ Dashboard 是下游只读消费者，其设计和实现均由独立文档负责�
 - 当前 `Retriever.search()` 在全局索引上返回原始 top-k，评测不得暗中改写其排序；
 - `build_answer()` 已执行结构校验和候选引文约束；
 - `OpenAIChatClient` 的响应 schema 固定为在线答案 `ModelAnswer`，不能直接承担 Judge 自定义 schema；
-- Dashboard 只消费正式 run 目录中的版本化报告。
+- 主评测负责发布正式版本化 Run；Dashboard 首轮只用共享 schema 的单个 mock Run，未来真实接入再消费正式 Run。
+- 答案生成沿用现有 `CHAT_*`；问题生成模型固定为 `deepseek-v4-pro-260425`，Judge 固定为 `doubao-seed-2-1-pro-260628`；
+- 问题生成和 Judge 的 Key、URL 与现有 `CHAT_*` 取值相同，但分别由独立环境变量控制；
+- 两份目标法规已经确认；每份默认生成高频、边界、多样性各 1 条问题；
+- 三类模型全部串行调用，失败后最多额外重试 1 次；Judge 温度为 `0`；
+- 首个真实 Run 只登记为 baseline，本轮不执行真实 baseline/current 比较。
 
 ### 阶段开始前仍需检查
 
 - `fire` 环境、真实索引和目标文档 chunks 是否存在；
-- 生成模型、问题生成模型、Judge 模型、API 地址和密钥是否已由用户提供；
-- Judge 与答案生成模型是否不同；相同时必须记录偏差风险并经用户确认；
-- 首次正式校准的人工评审者及 50～100 条样本是否可用；
-- 拟设为 baseline 的 run 是否已经通过真实验收。
+- `fire` 环境能否读取三类模型环境变量，且不得打印密钥；
+- 目标 provider 是否支持问题集和 Judge 所需的严格结构化输出；
+- 首个拟登记 baseline 的 Run 是否已经通过真实验收。
 
-缺少模型凭据时仍可完成纯本地单元与 fake-client 集成测试，但不得声称真实 Judge、校准、基线和里程碑验收已经完成。
+缺少模型凭据时仍可完成纯本地单元与 fake-client 集成测试，但不得声称真实模型、baseline 和里程碑验收已经完成。
 
 ### 默认值
 
 - `top_k=5`；
 - 阈值：上下文相关性 `0.8`、来源覆盖率 `0.9`、忠实度 `0.9`、答案相关性 `0.8`、引文有效性 `1.0`、拒答适当性 `0.9`；
-- 每个文档至少覆盖高频、不可回答边界、开头/中部/尾部结构切片；
+- `WS_RAG_FREQUENT_QUESTIONS_PER_DOCUMENT=1`、`WS_RAG_BOUNDARY_QUESTIONS_PER_DOCUMENT=1`、`WS_RAG_DIVERSITY_QUESTIONS_PER_DOCUMENT=1`；
 - Judge 证据顺序使用 run seed 可复现打乱，默认重复 3 次后取平均；
+- `WS_RAG_MODEL_MAX_RETRIES=1`，含首次调用最多尝试 2 次；模型调用并发数固定为 1；
 - dataset 落在 `data/eval/ws_rag_datasets/<dataset_id>/dataset.json`；
 - 正式 run 落在 `reports/ws_rag_eval/<run_id>/`；
 - 失败调试信息落在 `var/ws_rag_eval/<run_id>/debug.json`，不让 Dashboard 把失败目录误认作正式报告。
@@ -96,7 +102,7 @@ Dashboard 是下游只读消费者，其设计和实现均由独立文档负责�
 
 - [分卷一：共享契约、不可变问题集与问题生成](./2026-07-05-ws-rag-evaluation-implementation-part-1.md)
 - [分卷二：真实 RAG、Judge、规则校验与原子报告](./2026-07-05-ws-rag-evaluation-implementation-part-2.md)
-- [分卷三：编排、校准、基线比较与真实验收](./2026-07-05-ws-rag-evaluation-implementation-part-3.md)
+- [分卷三：编排、限制声明、基线登记与真实验收](./2026-07-05-ws-rag-evaluation-implementation-part-3.md)
 
 默认读取顺序：本总览 → 当前分卷 → 当前 Task 指定的设计、代码和测试。执行 Dashboard 时改读其独立计划，不继续读取本计划分卷。
 
@@ -108,10 +114,10 @@ Dashboard 是下游只读消费者，其设计和实现均由独立文档负责�
 | Phase 2 问题集 | 3—4 | 文档加载、独立问题集生成 CLI、问题集质量门禁 | 无需新增依赖 |
 | Phase 3 真实执行 | 5—6 | RAG Runner、独立结构化 Judge 客户端与评分协议 | 无需新增依赖 |
 | Phase 4 评判发布 | 7—9 | 规则校验、聚合器、run 目录级原子发布 | 无需新增依赖 |
-| Phase 5 编排运营 | 10—12 | 主 CLI、人工校准、同 dataset 基线比较 | 无需新增依赖 |
+| Phase 5 编排运营 | 10—12 | 主 CLI、未校准限制声明、首个 baseline 登记与比较门禁 | 无需新增依赖 |
 | Phase 6 真实验收 | 13 | W-S1/W-S2 真实报告、回归证据、文档收口 | 无需新增依赖 |
 
-不得跳过 dataset 固化直接生成临时问题并称为可比较评测；不得在共享 schema 和原子发布尚未通过测试时启动 Dashboard 真实报告验收。
+不得跳过 dataset 固化直接生成临时问题；不得把首个 baseline 描述为已经完成模型对比；Dashboard 本轮只执行单个 mock Run，不等待或消费真实报告。
 
 ## 7. 全局硬门禁
 
@@ -134,6 +140,9 @@ Dashboard 是下游只读消费者，其设计和实现均由独立文档负责�
 17. 真实验收必须使用已导入 W-S1、W-S2 文件和真实索引；不得 skip/xfail。
 18. 报告及 dataset 不得记录 API Key、完整系统提示词或不必要的个人信息。
 19. Dashboard 只通过独立计划实施；本计划不得复制其 UI Task。
+20. 三类模型配置只从环境读取：答案生成使用 `CHAT_*`，问题生成使用 `WS_RAG_QUESTION_GENERATOR_*`，Judge 使用 `WS_RAG_JUDGE_*`；CLI 不接受模型选择参数。
+21. 三类模型调用必须串行，临时失败最多额外重试 1 次；Judge 温度固定为 `0`。
+22. 报告必须记录 `judge_calibrated=false`，默认阈值只作为工程门禁。
 
 ## 8. Git 策略
 
@@ -154,9 +163,9 @@ Dashboard 是下游只读消费者，其设计和实现均由独立文档负责�
 3. 共享 schema 同时约束主评测和 Dashboard loader；
 4. 规则、Judge、聚合和错误处理测试全部通过；
 5. run 目录级原子发布及覆盖保护测试通过；
-6. 人工正式校准达到 50～100 条，并记录一致率、争议项和最终阈值；
-7. W-S1、W-S2 各至少一份真实文件完成无 skip 端到端评测；
-8. 基线由不可变 run 登记，且同 dataset 比较门禁通过；
+6. 报告明确记录 Judge 未经人工校准，文档不得把默认阈值表述为专家认可标准；
+7. 已确认的 W-S1、W-S2 两份真实文件各生成三类问题各 1 条，并完成无 skip 端到端评测；
+8. 首个通过验收的不可变 Run 已登记为 baseline；同 dataset 比较门禁测试通过，但不要求本轮生成第二个真实 Run；
 9. 仓库完整回归通过，文档状态与代码和报告证据一致；
 10. Dashboard 是否完成单独按其实施计划判断，不阻塞主评测能力本身。
 

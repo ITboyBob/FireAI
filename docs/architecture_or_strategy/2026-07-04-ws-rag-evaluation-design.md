@@ -4,7 +4,7 @@
 **日期：** 2026-07-04  
 **设计文档状态：** 已形成 1.0 版；对应“总览 + 3 分卷”执行计划已建立
 
-**能力状态：** `planned`；执行计划已建立，但尚无业务代码、自动化测试、人工校准或真实文件评测结果，不能标记为已实现
+**能力状态：** `planned`；执行计划已建立，但尚无业务代码、自动化测试或真实文件评测结果，不能标记为已实现
 
 **执行入口：** [Word/W 单文件 RAG 问答评测实施计划](../project_or_workflow/2026-07-05-ws-rag-evaluation-implementation.md)
 
@@ -35,13 +35,17 @@
 
 ### 2.2 Dataset：三类问题分层
 
-每份 Word 文件的问题集覆盖三层场景，目标是**场景覆盖率**而非题目数量：
+首轮固定评测两份已导入法规：W-S1 的 `doc_d97773f1500c`《消防监督检查规定》和 W-S2 的 `doc_0e84d13a099b`《河北省消防设施管理规定》。前者验证纯正文法规，后者验证正文前含发布材料时仍能围绕目标法规检索和回答；两份文件不是训练数据。
+
+每份 Word 文件的问题集覆盖三层场景，默认每类 1 条、每份文档共 3 条：
 
 | 层级 | 说明 | 示例 |
 |---|---|---|
 | 高频场景 | 用户最可能问的常规事实性问题 | “消防监督检查规定第十条规定了什么？” |
 | 高风险/边界场景 | 容易出错的边界情况 | 问一个文件中不存在的条文，测试是否 hallucinate |
 | 多样性切片 | 覆盖文件不同结构位置 | 开头总则、中间条款、尾部附则各出题 |
+
+三类数量分别由环境变量配置。首轮合计仅 6 条问题，只用于证明评测链路和两类文档边界能够端到端运行，不足以形成统计意义上的模型质量结论。
 
 ### 2.3 Rubric + Metric
 
@@ -69,14 +73,14 @@
 |---|---|---|
 | 规则程序 | 引文格式、引用是否在证据中 | 复用现有 `answer_service` 引文校验 |
 | LLM-as-a-Judge | 忠实度、答案相关性、上下文相关性 | 独立 `ChatClient` 调用模型打分 |
-| 人工评审 | 校准阶段 | 抽查 50～100 条合成问答确定阈值 |
-| 专家评审 | 法律语义争议 | 对红线误判或边界案例做最终裁决 |
+| 人工评审 | 不纳入首轮范围 | 不执行人工校准，不据此宣称 Judge 与法律专家一致 |
 
 #### Evaluation Protocol（第一阶段）
 
-- **模型版本**：固定 Judge 模型版本，写入配置。
+- **模型版本**：答案生成使用现有 `CHAT_*`；问题生成和 Judge 使用各自独立环境变量，精确模型版本写入 dataset 和报告。
 - **盲评**：Judge 不知道被测的是哪个版本/文件。
-- **校准频率**：换模型版本或换提示词后必须重新校准阈值。
+- **调用策略**：问题生成、答案生成和 Judge 全部串行；每次失败后最多额外重试 1 次。
+- **阈值边界**：首轮沿用设计默认阈值，但因不做人工校准，只能作为工程门禁，不能解释为经专家验证的法律质量标准。
 
 #### LLM Judge 偏见对冲
 
@@ -242,16 +246,23 @@ LLM Judge + 规则校验
 | Dataset CLI | `scripts/generate_ws_rag_dataset.py` | 独立生成不可变问题集 |
 | Evaluation CLI | `scripts/evaluate_ws_rag.py` | 只读取已固化 dataset 执行评测 |
 
-### 4.3 LLM Judge 模型切换
+### 4.3 模型配置与切换
 
-LLM Judge 使用独立结构化客户端，和 RAG Runner 的答案生成模型解耦；它复用现有 OpenAI SDK 与连接配置，但不复用在线回答固定的 `ModelAnswer` schema。问题集生成和评测执行是两个独立阶段：
+三类模型不再通过 CLI 参数选择，统一在启动前由环境变量冻结：
+
+- 答案生成：沿用 `CHAT_API_KEY`、`CHAT_BASE_URL`、`CHAT_MODEL`；
+- 问题生成：`WS_RAG_QUESTION_GENERATOR_API_KEY`、`WS_RAG_QUESTION_GENERATOR_BASE_URL`、`WS_RAG_QUESTION_GENERATOR_MODEL`，首轮模型为 `deepseek-v4-pro-260425`；
+- Judge：`WS_RAG_JUDGE_API_KEY`、`WS_RAG_JUDGE_BASE_URL`、`WS_RAG_JUDGE_MODEL`、`WS_RAG_JUDGE_TEMPERATURE`，首轮模型为 `doubao-seed-2-1-pro-260628`、温度为 `0`；
+- 三类调用共用 `WS_RAG_MODEL_MAX_RETRIES=1`，含首次调用最多尝试 2 次；编排器不得并发调用模型。
+
+问题生成和 Judge 的 Key、URL 首轮取值与现有 `CHAT_API_KEY`、`CHAT_BASE_URL` 相同，但仍使用独立变量，便于以后分别切换。LLM Judge 使用独立结构化客户端，不复用在线回答固定的 `ModelAnswer` schema。问题集生成和评测执行仍是两个独立阶段：
 
 ```bash
 conda run -n fire python scripts/generate_ws_rag_dataset.py --help
 conda run -n fire python scripts/evaluate_ws_rag.py --help
 ```
 
-正式评测必须传入已落盘 dataset、生成模型、Judge 模型和 Run ID；不得通过 `--document-id` 隐式生成临时问题集。
+dataset CLI 必须传入目标文档、dataset ID 和 seed；评测 CLI 必须传入已落盘 dataset 和 Run ID。两者从环境读取模型配置，不接受模型选择参数，也不得通过评测 CLI 的 `--document-id` 隐式生成临时问题集。
 
 ## 5. 核心数据结构
 
@@ -333,7 +344,7 @@ conda run -n fire python scripts/evaluate_ws_rag.py --help
 | 某 question 召回为空 | 不算失败，正常进入生成阶段测试拒答 |
 | 结果融合异常 | 停止工作流 |
 
-## 7. 测试与校准
+## 7. 测试、限制与基线
 
 ### 7.1 测试策略
 
@@ -343,18 +354,17 @@ conda run -n fire python scripts/evaluate_ws_rag.py --help
 | 集成测试 | 真实索引 + fake 模型验证确定性链路，不访问外部模型 |
 | 真实验证 | 显式运行真实生成模型和独立 Judge，再用只读验证器核对 W-S1/W-S2 联合 Run |
 
-### 7.2 校准工作流
+### 7.2 首轮限制声明
 
-1. 选 Judge 模型版本。
-2. 对 1～2 份已知文件跑评测，得到原始分数。
-3. 人工抽查 20 条只作为 pilot。
-4. 正式校准必须覆盖 50～100 条，并记录一致率、误报、漏报和争议项。
-5. 把阈值、模型版本写入 `scripts/eval_ws_rag/config.json`。
-6. 换模型版本时重新执行 2～5 步。
+- 首轮不执行人工校准或专家裁决；
+- 默认阈值和 Judge 分数只用于工程回归，不代表法律专业准确率；
+- dataset、报告和 Dashboard 必须展示 `judge_calibrated=false`，防止使用者把未校准分数误认为专家结论；
+- 未来若要把分数用于发布决策，必须另立人工校准计划，不能静默提高本轮证据等级。
 
 ### 7.3 基线管理
 
 - baseline registry 保存到 `data/eval/ws_rag_baselines.json`，只引用不可变正式 Run。
+- 首个通过真实验收的 Run 只登记为 baseline；本轮不生成第二个 current Run，也不输出模型改进结论。
 - 只有 schema 主版本、dataset、protocol 及文档/问题身份全部一致时才能输出方向性差异。
 
 ## 8. 扩展项：前端 Dashboard
@@ -366,7 +376,7 @@ Dashboard 扩展项已拆分为独立[专项设计](./2026-07-05-ws-rag-evaluati
 ## 9. 依赖
 
 - 无需新增依赖，沿用现有 `fire` conda 环境。
-- LLM Judge 复用现有 `openai` SDK 和连接配置，但使用独立结构化响应适配器。
+- 三类模型复用现有 `openai` SDK；答案生成沿用 `CHAT_*`，问题生成和 Judge 使用独立环境变量及结构化响应适配器。
 
 ## 10. 验收标准
 
@@ -379,4 +389,5 @@ Dashboard 扩展项已拆分为独立[专项设计](./2026-07-05-ws-rag-evaluati
 - [ ] 能以 Run 目录为单位原子发布 `report.json` 与 `errors.json`。
 - [ ] Judge LLM 调用失败时工作流停止并输出 Debug 信息。
 - [ ] RAG Runner 检索失败时记录结构化错误信息。
-- [ ] 在 `fire` 环境下完整跑通 W-S1/W-S2 各一份文件。
+- [ ] 在 `fire` 环境下完整跑通已确认的 W-S1/W-S2 各一份文件，每份生成三类问题各 1 条。
+- [ ] 首个真实 Run 登记为 baseline，报告明确 `judge_calibrated=false`，不输出方向性比较结论。

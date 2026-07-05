@@ -15,7 +15,7 @@ Dashboard 是单页 Streamlit 应用。普通控件交互会触发脚本重跑�
 | `empty` | 报告根目录不存在或没有有效 Run | 空目录提示 |
 | `ready` | 当前 Run 完整且校验通过 | 四类视图 |
 | `invalid_run` | 选中 Run 缺失、损坏或不一致 | 结构化错误提示 |
-| `non_comparable` | 双 Run 比较门禁失败 | 元信息并排 + 不一致原因 |
+| `comparison_unavailable` | 首轮只有一个 mock Run | 固定不可比较提示 |
 | `refreshing` | 用户主动刷新快照 | spinner，不展示旧新混合状态 |
 
 首次会话加载一次磁盘快照。切换视图、筛选、排序或选择问题时不得重新扫描目录。
@@ -25,7 +25,7 @@ Dashboard 是单页 Streamlit 应用。普通控件交互会触发脚本重跑�
 ### 2.1 侧边栏
 
 - 当前 Run 选择器；
-- 四个视图入口：总览、文件列表、问题下钻、两轮对比；
+- 四个视图入口：总览、文件列表、问题下钻、对比状态；
 - “刷新报告”按钮；
 - 当前 Run 的 `created_at`、生成模型、Judge 模型、代码 commit、dataset ID；
 - 本机调试工具提示。
@@ -117,31 +117,17 @@ Dashboard 直接显示报告结果。若一致性校验发现摘要与明细不�
 
 当存在红线代码时，仅在当前问题附近显示对应中文说明；不在没有红线的页面堆叠全部规则。
 
-## 6. 视图四：两轮对比
+## 6. 视图四：不可比较状态
 
-选择 Baseline 和 Current 后先执行数据契约中的比较门禁。
-
-### 6.1 同口径
+首轮只存在一个合法 mock Run，不提供 Baseline 和 Current 选择器。
 
 展示：
 
-- Overall Pass Rate、失败问题数、红线失败数变化；
-- 六项指标差值；
-- 文件级对齐表；
-- 新增失败文件和修复文件；
-- 两轮系统变量差异，如 commit、生成模型、prompt 版本、语料指纹。
+- “当前只有一个 Run，暂无可比较对象”；
+- 当前 Run ID、dataset ID、dataset fingerprint 和 protocol fingerprint；
+- 未来比较要求的简短说明。
 
-不展示问题级 diff，保持首版范围。
-
-### 6.2 非同口径
-
-只展示：
-
-- 两轮 dataset/protocol/schema 元信息；
-- 不一致字段；
-- 原始汇总值并排查看。
-
-不显示变化箭头、红绿高亮或“变好/变差”结论。
+不得显示差值、变化箭头、红绿高亮、修复/新增失败或“变好/变差”结论。双 Run 比较属于未来扩展，兼容条件继续由数据契约定义。
 
 ## 7. 显式刷新
 
@@ -215,8 +201,8 @@ conda run -n fire python -m streamlit run scripts/eval_ws_rag/dashboard.py --ser
 - summary/documents/questions 计数不一致；
 - 引文绑定不存在的 chunk；
 - 暂存目录、隐藏目录和符号链接被忽略；
-- `created_at` 排序；
-- 同口径和非同口径对比。
+- 唯一合法 mock Run 可被加载；
+- 对比状态固定为不可用。
 
 ### 10.2 Streamlit `AppTest`
 
@@ -225,7 +211,7 @@ conda run -n fire python -m streamlit run scripts/eval_ws_rag/dashboard.py --ser
 - Run、文件、问题选择写入 session state；
 - 普通筛选不重新扫描磁盘；
 - 显式刷新替换快照并保留或回退当前选择；
-- 非同口径时不出现差值和方向结论。
+- 单 Run 对比状态不出现差值和方向结论。
 
 每次修改 widget 值后必须显式调用 `AppTest.run()`。不要把 AppTest 未覆盖的浏览器布局行为误报为已验证。
 
@@ -238,27 +224,29 @@ conda run -n fire python -m streamlit run scripts/eval_ws_rag/dashboard.py --ser
 - 总览数字和 fixture 原值一致；
 - 页面没有 traceback、敏感信息和不安全 HTML。
 
-### 10.4 真实 Run 核对
+### 10.4 单个 mock Run 核对
 
-主评测链路首次发布真实 Run 后，至少核对：
+只使用一份共享 schema 合法 fixture，至少核对：
 
-- Run 数量和排序；
+- Run 数量严格为 1；
 - 顶层 summary；
 - 文件行数和状态；
 - 一个通过问题、一个普通失败和一个红线失败；
 - 检索证据、引文绑定和错误报告；
-- 一组同口径双 Run 对比。
+- 对比视图固定显示不可比较状态。
 
 ## 11. 完成定义
 
-只有同时满足以下条件，Dashboard 才能标记为 `implemented`：
+只有同时满足以下条件，本轮 Dashboard 才能标记为 `mock_mvp`：
 
-- 主评测系统已经按共享契约发布真实 Run；
-- schema/loader 单元测试和 AppTest 全部通过；
+- 唯一 mock Run 已按共享契约通过校验；
+- schema/loader 单元测试和 `AppTest` 全部通过；
 - 仓库完整回归无新增失败；
 - 浏览器烟雾验证通过；
-- 真实 Run 字段级人工核对通过；
+- mock Run 字段级核对通过；
 - Dashboard 与主评测执行计划的交叉依赖已经收口；
 - 索引、读取规则、能力路线图和实际状态一致。
+
+`mock_mvp` 不代表 Dashboard 能力已经 `implemented`；真实 Run 和双 Run 比较留待未来独立验收。
 
 具体 TDD Task、命令、预期失败、真实验证和中文 commit 策略见 [Dashboard 实施计划](../project_or_workflow/2026-07-05-ws-rag-evaluation-dashboard-implementation.md)。

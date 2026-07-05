@@ -1,6 +1,6 @@
 # Word/W 单文件 RAG 问答评测实施计划：分卷三
 
-> 本分卷负责编排、人工校准、基线比较、W-S1/W-S2 真实验收和文档收口。
+> 本分卷负责编排、未校准限制声明、首个基线登记、W-S1/W-S2 真实验收和文档收口。
 
 ## 1. 分卷入口检查
 
@@ -12,27 +12,27 @@
 
 ### 缺失输入
 
-- 正式生成/Judge 模型及凭据；
-- 用户确认的校准样本与人工评审者；
-- 拟登记 baseline 的真实 run；
-- W-S1、W-S2 各一份目标真实文件。
+- 分卷一、二完成后生成的正式 dataset；
+- 通过真实验收后拟登记为 baseline 的首个 Run。
 
 ### 默认值
 
 - run ID 采用本地时间戳加短随机后缀；
 - 正式报告根目录 `reports/ws_rag_eval/`；
 - baseline registry 为 `data/eval/ws_rag_baselines.json`，仅保存名称与不可变 run 引用；
+- 目标文档为 `doc_d97773f1500c` 和 `doc_0e84d13a099b`，每份三类问题各 1 条；
+- 三类模型串行调用，失败后最多额外重试 1 次；
 - 无需新增依赖，全部命令使用 conda 环境 `fire`。
 
-## 2. Phase 5：主编排、校准与基线
+## 2. Phase 5：主编排、限制声明与基线
 
 ### Task 10：实现评测主 CLI 与错误收口
 
 **阶段输入检查：**
 
 - 已确认：输入必须是已持久化 dataset；
-- 缺失：正式执行模型配置；
-- 默认：CLI 不隐式生成问题，不接受裸 `document_id` 代替 dataset。
+- 缺失：无用户侧关键缺失；启动时验证环境变量；
+- 默认：CLI 不隐式生成问题，不接受裸 `document_id` 代替 dataset，也不接受模型选择参数。
 
 **依赖与包管理：** 后端使用 conda 环境 `fire` 和现有依赖，无需新增依赖；前端和其他运行环境不涉及。
 
@@ -47,7 +47,8 @@
 
 覆盖：
 
-- 必填 `--dataset`、`--generation-model`、`--judge-model`、`--run-id`；
+- 必填 `--dataset`、`--run-id`；
+- 答案生成只读取 `CHAT_*`，问题生成和 Judge 只读取各自 `WS_RAG_*` 环境变量；
 - 读取 dataset 后重新核验 fingerprint；
 - preflight 检查 chunks、三个索引文件、模型精确版本、生成/Judge prompt 版本和输出冲突；
 - 从 dataset 来源摘要及正式索引身份计算稳定 `corpus_fingerprint`，不得以目录 mtime 代替；
@@ -108,81 +109,86 @@ conda run -n fire python -m pytest tests/eval_ws_rag/test_orchestrator.py -q -k 
 
 **中文 commit：** `feat(eval): 贯通评测主编排与CLI`
 
-### Task 11：建立人工校准与阈值审批记录
+### Task 11：固定未校准限制声明与配置审计
 
 **阶段输入检查：**
 
-- 已确认：换 Judge 模型或 prompt 后必须重新校准；
-- 缺失：人工评审者、正式模型和 50～100 条样本；
-- 默认：20 条仅作试运行，不能代替正式校准。
+- 已确认：本轮不执行人工校准，默认阈值只用于工程回归；
+- 缺失：无；
+- 默认：所有正式报告记录 `judge_calibrated=false`。
 
 **依赖与包管理：** 后端使用 conda 环境 `fire` 和标准库/Pydantic，无需新增依赖；前端和其他运行环境不涉及。
 
 **文件：**
 
-- 新建：`scripts/eval_ws_rag/calibration.py`
-- 新建：`scripts/calibrate_ws_rag_judge.py`
-- 新建：`tests/eval_ws_rag/test_calibration.py`
-- 生成：`data/eval/ws_rag_calibrations/<calibration_id>.json`
+- 新建：`scripts/eval_ws_rag/runtime_config.py`
+- 新建：`tests/eval_ws_rag/test_runtime_config.py`
+- 修改：`scripts/eval_ws_rag/report_models.py`
+- 修改：`tests/eval_ws_rag/fixtures/valid_report.json`
+- 修改：`.env.example`
 
 **Step 1：先写失败测试。**
 
-覆盖稳定抽样、20 条 pilot 标记、50～100 条正式门禁、人工/Judge 一致率、红线误判计数、争议项保留、模型/prompt/阈值绑定、低于样本门槛禁止批准。
+覆盖：
+
+- 答案生成模型只读取现有 `CHAT_*`；
+- 问题生成与 Judge 分别读取独立 Key、URL、模型环境变量；
+- 首轮精确模型 ID 与用户确认值一致；
+- 三类问题数量环境变量默认均为 `1`；
+- 三类模型调用并发固定为 `1`，`WS_RAG_MODEL_MAX_RETRIES=1`；
+- Judge 温度固定为 `0`；
+- 配置日志和报告不包含 API Key；
+- 报告缺少 `judge_calibrated=false` 时 schema 校验失败。
 
 **Step 2：确认预期失败。**
 
-**命令执行意图：** 证明校准模块尚不存在。
+**命令执行意图：** 证明统一运行配置和限制字段尚不存在。
 
 ```bash
-conda run -n fire python -m pytest tests/eval_ws_rag/test_calibration.py -q
+conda run -n fire python -m pytest tests/eval_ws_rag/test_runtime_config.py -q
 ```
 
 **预期输出：** FAIL，原因是目标模块不存在。
 
 **Step 3：最小实现。**
 
-校准记录必须包含：
+实现只读运行配置模型，集中校验三类模型身份、连接配置、超时、重试、串行策略和问题数量。报告协议增加 `judge_calibrated`，首轮只能写 `false`。文档与 CLI 帮助必须明确：
 
-- 来源 run 和 dataset 双标识；
-- Judge 模型、prompt 版本、seed 和重复次数；
-- 样本问题 ID、人工标签、Judge 标签；
-- 一致率、各红线的误报/漏报、争议说明；
-- 建议阈值、批准人、批准时间和状态。
-
-CLI 只汇总人工填写的标注文件，不用 Judge 结果覆盖人工裁决。
+- Judge 分数未经人工或专家校准；
+- 六条问题只用于端到端工程验收；
+- 默认阈值不能解释为法律专业准确率；
+- 未来若启用人工校准，应新增独立计划和版本化校准记录，不能修改本轮历史 Run。
 
 **Step 4：通过测试。**
 
-**命令执行意图：** 验证校准样本门禁和统计。
+**命令执行意图：** 验证环境变量边界、串行重试和未校准声明。
 
 ```bash
-conda run -n fire python -m pytest tests/eval_ws_rag/test_calibration.py -q
+conda run -n fire python -m pytest tests/eval_ws_rag/test_runtime_config.py -q
 ```
 
 **预期输出：** 全部 PASS。
 
-**Step 5：真实报告验证。**
+**Step 5：配置只读验证。**
 
-**命令执行意图：** 从真实 run 稳定抽样并生成待标注模板。
+**命令执行意图：** 查看脱敏后的运行配置摘要。
 
 ```bash
-conda run -n fire python scripts/calibrate_ws_rag_judge.py --help
+conda run -n fire python scripts/evaluate_ws_rag.py --show-config
 ```
 
-**预期输出：** 显示抽样、导入人工标注和生成校准记录参数；不调用模型、不修改报告。
+**预期输出：** 显示三类模型 ID、问题数量、串行策略、额外重试次数和 `judge_calibrated=false`；不显示 Key、不调用模型、不写报告。
 
-人工完成 50～100 条后再次执行汇总；在此之前本 Task 保持未完成。
+**Checkpoint：** 模型配置可审计，未校准边界无法被报告或页面隐藏。
 
-**Checkpoint：** 阈值有人工证据，模型或 prompt 变化会使旧校准失效。
-
-**中文 commit：** `feat(eval): 建立Judge人工校准流程`
+**中文 commit：** `feat(eval): 固定评测模型配置与未校准声明`
 
 ### Task 12：建立不可变基线登记与同 dataset 比较
 
 **阶段输入检查：**
 
 - 已确认：比较不能混用不同问题集；
-- 缺失：经真实验收和校准的 baseline run；
+- 缺失：经真实验收的首个 baseline run；
 - 默认：registry 只保存引用，不复制或覆盖 run 内容。
 
 **依赖与包管理：** 后端使用 conda 环境 `fire` 和标准库/Pydantic，无需新增依赖；前端和其他运行环境不涉及。
@@ -205,6 +211,7 @@ conda run -n fire python scripts/calibrate_ws_rag_judge.py --help
 - `system` 差异明确列出，作为被测变量展示，不静默忽略；
 - 同一 baseline 名称默认禁止覆盖，显式替换需记录前后 run；
 - baseline registry 损坏时不修改。
+- 首轮只有 baseline 时返回“等待 current Run”，不得伪造方向性变化。
 
 **Step 2：确认预期失败。**
 
@@ -240,7 +247,7 @@ conda run -n fire python scripts/compare_ws_rag_runs.py --help
 
 **预期输出：** 显示 baseline/current run 参数，并说明 dataset 不一致时退出码为 `2`。
 
-只有真实 baseline run 可用后才登记；mock run 不得成为正式 baseline。
+只有真实 baseline run 可用后才登记；mock run 不得成为正式 baseline。本轮登记首个 baseline 后即完成该真实步骤，不要求为了凑比较而重复同一配置；比较算法和同口径门禁仍由 fixture 测试覆盖。
 
 **Checkpoint：** 任意可比较结论都能追溯到同一不可变问题集。
 
@@ -253,8 +260,8 @@ conda run -n fire python scripts/compare_ws_rag_runs.py --help
 **阶段输入检查：**
 
 - 已确认：W-S1/W-S2 正式 chunks 和索引存在；
-- 缺失：用户提供正式模型凭据、确认两份目标文档、完成校准审批；
-- 默认：每类至少一份文件，使用同一正式 dataset 版本做 baseline/current 比较。
+- 缺失：无用户侧关键缺失；运行前验证环境变量和 provider 可用；
+- 默认：固定使用 `doc_d97773f1500c`、`doc_0e84d13a099b`，每份三类问题各 1 条；首个 Run 登记 baseline，不生成 current Run。
 
 **依赖与包管理：** 后端使用 conda 环境 `fire` 和现有依赖，无需新增依赖；Dashboard 按独立计划处理，不在本 Task 安装 Streamlit；前端和其他运行环境不涉及。
 
@@ -275,7 +282,7 @@ conda run -n fire python scripts/compare_ws_rag_runs.py --help
 
 - 验证器只读指定 dataset、run 和正式 chunks/index，不调用外部模型；
 - 真实 dataset 可加载且来源摘要与正式 chunks 一致；
-- 报告以嵌套 `dataset`、`protocol`、`system` 记录 dataset/protocol 双指纹、模型精确版本、Git commit/dirty 状态、语料指纹、阈值、prompt 版本和证据顺序策略；
+- 报告以嵌套 `dataset`、`protocol`、`system` 记录 dataset/protocol 双指纹、模型精确版本、Git commit/dirty 状态、语料指纹、阈值、prompt 版本、证据顺序策略和 `judge_calibrated=false`；
 - 两个报告文件同目录成对存在且共享 schema 可重载；
 - report/errors、文件、问题、证据和引文的跨字段一致性通过；
 - 非法或半成品 run 返回非零退出码；
@@ -311,7 +318,7 @@ conda run -n fire python -m pytest tests/eval_ws_rag/test_real_run_verifier.py -
 conda run -n fire python scripts/generate_ws_rag_dataset.py --help
 ```
 
-**预期输出：** 显示 document、model、dataset ID 和 seed 参数。
+**预期输出：** 显示 document、dataset ID 和 seed 参数；模型从环境读取，帮助中不存在模型选择参数。
 
 **命令执行意图：** 查看评测运行参数，确认输入要求为 dataset。
 
@@ -319,9 +326,9 @@ conda run -n fire python scripts/generate_ws_rag_dataset.py --help
 conda run -n fire python scripts/evaluate_ws_rag.py --help
 ```
 
-**预期输出：** 显示 dataset、生成模型、Judge 模型、run ID 和报告根目录参数。
+**预期输出：** 显示 dataset、run ID 和报告根目录参数；模型从环境读取，帮助中不存在模型选择参数。
 
-正式运行命令中的实际 ID 和模型名由阶段输入检查结果填写，禁止在计划中伪造。
+正式运行命令中的实际 dataset ID 和 run ID 由阶段输入检查结果填写；模型身份来自已确认环境变量。
 
 真实验收必须实际完成：独立 dataset 生成、真实 Retriever、真实答案生成模型、真实且独立的 Judge、run 目录级原子发布。凭据缺失、网络失败或模型调用失败都表示本阶段未完成，不得改成 pytest skip，也不得用 fake client 替代。
 
@@ -355,7 +362,7 @@ conda run -n fire python -m pytest -q
 
 **Step 7：真实报告人工核对与状态更新。**
 
-人工核对至少 10% 问题且不少于 10 条；正式校准仍按 Task 11 的 50～100 条门禁。核对：
+本轮不执行人工校准。实现者只做产物一致性核对：
 
 - 目标条文是否在原始 top-k；
 - 回答与引文是否可回溯；
@@ -363,7 +370,7 @@ conda run -n fire python -m pytest -q
 - 报告聚合是否与问题明细一致；
 - 正式 run 不含密钥、完整 prompt 和半成品。
 
-仅在代码、测试、真实模型评测、校准和基线全部完成后，将能力路线图更新为 `implemented`；否则如实保持 `in_progress` 或 `planned`。
+仅在代码、测试、真实模型评测、未校准限制声明和首个 baseline 登记全部完成后，将主评测能力更新为 `implemented`；否则如实保持 `in_progress` 或 `planned`。`implemented` 只表示工程链路完成，不代表 Judge 获得法律专家校准。
 
 文档中 Dashboard 执行入口只链接：
 
@@ -371,7 +378,7 @@ conda run -n fire python -m pytest -q
 
 不得复制其 Streamlit Phase。
 
-**Checkpoint：** W-S1/W-S2 真实证据、人工校准、基线和文档状态一致。
+**Checkpoint：** W-S1/W-S2 真实证据、未校准限制、首个 baseline 和文档状态一致。
 
 **中文 commit：** `test(eval): 完成Word评测真实验收与文档收口`
 
@@ -393,4 +400,4 @@ git diff --check
 
 **预期输出：** 无输出。
 
-本分卷完成不自动代表 Dashboard 已实现；Dashboard 状态由其独立计划和真实页面证据决定。
+本分卷完成不自动代表 Dashboard 已实现；Dashboard 首轮状态由其独立计划和单 mock Run 页面证据决定，能力仍保持 `planned`。

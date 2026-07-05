@@ -7,20 +7,22 @@
 ### 已确认
 
 - 主设计定义六个指标、三类问题和单文件评分卡；
-- Dashboard 读取正式 `report.json` / `errors.json`；
+- Dashboard 首轮用共享 schema 的单个 mock `report.json` / `errors.json`，未来真实接入仍复用同一契约；
 - `data/chunks/*.jsonl` 已包含 `document_id`、`title`、`path`、`text`、`article_no`、`source_sha256`、`extraction_class`、`content_class`；
 - `openai`、Pydantic、pytest 已在 `pyproject.toml`，无需新增依赖。
 
 ### 缺失输入
 
-- 正式问题生成模型及凭据；
-- 首批目标 W-S1/W-S2 `document_id`；
-- 用户是否接受 Judge 与答案生成模型相同；默认不接受。
+- 无用户侧关键缺失；阶段开始时只需验证已确认环境变量可读取且密钥不进入日志。
 
 ### 默认值
 
 - dataset 根目录 `data/eval/ws_rag_datasets/`；
 - 问题类型固定为 `frequent`、`boundary`、`diversity`；
+- 目标文档固定为 W-S1 `doc_d97773f1500c` 和 W-S2 `doc_0e84d13a099b`；
+- 三类问题数量分别读取 `WS_RAG_FREQUENT_QUESTIONS_PER_DOCUMENT`、`WS_RAG_BOUNDARY_QUESTIONS_PER_DOCUMENT`、`WS_RAG_DIVERSITY_QUESTIONS_PER_DOCUMENT`，默认均为 `1`；
+- 问题生成模型读取 `WS_RAG_QUESTION_GENERATOR_API_KEY`、`WS_RAG_QUESTION_GENERATOR_BASE_URL`、`WS_RAG_QUESTION_GENERATOR_MODEL`，模型默认 `deepseek-v4-pro-260425`；
+- 问题生成串行执行，失败后最多额外重试 1 次；
 - 可回答问题必须有 `expected_article`，不可回答问题必须声明 `expected_behavior=refuse`；
 - 所有 Python 命令使用 conda 环境 `fire`。
 
@@ -68,6 +70,7 @@ conda run -n fire python -c "import pydantic; print(pydantic.__version__)"
 - `summary.question_count` 等于所有文档问题数；
 - 顶层 `dataset`、`protocol`、`system` 为必填；分别承载固定问题集身份、评测口径和被测系统身份；
 - `dataset.dataset_id`、`dataset.dataset_fingerprint`、`protocol.protocol_fingerprint`、Judge/生成模型精确版本及各自 prompt 版本为必填；
+- `protocol.judge_calibrated` 为必填，首轮固定为 `false`；
 - `protocol_fingerprint` 必须覆盖 Judge 精确模型、Judge prompt 版本、重复次数、证据顺序策略、指标算法版本和全部阈值；
 - `summary` 的问题/通过/失败/红线计数必须与 `documents[].questions[]` 一致；
 - report 与 errors 的 `schema_version`、`run_id`、`created_at` 必须一致；
@@ -257,8 +260,8 @@ conda run -n fire python -m pytest tests/eval_ws_rag/test_document_loader.py -q 
 **阶段输入检查：**
 
 - 已确认：目标文档 chunks 和问题分类；
-- 缺失：正式执行前必须提供问题生成模型、API 地址和密钥；
-- 默认：生成 seed 固定；不可回答问题不得伪造 `expected_article`。
+- 缺失：无用户侧关键缺失；正式执行前验证问题生成环境变量；
+- 默认：生成 seed 固定，每份文档三类问题各 1 条，不可回答问题不得伪造 `expected_article`。
 
 **依赖与包管理：** 后端使用 conda 环境 `fire` 和现有 OpenAI SDK/Pydantic，无需新增依赖；前端和其他运行环境不涉及。
 
@@ -269,9 +272,13 @@ conda run -n fire python -m pytest tests/eval_ws_rag/test_document_loader.py -q 
 - 新建：`tests/eval_ws_rag/test_question_generator.py`
 - 新建：`tests/eval_ws_rag/test_generate_dataset_cli.py`
 
+**Step 0：实现前核验目标 provider 官方契约。**
+
+按仓库联网规则只读取目标 provider 与 OpenAI Python SDK 官方文档，确认 `deepseek-v4-pro-260425` 的精确模型 ID、结构化输出、温度、超时和重试语义。若模型不存在或不支持严格结构化输出，停止 Task 4，报告差异并等待用户决定；不得静默换模型或降级为自由文本 JSON。
+
 **Step 1：先写失败测试。**
 
-使用 fake client，覆盖三类问题、开头/中部/尾部切片、稳定 `question_id`、去重、可回答条文存在、不可回答条文不存在、schema 非法响应停止、密钥不落盘。
+使用 fake client，覆盖三类问题各 1 条、环境变量调整各类数量、稳定 `question_id`、去重、可回答条文存在、不可回答条文不存在、schema 非法响应停止、串行调用、临时失败只额外重试 1 次、密钥不落盘。
 
 **Step 2：确认预期失败。**
 
@@ -290,7 +297,9 @@ conda run -n fire python -m pytest tests/eval_ws_rag/test_question_generator.py 
 - 本地门禁验证条文存在性、负例不存在性、重复问题和切片覆盖；
 - CLI 只生成 dataset，不运行检索、回答、Judge 或报告；
 - `--document-id` 可重复传入；每份文件独立生成和校验问题，再共同写入不可变 `documents[]`；
-- 正式命令必须显式提供至少一个 `--document-id`、`--generator-model`、`--dataset-id`、`--seed`。
+- 正式命令必须显式提供至少一个 `--document-id`、`--dataset-id`、`--seed`，不得提供模型选择参数；
+- 配置层从 `WS_RAG_QUESTION_GENERATOR_*` 读取模型连接，从三个 `WS_RAG_*_QUESTIONS_PER_DOCUMENT` 变量读取数量；
+- 三类模型共用 `WS_RAG_MODEL_MAX_RETRIES=1`；问题生成器按文档和问题类型串行调用，不创建并发任务。
 
 **Step 4：通过测试。**
 
