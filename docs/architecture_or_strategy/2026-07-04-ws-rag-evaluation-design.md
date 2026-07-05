@@ -378,26 +378,9 @@ conda run -n fire python scripts/evaluate_ws_rag.py \
 
 ## 8. 扩展项：前端 Dashboard
 
-### 8.1 目标
+Dashboard 扩展项已拆分为独立专项设计，详见 [W-S RAG 评测 Dashboard 设计](./2026-07-05-ws-rag-evaluation-dashboard-design.md)。
 
-把每一轮 eval 结果除了写入 JSON report 外，还填入一份固定的前端 Dashboard，方便直接查看数据，无需手动解析 JSON。
-
-### 8.2 设计原则
-
-- 不引入新的前端框架，复用现有 FastAPI 模板和静态资源。
-- Dashboard 是只读展示，不修改核心 RAG 服务。
-- 每次评测运行后自动刷新 Dashboard 数据。
-
-### 8.3 初步思路
-
-1. **数据写入**：`report_aggregator.py` 在生成 JSON 后，同时生成一份 `reports/ws_rag_eval_dashboard.json`，结构面向前端展示优化。
-2. **页面路由**：新增一个只读页面，例如 `/eval/dashboard`，由 FastAPI 渲染模板并读取 dashboard JSON。
-3. **展示内容**：
-   - 总体 Pass Rate 趋势图
-   - 每份文件的评分卡列表
-   - 失败问题详情
-   - 检索错误统计
-4. **后续细化**：Dashboard 的具体布局、图表库选择、刷新机制在实现阶段单独设计。
+本文仅保留原初目标：把每一轮 eval 结果以只读方式展示在本地 Dashboard 中，方便直接查看数据，无需手动解析 JSON。具体的技术选型、数据契约、展示架构、刷新策略、测试与依赖均以后续专项设计为准。
 
 ## 9. 依赖
 
