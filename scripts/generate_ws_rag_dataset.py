@@ -8,6 +8,11 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+# Allow direct execution as `python scripts/generate_ws_rag_dataset.py` by adding the repo root.
+_repo_root = Path(__file__).resolve().parents[1]
+if str(_repo_root) not in sys.path:
+    sys.path.insert(0, str(_repo_root))
+
 from scripts.eval_ws_rag.dataset_models import DatasetDocument, EvaluationDataset
 from scripts.eval_ws_rag.dataset_store import save_dataset_atomic
 from scripts.eval_ws_rag.document_loader import DocumentLoadError, load_document_chunks
