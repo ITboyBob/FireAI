@@ -522,4 +522,4 @@ tests/eval_ws_rag/fixtures/
 - 数据契约、信息架构、刷新策略、测试与依赖：已冻结；
 - `streamlit>=1.58.0,<2.0` 已同步写入 `pyproject.toml`；
 - 能力状态：评测系统仍为 `planned`，Dashboard 作为其扩展项同步保持 `planned`；
-- 下一步：编写 SDD/TDD 实施计划并进入开发。
+- SDD/TDD 实施计划已写入 [W-S RAG 评测 Dashboard 实施计划](../project_or_workflow/2026-07-05-ws-rag-evaluation-dashboard-implementation.md)，获批后按 Phase 1—6 进入开发。
