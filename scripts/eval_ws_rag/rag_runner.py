@@ -221,6 +221,7 @@ def _normalize_retrieved_chunks(hits: Sequence[dict[str, Any]]) -> list[Retrieve
             document_id=str(hit.get("document_id", "")),
             path=str(hit.get("path", "")),
             text=str(hit.get("text", "")),
+            article_no=str(hit.get("article_no")) if hit.get("article_no") is not None else None,
             retrieval_score=float(hit.get("score", 0.0)),
             keyword_score=float(hit.get("keyword_score", 0.0)),
             vector_score=float(hit.get("vector_score", 0.0)),

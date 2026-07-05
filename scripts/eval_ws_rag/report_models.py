@@ -59,6 +59,7 @@ class RetrievedChunk(BaseModel):
     document_id: str
     path: str
     text: str
+    article_no: str | None = None
     retrieval_score: float
     keyword_score: float
     vector_score: float
