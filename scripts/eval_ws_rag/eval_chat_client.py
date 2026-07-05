@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import time
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -76,6 +77,32 @@ def _is_retryable(exc: Exception) -> bool:
     return "rate limit" in text or "429" in text or "timeout" in text or "connection" in text or "temporary" in text
 
 
+def _provider_prefers_text_json(base_url: str) -> bool:
+    """判断 provider 是否对 json_schema 支持不稳定，需要回退到 text JSON 解析。"""
+    lower = base_url.lower()
+    return "iflow.cn" in lower or "volces.com" in lower
+
+
+def _extract_json_object(content: str) -> dict[str, Any]:
+    """从模型文本响应中提取第一个 JSON object。
+
+    兼容纯 JSON、Markdown 代码块以及前后带说明文字的情况。
+    """
+    text = content.strip()
+    fenced = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, flags=re.IGNORECASE | re.DOTALL)
+    if fenced:
+        text = fenced.group(1).strip()
+
+    if text.startswith("{") and text.endswith("}"):
+        return json.loads(text)
+
+    start = text.find("{")
+    end = text.rfind("}")
+    if start == -1 or end <= start:
+        raise ValueError("响应中未找到 JSON object")
+    return json.loads(text[start : end + 1])
+
+
 def build_judge_client(
     *,
     api_key: str | None = None,
@@ -83,6 +110,7 @@ def build_judge_client(
     model: str | None = None,
     temperature: float | None = None,
     max_retries: int | None = None,
+    timeout: float | None = None,
 ) -> StructuredEvalClient:
     """Build a structured evaluation client from environment variables."""
     from openai import OpenAI
@@ -94,26 +122,40 @@ def build_judge_client(
     final_max_retries = max_retries if max_retries is not None else int(
         os.environ.get("WS_RAG_MODEL_MAX_RETRIES", "1")
     )
+    final_timeout = (
+        timeout
+        if timeout is not None
+        else float(os.environ.get("WS_RAG_JUDGE_TIMEOUT_SECONDS", "60"))
+    )
 
-    client = OpenAI(api_key=final_api_key, base_url=final_base_url)
+    use_text_json = _provider_prefers_text_json(final_base_url)
+    client = OpenAI(api_key=final_api_key, base_url=final_base_url, timeout=final_timeout)
 
     def complete(messages: Sequence[dict[str, str]], response_model: type[T]) -> T:
-        response = client.chat.completions.create(
-            model=final_model,
-            messages=[{"role": m["role"], "content": m["content"]} for m in messages],
-            temperature=final_temperature,
-            response_format={
+        response_format: dict[str, Any]
+        if use_text_json:
+            response_format = {"type": "text"}
+        else:
+            response_format = {
                 "type": "json_schema",
                 "json_schema": {
                     "name": response_model.__name__,
                     "strict": True,
                     "schema": response_model.model_json_schema(),
                 },
-            },
+            }
+        response = client.chat.completions.create(
+            model=final_model,
+            messages=[{"role": m["role"], "content": m["content"]} for m in messages],
+            temperature=final_temperature,
+            response_format=response_format,
+            timeout=final_timeout,
         )
         content = response.choices[0].message.content
         if isinstance(content, dict):
             data = content
+        elif use_text_json:
+            data = _extract_json_object(content)
         else:
             data = json.loads(content)
         return response_model.model_validate(data)

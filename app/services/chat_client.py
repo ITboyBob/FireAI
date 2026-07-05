@@ -113,7 +113,11 @@ def _extract_message_payload(response: Any) -> str:
 
 
 def _build_response_format(base_url: str) -> dict[str, Any]:
-    if "iflow.cn" in base_url.lower():
+    # 部分国内 provider（如 iflow、火山方舟）对 json_schema 的支持不稳定，
+    # 会忽略 schema、返回非 JSON 或长时间无响应。对这些端点回退到 text，
+    # 依赖 prompt 和下游解析保证 JSON 输出。
+    lower = base_url.lower()
+    if "iflow.cn" in lower or "volces.com" in lower:
         return {"type": "text"}
 
     return {
