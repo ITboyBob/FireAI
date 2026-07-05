@@ -23,7 +23,9 @@
   - SDK 支持 `response_format={"type": "json_schema", "json_schema": {...}}`。
   - 结构化输出需要 `strict=True` 和符合 JSON Schema 的 schema 定义。
   - 响应通过 `chat.completions.create()` 返回，内容从 `choices[0].message.content` 提取。
-- **与计划差异**：待 Task 6 正式核验 Judge 所需结构化输出能力时补充 provider 具体结论。
+  - 官方文档确认 `json_schema` 模式下模型输出会遵守提供的 JSON Schema，且 `additionalProperties: false` 与 `required` 字段均受支持；这满足 Judge 对 `ContextJudgment`、`FaithfulnessJudgment`、`RelevanceJudgment` 三个固定 schema 的解析需求。
+  - 文档同时指出首次请求 schema 会有额外延迟，后续同 schema 请求复用；评测链路中三个 schema 固定，可接受该一次性开销。
+- **与计划差异**：无差异；Judge 使用 `json_schema` + `strict=True`，不依赖 `chat.completions.parse()` 或 Pydantic 对象直接传入的 helper，保持与在线 `ModelAnswer` 解耦。
 
 ## Python 3.14 文件系统契约核验
 
