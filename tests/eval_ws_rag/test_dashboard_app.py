@@ -82,3 +82,64 @@ class TestAppShellAndState:
             radio = at.sidebar.radio[0]
             radio.set_value("文件列表").run()
             assert call_count["n"] == 1
+
+
+
+def _write_run_with_pass_rate(root: Path, run_id: str, overall_pass_rate: float) -> Path:
+    run_dir = _write_run(root, run_id)
+    report = json.loads((run_dir / "report.json").read_text(encoding="utf-8"))
+    report["summary"]["overall_pass_rate"] = overall_pass_rate
+    (run_dir / "report.json").write_text(json.dumps(report, ensure_ascii=False), encoding="utf-8")
+    return run_dir
+
+
+class TestOverviewAndFileList:
+    def test_overview_displays_report_values_without_regrading(self, streamlit_app, tmp_path, monkeypatch):
+        monkeypatch.setenv("EVAL_DASHBOARD_REPORT_ROOT", str(tmp_path))
+        _write_run_with_pass_rate(tmp_path, "run_042", 0.42)
+
+        at = streamlit_app.run()
+        assert not at.exception
+        labels_values = {m.label: m.value for m in at.metric}
+        assert labels_values.get("Overall Pass Rate") == "42%"
+        assert labels_values.get("文件数") == "1"
+        assert labels_values.get("问题数") == "3"
+        assert labels_values.get("失败问题数") == "1"
+        assert labels_values.get("红线失败数") == "1"
+
+    def test_file_list_shows_text_status_and_metrics(self, streamlit_app, tmp_path, monkeypatch):
+        monkeypatch.setenv("EVAL_DASHBOARD_REPORT_ROOT", str(tmp_path))
+        _write_run(tmp_path, "run_001")
+
+        at = streamlit_app.run()
+        at.sidebar.radio[0].set_value("文件列表").run()
+        assert not at.exception
+
+        df = at.dataframe[0].value
+        assert "消防监督检查规定" in df["标题"].values
+        assert "红线失败" in df["状态"].values
+        assert "context_relevancy" in df.columns
+        assert "faithfulness" in df.columns
+
+    def test_file_selectbox_is_available_as_selection_fallback(self, streamlit_app, tmp_path, monkeypatch):
+        monkeypatch.setenv("EVAL_DASHBOARD_REPORT_ROOT", str(tmp_path))
+        _write_run(tmp_path, "run_001")
+
+        at = streamlit_app.run()
+        at.sidebar.radio[0].set_value("文件列表").run()
+        labels = [sb.label for sb in at.selectbox]
+        assert "选择文件（兜底）" in labels
+
+    def test_file_selection_updates_drilldown_state(self, streamlit_app, tmp_path, monkeypatch):
+        monkeypatch.setenv("EVAL_DASHBOARD_REPORT_ROOT", str(tmp_path))
+        _write_run(tmp_path, "run_001")
+
+        at = streamlit_app.run()
+        at.sidebar.radio[0].set_value("文件列表").run()
+
+        file_selectbox = next(sb for sb in at.selectbox if sb.label == "选择文件（兜底）")
+        at = file_selectbox.select("doc_d97773f1500c").run()
+        assert not at.exception
+
+        assert at.session_state["selected_view"] == "问题下钻"
+        assert at.session_state["selected_document_id"] == "doc_d97773f1500c"
