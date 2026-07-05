@@ -2,9 +2,11 @@
 
 **版本：** 1.0  
 **日期：** 2026-07-04  
-**设计文档状态：** 已形成 1.0 版；Linear `BOB-20` 正在继续完成设计与执行计划编写
+**设计文档状态：** 已形成 1.0 版；对应“总览 + 3 分卷”执行计划已建立
 
-**能力状态：** `planned`；尚无评测执行计划、业务代码、自动化测试或真实文件评测结果，不能标记为已实现
+**能力状态：** `planned`；执行计划已建立，但尚无业务代码、自动化测试、人工校准或真实文件评测结果，不能标记为已实现
+
+**执行入口：** [Word/W 单文件 RAG 问答评测实施计划](../project_or_workflow/2026-07-05-ws-rag-evaluation-implementation.md)
 
 **Linear 进度快照：** 2026-07-04 里程碑“建立并完成Word文档的评测系统”为 25%，当前唯一附属 issue `BOB-20` 状态为 `In Progress`
 
@@ -193,6 +195,7 @@ Citation Validity = 有效引文数 / 总引文数
 ```
 Overall Pass Rate = 同时满足以下条件的 question 数 / 总 question 数
   - 上下文相关性 ≥ 阈值
+  - 来源覆盖率 ≥ 阈值
   - 忠实度 ≥ 阈值
   - 答案相关性 ≥ 阈值
   - 引文有效性 = 1.0
@@ -230,23 +233,25 @@ LLM Judge + 规则校验
 | 组件 | 文件 | 职责 |
 |---|---|---|
 | Question Generator | `scripts/eval_ws_rag/question_generator.py` | 从 chunk 生成合成问题 |
+| Dataset Store | `scripts/eval_ws_rag/dataset_store.py` | 固化问题集、来源和指纹，禁止评测时临时重生成 |
 | RAG Runner | `scripts/eval_ws_rag/rag_runner.py` | 调用真实检索+生成 |
 | LLM Judge | `scripts/eval_ws_rag/llm_judge.py` | 对检索和生成结果打分，可切换模型 |
 | Rule Validator | `scripts/eval_ws_rag/rule_validator.py` | 引文、JSON、拒答等规则校验 |
 | Report Aggregator | `scripts/eval_ws_rag/report_aggregator.py` | 聚合评分卡 + 报告 |
-| 入口 CLI | `scripts/evaluate_ws_rag.py` | 用户入口 |
+| Report Publisher | `scripts/eval_ws_rag/report_publisher.py` | 校验并以 Run 目录为单位原子发布报告 |
+| Dataset CLI | `scripts/generate_ws_rag_dataset.py` | 独立生成不可变问题集 |
+| Evaluation CLI | `scripts/evaluate_ws_rag.py` | 只读取已固化 dataset 执行评测 |
 
 ### 4.3 LLM Judge 模型切换
 
-LLM Judge 使用独立的 `ChatClient` 实例，和 RAG Runner 的答案生成模型解耦。通过配置文件或 CLI 参数指定 Judge 模型：
+LLM Judge 使用独立结构化客户端，和 RAG Runner 的答案生成模型解耦；它复用现有 OpenAI SDK 与连接配置，但不复用在线回答固定的 `ModelAnswer` schema。问题集生成和评测执行是两个独立阶段：
 
 ```bash
-conda run -n fire python scripts/evaluate_ws_rag.py \
-  --data-dir data \
-  --document-id doc_xxx \
-  --judge-model gpt-4o-mini \
-  --output reports/ws_rag_eval.json
+conda run -n fire python scripts/generate_ws_rag_dataset.py --help
+conda run -n fire python scripts/evaluate_ws_rag.py --help
 ```
+
+正式评测必须传入已落盘 dataset、生成模型、Judge 模型和 Run ID；不得通过 `--document-id` 隐式生成临时问题集。
 
 ## 5. 核心数据结构
 
@@ -295,6 +300,8 @@ conda run -n fire python scripts/evaluate_ws_rag.py \
 }
 ```
 
+正式 Run 还必须记录 `schema_version`、dataset/protocol 双指纹、被测系统版本、稳定失败代码、完整检索证据和结构化引文。共享完整契约见 [Dashboard 数据契约](./2026-07-05-ws-rag-evaluation-dashboard-data-contract.md)，写入器与 Dashboard loader 必须复用同一 `report_models.py`。
+
 ## 6. 错误处理
 
 ### 6.1 Judge LLM 调用失败
@@ -305,33 +312,7 @@ conda run -n fire python scripts/evaluate_ws_rag.py \
 
 ### 6.2 RAG Runner 检索失败
 
-记录结构化错误信息到 `reports/ws_rag_eval_retrieval_errors.json`：
-
-```json
-{
-  "question": "...",
-  "stage": "vector_search",
-  "stage_description": "向量检索阶段",
-  "object": {
-    "document_id": "doc_xxx",
-    "data_dir": "data",
-    "keyword_db_path": "data/index/retrieval.db",
-    "vector_index_path": "data/index/faiss.index",
-    "vector_map_path": "data/index/vector_map.json",
-    "top_k": 5
-  },
-  "error": {
-    "type": "FileNotFoundError",
-    "message": "faiss.index not found",
-    "traceback": "..."
-  },
-  "input_snapshot": {
-    "normalized_query": "...",
-    "query_text_for_vector": "..."
-  },
-  "recoverable": false
-}
-```
+可恢复的单问题错误写入 `reports/ws_rag_eval/<run_id>/errors.json`；致命错误停止正式 Run 发布，并把脱敏调试信息写入 `var/ws_rag_eval/<run_id>/debug.json`。`report.json` 与 `errors.json` 必须在同一暂存目录通过共享 schema 和跨字段校验后，以一次目录重命名发布。
 
 ### 6.3 检索失败阶段分类
 
@@ -359,41 +340,43 @@ conda run -n fire python scripts/evaluate_ws_rag.py \
 | 测试类型 | 目的 |
 |---|---|
 | 单元测试 | 确保 `question_generator`、`rule_validator`、`report_aggregator` 独立可用 |
-| 集成测试 | 用一份小文件跑一次完整 `scripts/evaluate_ws_rag.py` |
-| 真实验证 | 用 W-S1/W-S2 真实文件跑评测，人工抽查 10% |
+| 集成测试 | 真实索引 + fake 模型验证确定性链路，不访问外部模型 |
+| 真实验证 | 显式运行真实生成模型和独立 Judge，再用只读验证器核对 W-S1/W-S2 联合 Run |
 
 ### 7.2 校准工作流
 
 1. 选 Judge 模型版本。
 2. 对 1～2 份已知文件跑评测，得到原始分数。
-3. 人工抽查 20 条 Judge 打分结果。
-4. 根据抽查结果调整阈值。
+3. 人工抽查 20 条只作为 pilot。
+4. 正式校准必须覆盖 50～100 条，并记录一致率、误报、漏报和争议项。
 5. 把阈值、模型版本写入 `scripts/eval_ws_rag/config.json`。
 6. 换模型版本时重新执行 2～5 步。
 
 ### 7.3 基线管理
 
-- 第一次完整跑通后，保存 `reports/baseline.json`。
-- 后续每次跑评测都和 baseline 做 diff。
+- baseline registry 保存到 `data/eval/ws_rag_baselines.json`，只引用不可变正式 Run。
+- 只有 schema 主版本、dataset、protocol 及文档/问题身份全部一致时才能输出方向性差异。
 
 ## 8. 扩展项：前端 Dashboard
 
-Dashboard 扩展项已拆分为独立专项设计，详见 [W-S RAG 评测 Dashboard 设计](./2026-07-05-ws-rag-evaluation-dashboard-design.md)。
+Dashboard 扩展项已拆分为独立[专项设计](./2026-07-05-ws-rag-evaluation-dashboard-design.md)与[实施计划](../project_or_workflow/2026-07-05-ws-rag-evaluation-dashboard-implementation.md)。
 
 本文仅保留原初目标：把每一轮 eval 结果以只读方式展示在本地 Dashboard 中，方便直接查看数据，无需手动解析 JSON。具体的技术选型、数据契约、展示架构、刷新策略、测试与依赖均以后续专项设计为准。
 
 ## 9. 依赖
 
 - 无需新增依赖，沿用现有 `fire` conda 环境。
-- LLM Judge 复用现有 `openai` 客户端和 `ChatClient` 协议。
+- LLM Judge 复用现有 `openai` SDK 和连接配置，但使用独立结构化响应适配器。
 
 ## 10. 验收标准
 
 - [ ] 能对单份 Word 文件生成合成问题。
+- [ ] 能把问题集独立固化为带 dataset ID 和 fingerprint 的不可变产物。
 - [ ] 能调用真实 RAG pipeline 并得到检索/生成结果。
 - [ ] LLM Judge 能产出上下文相关性、忠实度、答案相关性分数。
 - [ ] 规则校验能正确判断引文有效性和拒答适当性。
 - [ ] 能产出每文件评分卡和总报告 JSON。
+- [ ] 能以 Run 目录为单位原子发布 `report.json` 与 `errors.json`。
 - [ ] Judge LLM 调用失败时工作流停止并输出 Debug 信息。
 - [ ] RAG Runner 检索失败时记录结构化错误信息。
 - [ ] 在 `fire` 环境下完整跑通 W-S1/W-S2 各一份文件。
