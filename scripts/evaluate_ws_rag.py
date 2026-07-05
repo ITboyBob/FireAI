@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import os
 import sys
@@ -12,6 +13,7 @@ if str(_repo_root) not in sys.path:
     sys.path.insert(0, str(_repo_root))
 
 from scripts.eval_ws_rag.orchestrator import FatalEvaluationError, load_config, run_evaluation, write_debug_bundle
+from scripts.eval_ws_rag.runtime_config import load_runtime_config
 
 LOGGER = logging.getLogger(__name__)
 
@@ -23,13 +25,18 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--dataset",
         type=Path,
-        required=True,
+        default=None,
         help="已持久化的 dataset.json 路径。",
     )
     parser.add_argument(
         "--run-id",
-        required=True,
+        default=None,
         help="本次 run 的唯一标识，将用作 reports/ws_rag_eval/<run_id> 目录名。",
+    )
+    parser.add_argument(
+        "--show-config",
+        action="store_true",
+        help="显示当前运行配置摘要（不含 API Key）并退出，不执行评测。",
     )
     parser.add_argument(
         "--data-dir",
@@ -55,6 +62,18 @@ def main(argv: list[str] | None = None) -> int:
         level=logging.INFO,
         format="%(message)s",
     )
+
+    if args.show_config:
+        try:
+            runtime_cfg = load_runtime_config(args.config)
+        except Exception as exc:
+            LOGGER.error("加载运行配置失败: %s", exc)
+            return 1
+        print(json.dumps(runtime_cfg.non_secret_summary(), ensure_ascii=False, indent=2))
+        return 0
+
+    if not args.dataset or not args.run_id:
+        parser.error("--dataset 和 --run-id 是必填参数")
 
     if not args.dataset.exists():
         LOGGER.error("dataset 不存在: %s", args.dataset)
