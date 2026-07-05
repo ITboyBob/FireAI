@@ -1,0 +1,1154 @@
+{
+  "schema_version": "1.0.0",
+  "run_id": "ws_rag_baseline_001_run_001",
+  "created_at": "2026-07-05T16:44:14.110169Z",
+  "dataset": {
+    "dataset_id": "ws_rag_baseline_001",
+    "dataset_fingerprint": "sha256:ca1af73fecc7ce481ed65065f752ed56f97dc05db94e82f07a517e3f30d9f19e",
+    "document_ids": [
+      "doc_0e84d13a099b",
+      "doc_d97773f1500c"
+    ]
+  },
+  "protocol": {
+    "schema_version": "1.0.0",
+    "protocol_fingerprint": "judge=deepseek-v4-pro-260425|judge_prompt=judge_v1|reps=3|order=seed_shuffled|metric=v1|thresholds={'answer_relevance': 0.8, 'citation_validity': 1.0, 'context_relevancy': 0.8, 'faithfulness': 0.9, 'refusal_appropriateness': 0.9, 'source_coverage': 0.9}|sha256=d732418f049e308fc8208806f9269a99e7515de8885ab4fa33b5e18face28d9c",
+    "judge_model": "deepseek-v4-pro-260425",
+    "judge_prompt_version": "judge_v1",
+    "judge_temperature": 0.0,
+    "judge_repetitions": 3,
+    "judge_calibrated": false,
+    "evidence_order_strategy": "seed_shuffled",
+    "metric_algorithm_version": "v1",
+    "thresholds": {
+      "context_relevancy": 0.8,
+      "source_coverage": 0.9,
+      "faithfulness": 0.9,
+      "answer_relevance": 0.8,
+      "citation_validity": 1.0,
+      "refusal_appropriateness": 0.9
+    },
+    "answer_model": "doubao-1-5-lite-32k-250115",
+    "answer_prompt_version": "answer_v1",
+    "top_k": 5
+  },
+  "system": {
+    "git_commit": "f74e00f6aadbd43f4ca61cb7636430ac2d6b9df7",
+    "git_dirty": true,
+    "corpus_fingerprint": "sha256:eac9a5717270a2e9d071a02cef6c9e54fbf641db7e5b09cd2c6da821d868052e"
+  },
+  "summary": {
+    "document_id": "__summary__",
+    "title": "总体统计",
+    "source_sha256": "",
+    "content_class": null,
+    "question_count": 6,
+    "passed_questions": 0,
+    "failed_questions_count": 6,
+    "red_line_failures_count": 0,
+    "metrics": {
+      "context_relevancy": 0.3111111111111111,
+      "source_coverage": 1.0,
+      "faithfulness": 1.0,
+      "answer_relevance": 1.0,
+      "citation_validity": 1.0,
+      "refusal_appropriateness": 1.0
+    },
+    "overall_pass_rate": 0.0,
+    "failed_questions": [
+      "q_frequent_001",
+      "q_boundary_002",
+      "q_diversity_003",
+      "q_frequent_001",
+      "q_boundary_002",
+      "q_diversity_003"
+    ],
+    "questions": []
+  },
+  "documents": [
+    {
+      "document_id": "doc_0e84d13a099b",
+      "title": "河北省消防设施管理规定",
+      "source_sha256": "176a9b8a07a127c614a0f8c16e2bd3508bd1df480e9672e6c44830ebf7db3c3c",
+      "content_class": "S2",
+      "question_count": 3,
+      "passed_questions": 0,
+      "failed_questions_count": 3,
+      "red_line_failures_count": 0,
+      "metrics": {
+        "context_relevancy": 0.20000000000000004,
+        "source_coverage": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "citation_validity": 1.0,
+        "refusal_appropriateness": 1.0
+      },
+      "overall_pass_rate": 0.0,
+      "failed_questions": [
+        "q_frequent_001",
+        "q_boundary_002",
+        "q_diversity_003"
+      ],
+      "questions": [
+        {
+          "question_id": "q_frequent_001",
+          "question": "根据该规定，投入使用的建设工程的建筑消防设施全面检测频次是如何要求的？技术性能较高的建筑消防设施检测需由什么主体开展？",
+          "question_type": "frequent",
+          "answerable": true,
+          "expected_behavior": "answer",
+          "expected_article": "第十八条",
+          "source_chunk_id": "doc_0e84d13a099b#article-18",
+          "retrieved_chunks": [
+            {
+              "chunk_id": "doc_0e84d13a099b#article-18",
+              "document_id": "doc_0e84d13a099b",
+              "path": "河北省消防设施管理规定 > 第三章 建筑消防设施管理 > 第十八条",
+              "text": "投入使用的建设工程，建筑物的使用单位或者管理单位应当定期对建筑消防设施实施维修、保养，每年至少进行一次全面检测，检测记录存档备查。\n固定灭火系统、火灾报警系统和机械防烟排烟系统等技术性能较高的建筑消防设施的检测，应当依法委托取得资格的消防技术服务机构进行。",
+              "article_no": "第十八条",
+              "retrieval_score": 0.4,
+              "keyword_score": 0.0,
+              "vector_score": 1.0,
+              "sources": [
+                "vector"
+              ],
+              "cited": true
+            },
+            {
+              "chunk_id": "doc_d97773f1500c#article-13",
+              "document_id": "doc_d97773f1500c",
+              "path": "消防监督检查规定 > 第二章 消防监督检查的形式和内容 > 第十三条",
+              "text": "对大型的人员密集场所和其他特殊建设工程的施工现场进行消防监督检查，应当重点检查施工单位履行下列消防安全职责的情况：\n（一）是否明确施工现场消防安全管理人员，是否制定施工现场消防安全制度、灭火和应急疏散预案；\n（二）在建工程内是否设置人员住宿、可燃材料及易燃易爆危险品储存等场所；\n（三）是否设置临时消防给水系统、临时消防应急照明，是否配备消防器材，并确保完好有效；\n（四）是否设有消防车通道并畅通；\n（五）是否组织员工消防安全教育培训和消防演练；\n（六）施工现场人员宿舍、办公用房的建筑构件燃烧性能、安全疏散是否符合消防技术标准。",
+              "article_no": "第十三条",
+              "retrieval_score": 0.39144128137297485,
+              "keyword_score": 0.0,
+              "vector_score": 0.978603203432437,
+              "sources": [
+                "vector"
+              ],
+              "cited": false
+            },
+            {
+              "chunk_id": "jiguan_tuanti_qiye_shiye_danwei_xiaofang_anquan_guanli_guiding#article-27",
+              "document_id": "jiguan_tuanti_qiye_shiye_danwei_xiaofang_anquan_guanli_guiding",
+              "path": "机关、团体、企业、事业单位消防安全管理规定 > 第四章 防火检查 > 第二十七条",
+              "text": "单位应当按照建筑消防设施检查维修保养有关规定的要求，对建筑消防设施的完好有效情况进行检查和维修保养。",
+              "article_no": "第二十七条",
+              "retrieval_score": 0.29994801331911924,
+              "keyword_score": 0.0,
+              "vector_score": 0.7498700332977981,
+              "sources": [
+                "vector"
+              ],
+              "cited": false
+            },
+            {
+              "chunk_id": "hebei_xiaofang_tiaoli#article-17",
+              "document_id": "hebei_xiaofang_tiaoli",
+              "path": "河北省消防条例 > 第二章 火灾预防 > 第十七条",
+              "text": "施工单位应当按照消防技术标准和公安机关消防机构审核合格或者依法备案的消防设计文件进行施工，并负责施工现场的消防安全工作。\n施工现场应当设置与建设进度相适应的临时消防给水管道、消防水源和消防车通道，配备相应种类、数量的消防器材，确保消防安全。",
+              "article_no": "第十七条",
+              "retrieval_score": 0.29462892038799177,
+              "keyword_score": 0.0,
+              "vector_score": 0.7365723009699794,
+              "sources": [
+                "vector"
+              ],
+              "cited": false
+            },
+            {
+              "chunk_id": "xiaofangfa_2019#article-14",
+              "document_id": "xiaofangfa_2019",
+              "path": "中华人民共和国消防法 > 第二章 火灾预防 > 第十四条",
+              "text": "建设工程消防设计审查、消防验收、备案和抽查的具体办法，由国务院住房和城乡建设主管部门规定。",
+              "article_no": "第十四条",
+              "retrieval_score": 0.2066490306787223,
+              "keyword_score": 0.0,
+              "vector_score": 0.5166225766968058,
+              "sources": [
+                "vector"
+              ],
+              "cited": false
+            }
+          ],
+          "answer": "投入使用的建设工程，建筑物的使用单位或者管理单位应当每年至少进行一次建筑消防设施全面检测，检测记录存档备查。固定灭火系统、火灾报警系统和机械防烟排烟系统等技术性能较高的建筑消防设施的检测，应当依法委托取得资格的消防技术服务机构进行。",
+          "citations": [
+            {
+              "document_id": "doc_0e84d13a099b",
+              "path": "河北省消防设施管理规定 > 第三章 建筑消防设施管理 > 第十八条",
+              "text": "投入使用的建设工程，建筑物的使用单位或者管理单位应当定期对建筑消防设施实施维修、保养，每年至少进行一次全面检测，检测记录存档备查。\n固定灭火系统、火灾报警系统和机械防烟排烟系统等技术性能较高的建筑消防设施的检测，应当依法委托取得资格的消防技术服务机构进行。",
+              "matched_chunk_id": "doc_0e84d13a099b#article-18",
+              "citation_label": "《河北省消防设施管理规定》第十八条"
+            }
+          ],
+          "refused": false,
+          "uncertainty": null,
+          "metrics": {
+            "context_relevancy": 0.20000000000000004,
+            "source_coverage": 1.0,
+            "faithfulness": 1.0,
+            "answer_relevance": 1.0,
+            "citation_validity": 1.0,
+            "refusal_appropriateness": 1.0
+          },
+          "red_line_failures": [],
+          "failure_reasons": [
+            {
+              "code": "threshold_context_relevancy",
+              "description": "上下文相关性低于阈值: 0.2000 < 0.8"
+            }
+          ],
+          "judge_result": {
+            "context_relevancy": 0.20000000000000004,
+            "faithfulness": 1.0,
+            "answer_relevance": 1.0,
+            "details": [
+              {
+                "repetition": 1,
+                "context_helpful": [
+                  false,
+                  false,
+                  true,
+                  false,
+                  false
+                ],
+                "claims_verdict": [
+                  {
+                    "verdict": "supported"
+                  },
+                  {
+                    "verdict": "supported"
+                  }
+                ],
+                "answer_relevance_likert": 5
+              },
+              {
+                "repetition": 2,
+                "context_helpful": [
+                  false,
+                  false,
+                  false,
+                  false,
+                  true
+                ],
+                "claims_verdict": [
+                  {
+                    "verdict": "supported"
+                  },
+                  {
+                    "verdict": "supported"
+                  }
+                ],
+                "answer_relevance_likert": 5
+              },
+              {
+                "repetition": 3,
+                "context_helpful": [
+                  false,
+                  false,
+                  true,
+                  false,
+                  false
+                ],
+                "claims_verdict": [
+                  {
+                    "verdict": "supported"
+                  },
+                  {
+                    "verdict": "supported"
+                  }
+                ],
+                "answer_relevance_likert": 5
+              }
+            ],
+            "prompt_version": "judge_v1",
+            "model": "deepseek-v4-pro-260425"
+          },
+          "passed": false
+        },
+        {
+          "question_id": "q_boundary_002",
+          "question": "投入使用的建设工程开展建筑消防设施年度全面检测时，是否所有类型的建筑消防设施检测都必须委托取得资格的消防技术服务机构进行，使用或者管理单位不得自行开展相关检测工作？",
+          "question_type": "boundary",
+          "answerable": true,
+          "expected_behavior": "answer",
+          "expected_article": "第十八条",
+          "source_chunk_id": "doc_0e84d13a099b#article-18",
+          "retrieved_chunks": [
+            {
+              "chunk_id": "doc_0e84d13a099b#article-18",
+              "document_id": "doc_0e84d13a099b",
+              "path": "河北省消防设施管理规定 > 第三章 建筑消防设施管理 > 第十八条",
+              "text": "投入使用的建设工程，建筑物的使用单位或者管理单位应当定期对建筑消防设施实施维修、保养，每年至少进行一次全面检测，检测记录存档备查。\n固定灭火系统、火灾报警系统和机械防烟排烟系统等技术性能较高的建筑消防设施的检测，应当依法委托取得资格的消防技术服务机构进行。",
+              "article_no": "第十八条",
+              "retrieval_score": 0.4,
+              "keyword_score": 0.0,
+              "vector_score": 1.0,
+              "sources": [
+                "vector"
+              ],
+              "cited": true
+            },
+            {
+              "chunk_id": "xiaofangfa_2019#article-13",
+              "document_id": "xiaofangfa_2019",
+              "path": "中华人民共和国消防法 > 第二章 火灾预防 > 第十三条",
+              "text": "国务院住房和城乡建设主管部门规定应当申请消防验收的建设工程竣工，建设单位应当向住房和城乡建设主管部门申请消防验收。\n前款规定以外的其他建设工程，建设单位在验收后应当报住房和城乡建设主管部门备案，住房和城乡建设主管部门应当进行抽查。\n依法应当进行消防验收的建设工程，未经消防验收或者消防验收不合格的，禁止投入使用；其他建设工程经依法抽查不合格的，应当停止使用。",
+              "article_no": "第十三条",
+              "retrieval_score": 0.38296758861303537,
+              "keyword_score": 0.0,
+              "vector_score": 0.9574189715325884,
+              "sources": [
+                "vector"
+              ],
+              "cited": false
+            },
+            {
+              "chunk_id": "doc_0e84d13a099b#article-17",
+              "document_id": "doc_0e84d13a099b",
+              "path": "河北省消防设施管理规定 > 第三章 建筑消防设施管理 > 第十七条",
+              "text": "设有自动消防设施的建设工程竣工后，自动消防设施应当依法委托取得资格的消防技术服务机构进行专业技术检测。",
+              "article_no": "第十七条",
+              "retrieval_score": 0.23608653149281153,
+              "keyword_score": 0.0,
+              "vector_score": 0.5902163287320288,
+              "sources": [
+                "vector"
+              ],
+              "cited": false
+            },
+            {
+              "chunk_id": "doc_0d9a0b22e189#article-12",
+              "document_id": "doc_0d9a0b22e189",
+              "path": "河北省消防技术服务监督管理规定 > 第十二条",
+              "text": "消防产品检验机构在对消防产品和具有防火性能要求的建筑构件、建筑材料及装修材料的防火性能进行检验时，应当遵守国家、本省有关规定，发现其防火性能不符合相关标准的，应当及时向消防救援机构和有关单位报告。",
+              "article_no": "第十二条",
+              "retrieval_score": 0.18874155163405304,
+              "keyword_score": 0.0,
+              "vector_score": 0.47185387908513254,
+              "sources": [
+                "vector"
+              ],
+              "cited": false
+            },
+            {
+              "chunk_id": "doc_d97773f1500c#article-13",
+              "document_id": "doc_d97773f1500c",
+              "path": "消防监督检查规定 > 第二章 消防监督检查的形式和内容 > 第十三条",
+              "text": "对大型的人员密集场所和其他特殊建设工程的施工现场进行消防监督检查，应当重点检查施工单位履行下列消防安全职责的情况：\n（一）是否明确施工现场消防安全管理人员，是否制定施工现场消防安全制度、灭火和应急疏散预案；\n（二）在建工程内是否设置人员住宿、可燃材料及易燃易爆危险品储存等场所；\n（三）是否设置临时消防给水系统、临时消防应急照明，是否配备消防器材，并确保完好有效；\n（四）是否设有消防车通道并畅通；\n（五）是否组织员工消防安全教育培训和消防演练；\n（六）施工现场人员宿舍、办公用房的建筑构件燃烧性能、安全疏散是否符合消防技术标准。",
+              "article_no": "第十三条",
+              "retrieval_score": 0.16098119027152755,
+              "keyword_score": 0.0,
+              "vector_score": 0.4024529756788188,
+              "sources": [
+                "vector"
+              ],
+              "cited": false
+            }
+          ],
+          "answer": "不是所有类型的建筑消防设施检测都必须委托取得资格的消防技术服务机构进行，使用或者管理单位可以自行开展相关检测工作。根据《河北省消防设施管理规定》第十八条，投入使用的建设工程，建筑物的使用单位或者管理单位应当定期对建筑消防设施实施维修、保养，每年至少进行一次全面检测，检测记录存档备查。固定灭火系统、火灾报警系统和机械防烟排烟系统等技术性能较高的建筑消防设施的检测，应当依法委托取得资格的消防技术服务机构进行。",
+          "citations": [
+            {
+              "document_id": "doc_0e84d13a099b",
+              "path": "河北省消防设施管理规定 > 第三章 建筑消防设施管理 > 第十八条",
+              "text": "投入使用的建设工程，建筑物的使用单位或者管理单位应当定期对建筑消防设施实施维修、保养，每年至少进行一次全面检测，检测记录存档备查。\n固定灭火系统、火灾报警系统和机械防烟排烟系统等技术性能较高的建筑消防设施的检测，应当依法委托取得资格的消防技术服务机构进行。",
+              "matched_chunk_id": "doc_0e84d13a099b#article-18",
+              "citation_label": "《河北省消防设施管理规定》第十八条"
+            }
+          ],
+          "refused": false,
+          "uncertainty": null,
+          "metrics": {
+            "context_relevancy": 0.20000000000000004,
+            "source_coverage": 1.0,
+            "faithfulness": 1.0,
+            "answer_relevance": 1.0,
+            "citation_validity": 1.0,
+            "refusal_appropriateness": 1.0
+          },
+          "red_line_failures": [],
+          "failure_reasons": [
+            {
+              "code": "threshold_context_relevancy",
+              "description": "上下文相关性低于阈值: 0.2000 < 0.8"
+            }
+          ],
+          "judge_result": {
+            "context_relevancy": 0.20000000000000004,
+            "faithfulness": 1.0,
+            "answer_relevance": 1.0,
+            "details": [
+              {
+                "repetition": 1,
+                "context_helpful": [
+                  false,
+                  false,
+                  true,
+                  false,
+                  false
+                ],
+                "claims_verdict": [
+                  {
+                    "verdict": "supported"
+                  },
+                  {
+                    "verdict": "supported"
+                  },
+                  {
+                    "verdict": "supported"
+                  }
+                ],
+                "answer_relevance_likert": 5
+              },
+              {
+                "repetition": 2,
+                "context_helpful": [
+                  false,
+                  false,
+                  false,
+                  false,
+                  true
+                ],
+                "claims_verdict": [
+                  {
+                    "verdict": "supported"
+                  },
+                  {
+                    "verdict": "supported"
+                  },
+                  {
+                    "verdict": "supported"
+                  }
+                ],
+                "answer_relevance_likert": 5
+              },
+              {
+                "repetition": 3,
+                "context_helpful": [
+                  false,
+                  false,
+                  false,
+                  true,
+                  false
+                ],
+                "claims_verdict": [
+                  {
+                    "verdict": "supported"
+                  },
+                  {
+                    "verdict": "supported"
+                  },
+                  {
+                    "verdict": "supported"
+                  }
+                ],
+                "answer_relevance_likert": 5
+              }
+            ],
+            "prompt_version": "judge_v1",
+            "model": "deepseek-v4-pro-260425"
+          },
+          "passed": false
+        },
+        {
+          "question_id": "q_diversity_003",
+          "question": "根据本规定，投入使用的建设工程的建筑消防设施定期全面检测有何频次要求，哪类建筑消防设施的检测必须依法委托取得资格的消防技术服务机构开展？",
+          "question_type": "diversity",
+          "answerable": true,
+          "expected_behavior": "answer",
+          "expected_article": "第十八条",
+          "source_chunk_id": "doc_0e84d13a099b#article-18",
+          "retrieved_chunks": [
+            {
+              "chunk_id": "doc_0e84d13a099b#article-18",
+              "document_id": "doc_0e84d13a099b",
+              "path": "河北省消防设施管理规定 > 第三章 建筑消防设施管理 > 第十八条",
+              "text": "投入使用的建设工程，建筑物的使用单位或者管理单位应当定期对建筑消防设施实施维修、保养，每年至少进行一次全面检测，检测记录存档备查。\n固定灭火系统、火灾报警系统和机械防烟排烟系统等技术性能较高的建筑消防设施的检测，应当依法委托取得资格的消防技术服务机构进行。",
+              "article_no": "第十八条",
+              "retrieval_score": 0.4,
+              "keyword_score": 0.0,
+              "vector_score": 1.0,
+              "sources": [
+                "vector"
+              ],
+              "cited": true
+            },
+            {
+              "chunk_id": "doc_d97773f1500c#article-13",
+              "document_id": "doc_d97773f1500c",
+              "path": "消防监督检查规定 > 第二章 消防监督检查的形式和内容 > 第十三条",
+              "text": "对大型的人员密集场所和其他特殊建设工程的施工现场进行消防监督检查，应当重点检查施工单位履行下列消防安全职责的情况：\n（一）是否明确施工现场消防安全管理人员，是否制定施工现场消防安全制度、灭火和应急疏散预案；\n（二）在建工程内是否设置人员住宿、可燃材料及易燃易爆危险品储存等场所；\n（三）是否设置临时消防给水系统、临时消防应急照明，是否配备消防器材，并确保完好有效；\n（四）是否设有消防车通道并畅通；\n（五）是否组织员工消防安全教育培训和消防演练；\n（六）施工现场人员宿舍、办公用房的建筑构件燃烧性能、安全疏散是否符合消防技术标准。",
+              "article_no": "第十三条",
+              "retrieval_score": 0.3110494563869271,
+              "keyword_score": 0.0,
+              "vector_score": 0.7776236409673177,
+              "sources": [
+                "vector"
+              ],
+              "cited": false
+            },
+            {
+              "chunk_id": "jiguan_tuanti_qiye_shiye_danwei_xiaofang_anquan_guanli_guiding#article-27",
+              "document_id": "jiguan_tuanti_qiye_shiye_danwei_xiaofang_anquan_guanli_guiding",
+              "path": "机关、团体、企业、事业单位消防安全管理规定 > 第四章 防火检查 > 第二十七条",
+              "text": "单位应当按照建筑消防设施检查维修保养有关规定的要求，对建筑消防设施的完好有效情况进行检查和维修保养。",
+              "article_no": "第二十七条",
+              "retrieval_score": 0.27929140749685255,
+              "keyword_score": 0.0,
+              "vector_score": 0.6982285187421313,
+              "sources": [
+                "vector"
+              ],
+              "cited": false
+            },
+            {
+              "chunk_id": "hebei_xiaofang_tiaoli#article-17",
+              "document_id": "hebei_xiaofang_tiaoli",
+              "path": "河北省消防条例 > 第二章 火灾预防 > 第十七条",
+              "text": "施工单位应当按照消防技术标准和公安机关消防机构审核合格或者依法备案的消防设计文件进行施工，并负责施工现场的消防安全工作。\n施工现场应当设置与建设进度相适应的临时消防给水管道、消防水源和消防车通道，配备相应种类、数量的消防器材，确保消防安全。",
+              "article_no": "第十七条",
+              "retrieval_score": 0.2757085691018099,
+              "keyword_score": 0.0,
+              "vector_score": 0.6892714227545247,
+              "sources": [
+                "vector"
+              ],
+              "cited": false
+            },
+            {
+              "chunk_id": "doc_d97773f1500c#article-11",
+              "document_id": "doc_d97773f1500c",
+              "path": "消防监督检查规定 > 第二章 消防监督检查的形式和内容 > 第十一条",
+              "text": "对消防安全重点单位履行法定消防安全职责情况的监督抽查，除检查本规定第十条规定的内容外，还应当检查下列内容：\n（一）是否确定消防安全管理人；\n（二）是否开展每日防火巡查并建立巡查记录；\n（三）是否定期组织消防安全培训和消防演练；\n（四）是否建立消防档案、确定消防安全重点部位。\n对属于人员密集场所的消防安全重点单位，还应当检查单位灭火和应急疏散预案中承担灭火和组织疏散任务的人员是否确定。",
+              "article_no": "第十一条",
+              "retrieval_score": 0.21359842368589788,
+              "keyword_score": 0.0,
+              "vector_score": 0.5339960592147447,
+              "sources": [
+                "vector"
+              ],
+              "cited": false
+            }
+          ],
+          "answer": "投入使用的建设工程，建筑物的使用单位或者管理单位应当每年至少进行一次建筑消防设施全面检测，检测记录存档备查。固定灭火系统、火灾报警系统和机械防烟排烟系统等技术性能较高的建筑消防设施的检测，应当依法委托取得资格的消防技术服务机构进行。",
+          "citations": [
+            {
+              "document_id": "doc_0e84d13a099b",
+              "path": "河北省消防设施管理规定 > 第三章 建筑消防设施管理 > 第十八条",
+              "text": "投入使用的建设工程，建筑物的使用单位或者管理单位应当定期对建筑消防设施实施维修、保养，每年至少进行一次全面检测，检测记录存档备查。\n固定灭火系统、火灾报警系统和机械防烟排烟系统等技术性能较高的建筑消防设施的检测，应当依法委托取得资格的消防技术服务机构进行。",
+              "matched_chunk_id": "doc_0e84d13a099b#article-18",
+              "citation_label": "《河北省消防设施管理规定》第十八条"
+            }
+          ],
+          "refused": false,
+          "uncertainty": null,
+          "metrics": {
+            "context_relevancy": 0.20000000000000004,
+            "source_coverage": 1.0,
+            "faithfulness": 1.0,
+            "answer_relevance": 1.0,
+            "citation_validity": 1.0,
+            "refusal_appropriateness": 1.0
+          },
+          "red_line_failures": [],
+          "failure_reasons": [
+            {
+              "code": "threshold_context_relevancy",
+              "description": "上下文相关性低于阈值: 0.2000 < 0.8"
+            }
+          ],
+          "judge_result": {
+            "context_relevancy": 0.20000000000000004,
+            "faithfulness": 1.0,
+            "answer_relevance": 1.0,
+            "details": [
+              {
+                "repetition": 1,
+                "context_helpful": [
+                  true,
+                  false,
+                  false,
+                  false,
+                  false
+                ],
+                "claims_verdict": [
+                  {
+                    "verdict": "supported"
+                  },
+                  {
+                    "verdict": "supported"
+                  }
+                ],
+                "answer_relevance_likert": 5
+              },
+              {
+                "repetition": 2,
+                "context_helpful": [
+                  false,
+                  true,
+                  false,
+                  false,
+                  false
+                ],
+                "claims_verdict": [
+                  {
+                    "verdict": "supported"
+                  },
+                  {
+                    "verdict": "supported"
+                  }
+                ],
+                "answer_relevance_likert": 5
+              },
+              {
+                "repetition": 3,
+                "context_helpful": [
+                  false,
+                  false,
+                  true,
+                  false,
+                  false
+                ],
+                "claims_verdict": [
+                  {
+                    "verdict": "supported"
+                  },
+                  {
+                    "verdict": "supported"
+                  }
+                ],
+                "answer_relevance_likert": 5
+              }
+            ],
+            "prompt_version": "judge_v1",
+            "model": "deepseek-v4-pro-260425"
+          },
+          "passed": false
+        }
+      ]
+    },
+    {
+      "document_id": "doc_d97773f1500c",
+      "title": "消防监督检查规定",
+      "source_sha256": "0187d0eff583b349396e76a3bc3a7dc84c2dc2d75b0a90f4327f9ecf7299efe9",
+      "content_class": "S1",
+      "question_count": 3,
+      "passed_questions": 0,
+      "failed_questions_count": 3,
+      "red_line_failures_count": 0,
+      "metrics": {
+        "context_relevancy": 0.4222222222222222,
+        "source_coverage": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "citation_validity": 1.0,
+        "refusal_appropriateness": 1.0
+      },
+      "overall_pass_rate": 0.0,
+      "failed_questions": [
+        "q_frequent_001",
+        "q_boundary_002",
+        "q_diversity_003"
+      ],
+      "questions": [
+        {
+          "question_id": "q_frequent_001",
+          "question": "公众聚集场所在投入使用、营业前申请消防安全检查，公安机关消防机构应当在多长时限内完成检查并作出是否准予投入使用、营业的决定？",
+          "question_type": "frequent",
+          "answerable": true,
+          "expected_behavior": "answer",
+          "expected_article": "第十五条",
+          "source_chunk_id": "doc_d97773f1500c#article-15",
+          "retrieved_chunks": [
+            {
+              "chunk_id": "doc_2373a58c077e#article-6",
+              "document_id": "doc_2373a58c077e",
+              "path": "公共娱乐场所管理规定 > 第六条",
+              "text": "公众聚集的娱乐场所在使用或者开业前，必须具备消防安全条件，依法向当地公安消防机构申报检查，经消防安全检查合格后，发给《消防安全检查意见书》，方可使用或者开业。",
+              "article_no": "第六条",
+              "retrieval_score": 0.4,
+              "keyword_score": 0.0,
+              "vector_score": 1.0,
+              "sources": [
+                "vector"
+              ],
+              "cited": false
+            },
+            {
+              "chunk_id": "xiaofangfa_2019#article-15",
+              "document_id": "xiaofangfa_2019",
+              "path": "中华人民共和国消防法 > 第二章 火灾预防 > 第十五条",
+              "text": "公众聚集场所在投入使用、营业前，建设单位或者使用单位应当向场所所在地的县级以上地方人民政府消防救援机构申请消防安全检查。\n消防救援机构应当自受理申请之日起十个工作日内，根据消防技术标准和管理规定，对该场所进行消防安全检查。未经消防安全检查或者经检查不符合消防安全要求的，不得投入使用、营业。",
+              "article_no": "第十五条",
+              "retrieval_score": 0.3825710481327816,
+              "keyword_score": 0.0,
+              "vector_score": 0.9564276203319539,
+              "sources": [
+                "vector"
+              ],
+              "cited": false
+            },
+            {
+              "chunk_id": "doc_d97773f1500c#article-15",
+              "document_id": "doc_d97773f1500c",
+              "path": "消防监督检查规定 > 第三章 消防监督检查的程序 > 第十五条",
+              "text": "对公众聚集场所投入使用、营业前的消防安全检查，公安机关消防机构应当自受理申请之日起十个工作日内进行检查，自检查之日起三个工作日内作出同意或者不同意投入使用或者营业的决定，并送达申请人。",
+              "article_no": "第十五条",
+              "retrieval_score": 0.3722532603166635,
+              "keyword_score": 0.0,
+              "vector_score": 0.9306331507916588,
+              "sources": [
+                "vector"
+              ],
+              "cited": true
+            },
+            {
+              "chunk_id": "doc_d97773f1500c#article-9",
+              "document_id": "doc_d97773f1500c",
+              "path": "消防监督检查规定 > 第二章 消防监督检查的形式和内容 > 第九条",
+              "text": "对公众聚集场所投入使用、营业前进行消防安全检查，应当检查下列内容：\n（一）建筑物或者场所是否依法通过消防验收合格或者进行竣工验收消防备案抽查合格；依法进行竣工验收消防备案但没有进行备案抽查的建筑物或者场所是否符合消防技术标准；\n（二）消防安全制度、灭火和应急疏散预案是否制定；\n（三）自动消防系统操作人员是否持证上岗，员工是否经过岗前消防安全培训；\n（四）消防设施、器材是否符合消防技术标准并完好有效；\n（五）疏散通道、安全出口和消防车通道是否畅通；\n（六）室内装修材料是否符合消防技术标准；\n（七）外墙门窗上是否设置影响逃生和灭火救援的障碍物。",
+              "article_no": "第九条",
+              "retrieval_score": 0.320617890704717,
+              "keyword_score": 0.0,
+              "vector_score": 0.8015447267617926,
+              "sources": [
+                "vector"
+              ],
+              "cited": false
+            },
+            {
+              "chunk_id": "jiguan_tuanti_qiye_shiye_danwei_xiaofang_anquan_guanli_guiding#article-16",
+              "document_id": "jiguan_tuanti_qiye_shiye_danwei_xiaofang_anquan_guanli_guiding",
+              "path": "机关、团体、企业、事业单位消防安全管理规定 > 第三章 消防安全管理 > 第十六条",
+              "text": "公众聚集场所应当在具备下列消防安全条件后，向当地公安消防机构申报进行消防安全检查，经检查合格后方可开业使用：\n（一）依法办理建筑工程消防设计审核手续，并经消防验收合格；\n（二）建立健全消防安全组织，消防安全责任明确；\n（三）建立消防安全管理制度和保障消防安全的操作规程；\n（四）员工经过消防安全培训；\n（五）建筑消防设施齐全、完好有效；\n（六）制定灭火和应急疏散预案。",
+              "article_no": "第十六条",
+              "retrieval_score": 0.20267947922446428,
+              "keyword_score": 0.0,
+              "vector_score": 0.5066986980611606,
+              "sources": [
+                "vector"
+              ],
+              "cited": false
+            }
+          ],
+          "answer": "公安机关消防机构应当自受理申请之日起十个工作日内进行检查，自检查之日起三个工作日内作出同意或者不同意投入使用或者营业的决定，并送达申请人。",
+          "citations": [
+            {
+              "document_id": "doc_d97773f1500c",
+              "path": "消防监督检查规定 > 第三章 消防监督检查的程序 > 第十五条",
+              "text": "对公众聚集场所投入使用、营业前的消防安全检查，公安机关消防机构应当自受理申请之日起十个工作日内进行检查，自检查之日起三个工作日内作出同意或者不同意投入使用或者营业的决定，并送达申请人。",
+              "matched_chunk_id": "doc_d97773f1500c#article-15",
+              "citation_label": "《消防监督检查规定》第十五条"
+            }
+          ],
+          "refused": false,
+          "uncertainty": null,
+          "metrics": {
+            "context_relevancy": 0.26666666666666666,
+            "source_coverage": 1.0,
+            "faithfulness": 1.0,
+            "answer_relevance": 1.0,
+            "citation_validity": 1.0,
+            "refusal_appropriateness": 1.0
+          },
+          "red_line_failures": [],
+          "failure_reasons": [
+            {
+              "code": "threshold_context_relevancy",
+              "description": "上下文相关性低于阈值: 0.2667 < 0.8"
+            }
+          ],
+          "judge_result": {
+            "context_relevancy": 0.26666666666666666,
+            "faithfulness": 1.0,
+            "answer_relevance": 1.0,
+            "details": [
+              {
+                "repetition": 1,
+                "context_helpful": [
+                  false,
+                  true,
+                  false,
+                  false,
+                  true
+                ],
+                "claims_verdict": [
+                  {
+                    "verdict": "supported"
+                  }
+                ],
+                "answer_relevance_likert": 5
+              },
+              {
+                "repetition": 2,
+                "context_helpful": [
+                  false,
+                  false,
+                  true,
+                  false,
+                  false
+                ],
+                "claims_verdict": [
+                  {
+                    "verdict": "supported"
+                  }
+                ],
+                "answer_relevance_likert": 5
+              },
+              {
+                "repetition": 3,
+                "context_helpful": [
+                  false,
+                  false,
+                  false,
+                  true,
+                  false
+                ],
+                "claims_verdict": [
+                  {
+                    "verdict": "supported"
+                  }
+                ],
+                "answer_relevance_likert": 5
+              }
+            ],
+            "prompt_version": "judge_v1",
+            "model": "deepseek-v4-pro-260425"
+          },
+          "passed": false
+        },
+        {
+          "question_id": "q_boundary_002",
+          "question": "没有固定生产经营场所的流动摆摊个体工商户，是否属于本规定中明确应当纳入消防监督检查范围的个体工商户范畴？",
+          "question_type": "boundary",
+          "answerable": true,
+          "expected_behavior": "answer",
+          "expected_article": "第三十九条",
+          "source_chunk_id": "doc_d97773f1500c#article-39",
+          "retrieved_chunks": [
+            {
+              "chunk_id": "doc_d97773f1500c#article-39",
+              "document_id": "doc_d97773f1500c",
+              "path": "消防监督检查规定 > 第六章 附 则 > 第三十九条",
+              "text": "有固定生产经营场所且具有一定规模的个体工商户，应当纳入消防监督检查范围。具体标准由省、自治区、直辖市公安机关消防机构确定并公告。",
+              "article_no": "第三十九条",
+              "retrieval_score": 0.4,
+              "keyword_score": 0.0,
+              "vector_score": 1.0,
+              "sources": [
+                "vector"
+              ],
+              "cited": true
+            },
+            {
+              "chunk_id": "hebei_xiaofang_anquan_zerenzhi_guiding#article-30",
+              "document_id": "hebei_xiaofang_anquan_zerenzhi_guiding",
+              "path": "河北省消防安全责任制规定 > 第六章 附则 > 第三十条",
+              "text": "具有固定生产经营场所的个体工商户，参照本规定履行单位消防安全职责。",
+              "article_no": "第三十条",
+              "retrieval_score": 0.363039786102426,
+              "keyword_score": 0.0,
+              "vector_score": 0.9075994652560649,
+              "sources": [
+                "vector"
+              ],
+              "cited": false
+            },
+            {
+              "chunk_id": "xiaofang_anquan_zerenzhi_shishi_banfa#article-29",
+              "document_id": "xiaofang_anquan_zerenzhi_shishi_banfa",
+              "path": "消防安全责任制实施办法 > 第六章 附则 > 第二十九条",
+              "text": "具有固定生产经营场所的个体工商户，参照本办法履行单位消防安全职责。",
+              "article_no": "第二十九条",
+              "retrieval_score": 0.3483820177524912,
+              "keyword_score": 0.0,
+              "vector_score": 0.8709550443812281,
+              "sources": [
+                "vector"
+              ],
+              "cited": false
+            },
+            {
+              "chunk_id": "doc_d97773f1500c#article-36-part-1",
+              "document_id": "doc_d97773f1500c",
+              "path": "消防监督检查规定 > 第五章 执法监督 > 第三十六条",
+              "text": "公安机关消防机构及其工作人员在消防监督检查中有下列情形的，对直接负责的主管人员和其他直接责任人员应当依法给予处分；构成犯罪的，依法追究刑事责任：\n（一）不按规定制作、送达法律文书，不按照本规定履行消防监督检查职责，拒不改正的；\n（二）对不符合消防安全条件的公众聚集场所准予消防安全检查合格的；\n（三）无故拖延消防安全检查，不在法定期限内履行职责的；\n（四）未按照本规定组织开展消防监督抽查的；\n（五）发现火灾隐患不及时通知有关单位或者个人整改的；\n（六）利用消防监督检查职权为用户指定消防产品的品牌、销售单位或者指定消防技术服务机构、消防设施施工、维修保养单位的；",
+              "article_no": "第三十六条",
+              "retrieval_score": 0.14023436278175713,
+              "keyword_score": 0.0,
+              "vector_score": 0.3505859069543928,
+              "sources": [
+                "vector"
+              ],
+              "cited": false
+            },
+            {
+              "chunk_id": "doc_8984bc91baeb#article-32",
+              "document_id": "doc_8984bc91baeb",
+              "path": "消防产品监督管理规定 > 第四章 监督检查 > 第三十二条",
+              "text": "任何单位和个人在接受质量监督部门、工商行政管理部门和公安机关消防机构依法开展的消防产品质量监督检查时，应当如实提供有关情况和资料。\n任何单位和个人不得擅自转移、变卖、隐匿或者损毁被采取强制措施的物品，不得拒绝依法进行的监督检查。",
+              "article_no": "第三十二条",
+              "retrieval_score": 0.08302358617221405,
+              "keyword_score": 0.0,
+              "vector_score": 0.2075589654305351,
+              "sources": [
+                "vector"
+              ],
+              "cited": false
+            }
+          ],
+          "answer": "没有固定生产经营场所的流动摆摊个体工商户，不属于《消防监督检查规定》第三十九条中明确应当纳入消防监督检查范围的个体工商户范畴。",
+          "citations": [
+            {
+              "document_id": "doc_d97773f1500c",
+              "path": "消防监督检查规定 > 第六章 附 则 > 第三十九条",
+              "text": "有固定生产经营场所且具有一定规模的个体工商户，应当纳入消防监督检查范围。具体标准由省、自治区、直辖市公安机关消防机构确定并公告。",
+              "matched_chunk_id": "doc_d97773f1500c#article-39",
+              "citation_label": "《消防监督检查规定》第三十九条"
+            }
+          ],
+          "refused": false,
+          "uncertainty": null,
+          "metrics": {
+            "context_relevancy": 0.6,
+            "source_coverage": 1.0,
+            "faithfulness": 1.0,
+            "answer_relevance": 1.0,
+            "citation_validity": 1.0,
+            "refusal_appropriateness": 1.0
+          },
+          "red_line_failures": [],
+          "failure_reasons": [
+            {
+              "code": "threshold_context_relevancy",
+              "description": "上下文相关性低于阈值: 0.6000 < 0.8"
+            }
+          ],
+          "judge_result": {
+            "context_relevancy": 0.6,
+            "faithfulness": 1.0,
+            "answer_relevance": 1.0,
+            "details": [
+              {
+                "repetition": 1,
+                "context_helpful": [
+                  true,
+                  false,
+                  true,
+                  false,
+                  true
+                ],
+                "claims_verdict": [
+                  {
+                    "verdict": "supported"
+                  }
+                ],
+                "answer_relevance_likert": 5
+              },
+              {
+                "repetition": 2,
+                "context_helpful": [
+                  true,
+                  true,
+                  false,
+                  false,
+                  true
+                ],
+                "claims_verdict": [
+                  {
+                    "verdict": "supported"
+                  }
+                ],
+                "answer_relevance_likert": 5
+              },
+              {
+                "repetition": 3,
+                "context_helpful": [
+                  true,
+                  true,
+                  false,
+                  true,
+                  false
+                ],
+                "claims_verdict": [
+                  {
+                    "verdict": "supported"
+                  }
+                ],
+                "answer_relevance_likert": 5
+              }
+            ],
+            "prompt_version": "judge_v1",
+            "model": "deepseek-v4-pro-260425"
+          },
+          "passed": false
+        },
+        {
+          "question_id": "q_diversity_003",
+          "question": "某新开的生鲜超市属于公众聚集场所，在正式投入营业前向场所所在地的县级公安机关消防机构提交了齐全的消防安全检查申请材料，消防机构按规定受理该申请后，应当在什么时限内完成检查并作出是否同意其投入营业的决定？",
+          "question_type": "diversity",
+          "answerable": true,
+          "expected_behavior": "answer",
+          "expected_article": "第十五条",
+          "source_chunk_id": "doc_d97773f1500c#article-15",
+          "retrieved_chunks": [
+            {
+              "chunk_id": "doc_2373a58c077e#article-6",
+              "document_id": "doc_2373a58c077e",
+              "path": "公共娱乐场所管理规定 > 第六条",
+              "text": "公众聚集的娱乐场所在使用或者开业前，必须具备消防安全条件，依法向当地公安消防机构申报检查，经消防安全检查合格后，发给《消防安全检查意见书》，方可使用或者开业。",
+              "article_no": "第六条",
+              "retrieval_score": 0.4,
+              "keyword_score": 0.0,
+              "vector_score": 1.0,
+              "sources": [
+                "vector"
+              ],
+              "cited": false
+            },
+            {
+              "chunk_id": "doc_d97773f1500c#article-9",
+              "document_id": "doc_d97773f1500c",
+              "path": "消防监督检查规定 > 第二章 消防监督检查的形式和内容 > 第九条",
+              "text": "对公众聚集场所投入使用、营业前进行消防安全检查，应当检查下列内容：\n（一）建筑物或者场所是否依法通过消防验收合格或者进行竣工验收消防备案抽查合格；依法进行竣工验收消防备案但没有进行备案抽查的建筑物或者场所是否符合消防技术标准；\n（二）消防安全制度、灭火和应急疏散预案是否制定；\n（三）自动消防系统操作人员是否持证上岗，员工是否经过岗前消防安全培训；\n（四）消防设施、器材是否符合消防技术标准并完好有效；\n（五）疏散通道、安全出口和消防车通道是否畅通；\n（六）室内装修材料是否符合消防技术标准；\n（七）外墙门窗上是否设置影响逃生和灭火救援的障碍物。",
+              "article_no": "第九条",
+              "retrieval_score": 0.2680219785694004,
+              "keyword_score": 0.0,
+              "vector_score": 0.6700549464235009,
+              "sources": [
+                "vector"
+              ],
+              "cited": false
+            },
+            {
+              "chunk_id": "doc_d97773f1500c#article-15",
+              "document_id": "doc_d97773f1500c",
+              "path": "消防监督检查规定 > 第三章 消防监督检查的程序 > 第十五条",
+              "text": "对公众聚集场所投入使用、营业前的消防安全检查，公安机关消防机构应当自受理申请之日起十个工作日内进行检查，自检查之日起三个工作日内作出同意或者不同意投入使用或者营业的决定，并送达申请人。",
+              "article_no": "第十五条",
+              "retrieval_score": 0.26150910875207356,
+              "keyword_score": 0.0,
+              "vector_score": 0.6537727718801839,
+              "sources": [
+                "vector"
+              ],
+              "cited": true
+            },
+            {
+              "chunk_id": "xiaofangfa_2019#article-15",
+              "document_id": "xiaofangfa_2019",
+              "path": "中华人民共和国消防法 > 第二章 火灾预防 > 第十五条",
+              "text": "公众聚集场所在投入使用、营业前，建设单位或者使用单位应当向场所所在地的县级以上地方人民政府消防救援机构申请消防安全检查。\n消防救援机构应当自受理申请之日起十个工作日内，根据消防技术标准和管理规定，对该场所进行消防安全检查。未经消防安全检查或者经检查不符合消防安全要求的，不得投入使用、营业。",
+              "article_no": "第十五条",
+              "retrieval_score": 0.2534834438405707,
+              "keyword_score": 0.0,
+              "vector_score": 0.6337086096014267,
+              "sources": [
+                "vector"
+              ],
+              "cited": false
+            },
+            {
+              "chunk_id": "doc_d97773f1500c#article-8-part-1",
+              "document_id": "doc_d97773f1500c",
+              "path": "消防监督检查规定 > 第二章 消防监督检查的形式和内容 > 第八条",
+              "text": "公众聚集场所在投入使用、营业前，建设单位或者使用单位应当向场所所在地的县级以上人民政府公安机关消防机构申请消防安全检查，并提交下列材料：\n（一）消防安全检查申报表；\n（二）营业执照复印件或者工商行政管理机关出具的企业名称预先核准通知书；\n（三）依法取得的建设工程消防验收或者进行竣工验收消防备案的法律文件复印件；\n（四）消防安全制度、灭火和应急疏散预案、场所平面布置图；\n（五）员工岗前消防安全教育培训记录和自动消防系统操作人员取得的消防行业特有工种职业资格证书复印件；\n（六）法律、行政法规规定的其他材料。",
+              "article_no": "第八条",
+              "retrieval_score": 0.157899382786775,
+              "keyword_score": 0.0,
+              "vector_score": 0.3947484569669375,
+              "sources": [
+                "vector"
+              ],
+              "cited": false
+            }
+          ],
+          "answer": "公安机关消防机构应当自受理申请之日起十个工作日内进行检查，自检查之日起三个工作日内作出同意或者不同意投入使用或者营业的决定，并送达申请人。",
+          "citations": [
+            {
+              "document_id": "doc_d97773f1500c",
+              "path": "消防监督检查规定 > 第三章 消防监督检查的程序 > 第十五条",
+              "text": "对公众聚集场所投入使用、营业前的消防安全检查，公安机关消防机构应当自受理申请之日起十个工作日内进行检查，自检查之日起三个工作日内作出同意或者不同意投入使用或者营业的决定，并送达申请人。",
+              "matched_chunk_id": "doc_d97773f1500c#article-15",
+              "citation_label": "《消防监督检查规定》第十五条"
+            }
+          ],
+          "refused": false,
+          "uncertainty": null,
+          "metrics": {
+            "context_relevancy": 0.4000000000000001,
+            "source_coverage": 1.0,
+            "faithfulness": 1.0,
+            "answer_relevance": 1.0,
+            "citation_validity": 1.0,
+            "refusal_appropriateness": 1.0
+          },
+          "red_line_failures": [],
+          "failure_reasons": [
+            {
+              "code": "threshold_context_relevancy",
+              "description": "上下文相关性低于阈值: 0.4000 < 0.8"
+            }
+          ],
+          "judge_result": {
+            "context_relevancy": 0.4000000000000001,
+            "faithfulness": 1.0,
+            "answer_relevance": 1.0,
+            "details": [
+              {
+                "repetition": 1,
+                "context_helpful": [
+                  false,
+                  true,
+                  false,
+                  false,
+                  true
+                ],
+                "claims_verdict": [
+                  {
+                    "verdict": "supported"
+                  }
+                ],
+                "answer_relevance_likert": 5
+              },
+              {
+                "repetition": 2,
+                "context_helpful": [
+                  true,
+                  false,
+                  false,
+                  false,
+                  true
+                ],
+                "claims_verdict": [
+                  {
+                    "verdict": "supported"
+                  }
+                ],
+                "answer_relevance_likert": 5
+              },
+              {
+                "repetition": 3,
+                "context_helpful": [
+                  false,
+                  false,
+                  false,
+                  true,
+                  true
+                ],
+                "claims_verdict": [
+                  {
+                    "verdict": "supported"
+                  }
+                ],
+                "answer_relevance_likert": 5
+              }
+            ],
+            "prompt_version": "judge_v1",
+            "model": "deepseek-v4-pro-260425"
+          },
+          "passed": false
+        }
+      ]
+    }
+  ]
+}

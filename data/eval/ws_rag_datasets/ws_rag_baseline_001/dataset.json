@@ -1,0 +1,89 @@
+{
+  "created_at": "2026-07-05T15:58:03.923888Z",
+  "dataset_fingerprint": "sha256:ca1af73fecc7ce481ed65065f752ed56f97dc05db94e82f07a517e3f30d9f19e",
+  "dataset_id": "ws_rag_baseline_001",
+  "documents": [
+    {
+      "content_class": "S1",
+      "document_id": "doc_d97773f1500c",
+      "questions": [
+        {
+          "answer_sketch": "公安机关消防机构应当自受理申请之日起十个工作日内进行检查，自检查之日起三个工作日内作出同意或者不同意投入使用或者营业的决定，并送达申请人。",
+          "answerable": true,
+          "expected_article": "第十五条",
+          "expected_behavior": "answer",
+          "question": "公众聚集场所在投入使用、营业前申请消防安全检查，公安机关消防机构应当在多长时限内完成检查并作出是否准予投入使用、营业的决定？",
+          "question_id": "q_frequent_001",
+          "question_type": "frequent",
+          "source_chunk_id": "doc_d97773f1500c#article-15"
+        },
+        {
+          "answer_sketch": "不属于。本规定明确仅同时满足有固定生产经营场所、具有一定规模两个条件的个体工商户，才应当纳入消防监督检查范围；无固定生产经营场所的流动摆摊个体工商户不满足“有固定生产经营场所”的法定前提，不属于该条款明确要求应当纳入的范畴，个体工商户纳入消防监督检查的具体规模标准由省、自治区、直辖市公安机关消防机构确定并公告。",
+          "answerable": true,
+          "expected_article": "第三十九条",
+          "expected_behavior": "answer",
+          "question": "没有固定生产经营场所的流动摆摊个体工商户，是否属于本规定中明确应当纳入消防监督检查范围的个体工商户范畴？",
+          "question_id": "q_boundary_002",
+          "question_type": "boundary",
+          "source_chunk_id": "doc_d97773f1500c#article-39"
+        },
+        {
+          "answer_sketch": "针对公众聚集场所投入使用、营业前的消防安全检查，公安机关消防机构应当自受理申请之日起十个工作日内进行检查，自检查之日起三个工作日内作出同意或者不同意投入使用或者营业的决定，并送达申请人。",
+          "answerable": true,
+          "expected_article": "第十五条",
+          "expected_behavior": "answer",
+          "question": "某新开的生鲜超市属于公众聚集场所，在正式投入营业前向场所所在地的县级公安机关消防机构提交了齐全的消防安全检查申请材料，消防机构按规定受理该申请后，应当在什么时限内完成检查并作出是否同意其投入营业的决定？",
+          "question_id": "q_diversity_003",
+          "question_type": "diversity",
+          "source_chunk_id": "doc_d97773f1500c#article-15"
+        }
+      ],
+      "source_sha256": "0187d0eff583b349396e76a3bc3a7dc84c2dc2d75b0a90f4327f9ecf7299efe9",
+      "source_summary": "W-S1 消防监督检查规定",
+      "title": "消防监督检查规定"
+    },
+    {
+      "content_class": "S2",
+      "document_id": "doc_0e84d13a099b",
+      "questions": [
+        {
+          "answer_sketch": "投入使用的建设工程，建筑物的使用单位或者管理单位应当定期对建筑消防设施实施维修、保养，每年至少进行一次全面检测，检测记录存档备查；固定灭火系统、火灾报警系统和机械防烟排烟系统等技术性能较高的建筑消防设施的检测，应当依法委托取得资格的消防技术服务机构进行。",
+          "answerable": true,
+          "expected_article": "第十八条",
+          "expected_behavior": "answer",
+          "question": "根据该规定，投入使用的建设工程的建筑消防设施全面检测频次是如何要求的？技术性能较高的建筑消防设施检测需由什么主体开展？",
+          "question_id": "q_frequent_001",
+          "question_type": "frequent",
+          "source_chunk_id": "doc_0e84d13a099b#article-18"
+        },
+        {
+          "answer_sketch": "并非所有类型的建筑消防设施年度全面检测都必须委托取得资格的消防技术服务机构。根据本规定第十八条，投入使用的建设工程，建筑物的使用单位或者管理单位应当定期对建筑消防设施实施维修、保养，每年至少进行一次全面检测并将检测记录存档备查；仅固定灭火系统、火灾报警系统和机械防烟排烟系统等技术性能较高的建筑消防设施的检测，应当依法委托取得资格的消防技术服务机构进行。",
+          "answerable": true,
+          "expected_article": "第十八条",
+          "expected_behavior": "answer",
+          "question": "投入使用的建设工程开展建筑消防设施年度全面检测时，是否所有类型的建筑消防设施检测都必须委托取得资格的消防技术服务机构进行，使用或者管理单位不得自行开展相关检测工作？",
+          "question_id": "q_boundary_002",
+          "question_type": "boundary",
+          "source_chunk_id": "doc_0e84d13a099b#article-18"
+        },
+        {
+          "answer_sketch": "投入使用的建设工程，其建筑物的使用单位或者管理单位应当定期对建筑消防设施实施维修、保养，每年至少进行一次全面检测，检测记录存档备查；其中固定灭火系统、火灾报警系统和机械防烟排烟系统等技术性能较高的建筑消防设施的检测，应当依法委托取得资格的消防技术服务机构进行。",
+          "answerable": true,
+          "expected_article": "第十八条",
+          "expected_behavior": "answer",
+          "question": "根据本规定，投入使用的建设工程的建筑消防设施定期全面检测有何频次要求，哪类建筑消防设施的检测必须依法委托取得资格的消防技术服务机构开展？",
+          "question_id": "q_diversity_003",
+          "question_type": "diversity",
+          "source_chunk_id": "doc_0e84d13a099b#article-18"
+        }
+      ],
+      "source_sha256": "176a9b8a07a127c614a0f8c16e2bd3508bd1df480e9672e6c44830ebf7db3c3c",
+      "source_summary": "W-S2 河北省消防设施管理规定",
+      "title": "河北省消防设施管理规定"
+    }
+  ],
+  "generation_seed": 42,
+  "generator_model": "doubao-seed-2-1-pro-260628",
+  "generator_prompt_version": "qg_v1",
+  "schema_version": "1.0.0"
+}

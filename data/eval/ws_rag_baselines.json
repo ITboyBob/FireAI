@@ -1,0 +1,13 @@
+{
+  "baselines": {
+    "ws_rag_baseline_001": {
+      "created_at": "2026-07-05T16:51:09.035576+00:00",
+      "dataset_fingerprint": "sha256:ca1af73fecc7ce481ed65065f752ed56f97dc05db94e82f07a517e3f30d9f19e",
+      "dataset_id": "ws_rag_baseline_001",
+      "previous_run_path": null,
+      "protocol_fingerprint": "judge=deepseek-v4-pro-260425|judge_prompt=judge_v1|reps=3|order=seed_shuffled|metric=v1|thresholds={'answer_relevance': 0.8, 'citation_validity': 1.0, 'context_relevancy': 0.8, 'faithfulness': 0.9, 'refusal_appropriateness': 0.9, 'source_coverage': 0.9}|sha256=d732418f049e308fc8208806f9269a99e7515de8885ab4fa33b5e18face28d9c",
+      "run_path": "reports/ws_rag_eval/ws_rag_baseline_001_run_001"
+    }
+  },
+  "schema_version": "1.0.0"
+}
