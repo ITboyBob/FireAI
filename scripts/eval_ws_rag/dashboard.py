@@ -352,8 +352,151 @@ def _render_file_list(snapshot: dashboard_loader.DashboardSnapshot) -> None:
     )
 
 
+def _question_status(question: dashboard_loader.QuestionResult) -> str:
+    if question.red_line_failures:
+        return "红线失败"
+    if not question.passed:
+        return "普通失败"
+    return "通过"
+
+
 def _render_drilldown(snapshot: dashboard_loader.DashboardSnapshot) -> None:
-    st.write("问题下钻视图")
+    run = snapshot.current_run
+    if run is None:
+        st.info("暂无数据")
+        return
+
+    if not st.session_state.get("selected_document_id"):
+        st.info("请先在文件列表中选择一个文件")
+        return
+
+    document = next(
+        (doc for doc in run.report.documents if doc.document_id == st.session_state.selected_document_id),
+        None,
+    )
+    if document is None:
+        st.error("当前选中的文件已不存在")
+        return
+
+    only_failed = st.checkbox("只看失败问题", key="drilldown_filter_failed")
+    only_red = st.checkbox("只看红线问题", key="drilldown_filter_red")
+    type_filter = st.selectbox(
+        "问题类型",
+        options=["全部", "frequent", "boundary", "diversity"],
+        key="drilldown_type_filter",
+    )
+
+    filtered = [
+        q
+        for q in document.questions
+        if (not only_red or q.red_line_failures)
+        and (not only_failed or not q.passed)
+        and (type_filter == "全部" or q.question_type == type_filter)
+    ]
+
+    if not filtered:
+        st.info("没有符合筛选条件的问题")
+        return
+
+    question_ids = [q.question_id for q in filtered]
+    current_qid = st.session_state.get("selected_question_id")
+    index = 0
+    if current_qid in question_ids:
+        index = question_ids.index(current_qid)
+    else:
+        st.session_state.selected_question_id = question_ids[0]
+
+    def _format_question(qid: str) -> str:
+        q = next(question for question in filtered if question.question_id == qid)
+        status = _question_status(q)
+        return f"[{status}] {q.question}"
+
+    selected_qid = st.selectbox(
+        "选择问题",
+        options=question_ids,
+        index=index,
+        format_func=_format_question,
+        key="selected_question_id",
+    )
+
+    question = next(q for q in filtered if q.question_id == selected_qid)
+
+    left, middle, right = st.columns(3)
+
+    with left:
+        st.subheader("问题与状态")
+        st.markdown(f"**{question.question}**")
+        st.caption(f"类型：{question.question_type}")
+        st.caption(f"状态：{_question_status(question)}")
+        st.caption(f"passed：{question.passed}")
+        if question.expected_article:
+            st.caption(f"目标条文：{question.expected_article}")
+        st.caption(f"来源 chunk：{question.source_chunk_id}")
+
+    with middle:
+        st.subheader("评分与失败原因")
+        protocol = run.report.protocol
+        metric_names = [
+            "context_relevancy",
+            "source_coverage",
+            "faithfulness",
+            "answer_relevance",
+            "citation_validity",
+            "refusal_appropriateness",
+        ]
+        metric_labels = [
+            "上下文相关性",
+            "来源覆盖",
+            "忠实度",
+            "回答相关性",
+            "引文有效性",
+            "拒答适当性",
+        ]
+        scores_df = pd.DataFrame(
+            {
+                "指标": metric_labels,
+                "得分": [getattr(question.metrics, name) for name in metric_names],
+                "阈值": [getattr(protocol.thresholds, name) for name in metric_names],
+            }
+        )
+        st.dataframe(scores_df, use_container_width=True, hide_index=True)
+
+        if question.red_line_failures:
+            st.error("红线失败")
+            for failure in question.red_line_failures:
+                st.markdown(f"- **{failure.code}**：{failure.description}")
+
+        if question.failure_reasons:
+            st.warning("失败原因")
+            for failure in question.failure_reasons:
+                st.markdown(f"- **{failure.code}**：{failure.description}")
+
+        st.subheader("RAG 答案")
+        st.markdown(question.answer)
+        st.caption(f"拒答：{question.refused}")
+        if question.uncertainty:
+            st.caption(f"uncertainty：{question.uncertainty}")
+
+    with right:
+        st.subheader("检索证据")
+        for chunk in question.retrieved_chunks:
+            with st.container(border=True):
+                st.caption(
+                    f"chunk_id: {chunk.chunk_id} | 路径: {chunk.path} | 分数: {chunk.retrieval_score:.2f}"
+                )
+                st.markdown(chunk.text)
+                if chunk.cited:
+                    st.badge("已引用", color="blue")
+
+        st.subheader("结构化引文")
+        if question.citations:
+            for citation in question.citations:
+                with st.container(border=True):
+                    st.caption(f"matched_chunk_id: {citation.matched_chunk_id}")
+                    st.markdown(f"**{citation.citation_label}** — {citation.path}")
+                    st.markdown(citation.text)
+        else:
+            st.caption("无引文")
 
 
 def _render_comparison(snapshot: dashboard_loader.DashboardSnapshot) -> None:

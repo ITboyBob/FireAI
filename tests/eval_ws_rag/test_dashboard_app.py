@@ -143,3 +143,52 @@ class TestOverviewAndFileList:
 
         assert at.session_state["selected_view"] == "问题下钻"
         assert at.session_state["selected_document_id"] == "doc_d97773f1500c"
+
+
+
+class TestDrilldown:
+    def _enter_drilldown(self, at, document_id, question_id):
+        at.session_state["selected_view"] = "问题下钻"
+        at.session_state["selected_document_id"] = document_id
+        at.session_state["selected_question_id"] = question_id
+        return at.run()
+
+    def test_drilldown_displays_scores_thresholds_and_failure_codes(self, streamlit_app, tmp_path, monkeypatch):
+        monkeypatch.setenv("EVAL_DASHBOARD_REPORT_ROOT", str(tmp_path))
+        _write_run(tmp_path, "run_001")
+
+        at = streamlit_app.run()
+        at = self._enter_drilldown(at, "doc_d97773f1500c", "q_boundary_001")
+        assert not at.exception
+
+        markdowns = " ".join(str(m.value) for m in at.markdown)
+        assert "citation_invalid" in markdowns
+        assert "refusal_missed" in markdowns
+        assert "引文无法在当前证据中验证" in markdowns
+
+        df = at.dataframe[0].value
+        assert "上下文相关性" in df["指标"].values
+        assert "阈值" in df.columns
+
+    def test_drilldown_displays_retrieved_chunks_and_bound_citations(self, streamlit_app, tmp_path, monkeypatch):
+        monkeypatch.setenv("EVAL_DASHBOARD_REPORT_ROOT", str(tmp_path))
+        _write_run(tmp_path, "run_001")
+
+        at = streamlit_app.run()
+        at = self._enter_drilldown(at, "doc_d97773f1500c", "q_frequent_001")
+        assert not at.exception
+
+        captions = " ".join(str(c.value) for c in at.caption)
+        assert "chunk_frequent_001" in captions
+        assert "matched_chunk_id" in captions
+
+    def test_red_line_help_is_only_shown_near_active_failure(self, streamlit_app, tmp_path, monkeypatch):
+        monkeypatch.setenv("EVAL_DASHBOARD_REPORT_ROOT", str(tmp_path))
+        _write_run(tmp_path, "run_001")
+
+        at = streamlit_app.run()
+        at = self._enter_drilldown(at, "doc_d97773f1500c", "q_boundary_001")
+        assert any("红线失败" in str(e.value) for e in at.error)
+
+        at = self._enter_drilldown(at, "doc_d97773f1500c", "q_frequent_001")
+        assert not any("红线失败" in str(e.value) for e in at.error)
