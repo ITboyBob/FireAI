@@ -74,6 +74,34 @@ def test_run_question_records_retrieved_chunks():
     assert result.refused is False
 
 
+def test_run_question_binds_citations_by_label_not_path():
+    """答案模型返回的是 build_citation_label 标签，Runner 必须据此绑定到检索证据。"""
+    hits = [_make_chunk("doc_a", "chunk_001", article_no="第一条")]
+    retriever = _fake_retriever(hits)
+    answer = {
+        "conclusion": "结论",
+        "citations": ["《测试法规》第一条"],
+        "scope": "",
+        "uncertainty": "",
+    }
+
+    result = run_question(
+        retriever=retriever,
+        answer_client=_fake_answer_client(answer),
+        question="问题？",
+        document_id="doc_a",
+        top_k=5,
+    )
+
+    assert len(result.citations) == 1
+    citation = result.citations[0]
+    assert citation.matched_chunk_id == "chunk_001"
+    assert citation.document_id == "doc_a"
+    assert citation.path == "测试法规 > 第一条"
+    assert citation.text == "示例文本"
+    assert citation.citation_label == "《测试法规》第一条"
+
+
 def test_run_question_passes_original_evidence_to_answer():
     hits = [_make_chunk("doc_a", "chunk_001")]
     retriever = _fake_retriever(hits)

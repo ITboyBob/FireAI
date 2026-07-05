@@ -10,7 +10,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Protocol
 
+from app.core.settings import get_settings
 from app.services.chat_client import OpenAIChatClient
+from app.services.embedder import SentenceTransformerEmbedder
 from app.services.retriever import Retriever
 from scripts.eval_ws_rag.dataset_models import EvaluationDataset
 from scripts.eval_ws_rag.dataset_store import load_dataset
@@ -175,11 +177,35 @@ def _build_protocol(config: dict[str, Any], *, judge_model: str, answer_model: s
 
 
 def _default_retriever_factory(data_dir: Path) -> Retriever:
+    """加载真实检索器，必须带上本地 embedder 才能执行语义向量检索。"""
     index_dir = data_dir / "index"
+    settings = get_settings()
+    model_name = settings.embedding_model_name
+    if not model_name:
+        raise FatalEvaluationError(
+            EvaluationError(
+                stage="preflight",
+                stage_description="向量嵌入模型未配置",
+                error_type="ConfigurationError",
+                message="环境变量 EMBEDDING_MODEL_NAME 未设置，无法执行向量检索",
+                recoverable=False,
+            )
+        )
+
+    embedder = SentenceTransformerEmbedder(
+        model_name_or_path=model_name,
+        device=settings.embedding_device,
+        batch_size=settings.embedding_batch_size,
+        max_seq_length=settings.embedding_max_seq_length,
+    )
+    # 先 warm-up embedder 再加载 FAISS，避免首次 encode 时原生层崩溃。
+    embedder.encode_queries(["warmup"])
+
     return Retriever.from_disk(
         keyword_db_path=index_dir / "retrieval.db",
         vector_index_path=index_dir / "faiss.index",
         vector_map_path=index_dir / "vector_map.json",
+        embedder=embedder,
     )
 
 

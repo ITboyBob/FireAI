@@ -5,7 +5,8 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any, Protocol
 
-from app.services.answer_service import build_answer
+from app.schemas.chat import EvidenceItem
+from app.services.answer_service import build_answer, build_citation_label
 from app.services.query_normalizer import normalize_query
 from scripts.eval_ws_rag.report_models import CitationRecord, RetrievedChunk
 
@@ -247,17 +248,23 @@ def _normalize_citations(raw_citations: Any, evidence: Sequence[dict[str, Any]])
     if not raw_citations:
         return []
     records: list[CitationRecord] = []
-    evidence_by_path = {str(item.get("path", "")): item for item in evidence}
+    # 答案模型从 allowed_citations 中选择的引文是 build_citation_label 生成的标签，
+    # 因此按标签回查证据，而不是按 chunk 的 path。
+    evidence_by_label: dict[str, dict[str, Any]] = {}
+    for item in evidence:
+        label = build_citation_label(EvidenceItem.model_validate(item))
+        evidence_by_label[label] = item
+
     for raw in raw_citations:
-        text = str(raw)
-        matched = evidence_by_path.get(text)
+        label = str(raw)
+        matched = evidence_by_label.get(label)
         records.append(
             CitationRecord(
                 document_id=str(matched.get("document_id", "")) if matched else "",
-                path=text,
+                path=str(matched.get("path", "")) if matched else label,
                 text=str(matched.get("text", "")) if matched else "",
                 matched_chunk_id=str(matched.get("chunk_id", "")) if matched else "",
-                citation_label=text,
+                citation_label=label,
             )
         )
     return records
