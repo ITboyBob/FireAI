@@ -4,11 +4,20 @@
 **日期：** 2026-07-04  
 **设计文档状态：** 已形成 1.0 版；对应“总览 + 3 分卷”执行计划已建立
 
-**能力状态：** `planned`；执行计划已建立，但尚无业务代码、自动化测试或真实文件评测结果，不能标记为已实现
+**能力状态：** `in_progress`；代码、自动化测试和产物核验器已实现，`tests/eval_ws_rag` 共 189 项通过；真实模型 Run 尚未执行，不能标记为 `implemented`
 
 **执行入口：** [Word/W 单文件 RAG 问答评测实施计划](../project_or_workflow/2026-07-05-ws-rag-evaluation-implementation.md)
 
-**Linear 进度快照：** 2026-07-04 里程碑“建立并完成Word文档的评测系统”为 25%，当前唯一附属 issue `BOB-20` 状态为 `In Progress`
+**主要实现文件：**
+
+- `scripts/eval_ws_rag/report_models.py`：共享报告 schema
+- `scripts/eval_ws_rag/rag_runner.py`、`llm_judge.py`、`rule_validator.py`、`report_aggregator.py`、`report_publisher.py`
+- `scripts/eval_ws_rag/orchestrator.py`、`scripts/evaluate_ws_rag.py`：主编排与 CLI
+- `scripts/eval_ws_rag/runtime_config.py`：运行配置与未校准声明
+- `scripts/eval_ws_rag/baseline.py`、`scripts/compare_ws_rag_runs.py`：基线登记与比较
+- `scripts/verify_ws_rag_evaluation_run.py`：产物只读核验器
+
+**Linear 进度快照：** 2026-07-05 里程碑“建立并完成Word文档的评测系统”代码实施推进中，真实模型 Run 待环境凭据确认
 
 ## 1. 设计目标
 
