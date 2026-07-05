@@ -500,7 +500,21 @@ def _render_drilldown(snapshot: dashboard_loader.DashboardSnapshot) -> None:
 
 
 def _render_comparison(snapshot: dashboard_loader.DashboardSnapshot) -> None:
-    st.write("对比状态视图")
+    run = snapshot.current_run
+    if run is None:
+        st.info("暂无数据")
+        return
+
+    st.subheader("暂无可比较对象")
+    st.markdown("**当前只有一个 Run，暂无可比较对象。**")
+    st.markdown("双 Run 比较属于未来扩展，需要在相同 dataset、protocol 和 schema 主版本下进行。")
+
+    st.divider()
+    st.markdown("**当前 Run 口径**")
+    st.markdown(f"- Run ID：`{run.run_id}`")
+    st.markdown(f"- Dataset ID：`{run.report.dataset.dataset_id}`")
+    st.markdown(f"- Dataset Fingerprint：`{run.report.dataset.dataset_fingerprint}`")
+    st.markdown(f"- Protocol Fingerprint：`{run.report.protocol.protocol_fingerprint}`")
 
 
 def main() -> None:

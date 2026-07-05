@@ -192,3 +192,35 @@ class TestDrilldown:
 
         at = self._enter_drilldown(at, "doc_d97773f1500c", "q_frequent_001")
         assert not any("红线失败" in str(e.value) for e in at.error)
+
+
+
+class TestComparisonUnavailable:
+    def test_single_run_comparison_view_shows_unavailable_message(self, streamlit_app, tmp_path, monkeypatch):
+        monkeypatch.setenv("EVAL_DASHBOARD_REPORT_ROOT", str(tmp_path))
+        _write_run(tmp_path, "run_001")
+
+        at = streamlit_app.run()
+        at.sidebar.radio[0].set_value("对比状态").run()
+        assert not at.exception
+
+        markdowns = " ".join(str(m.value) for m in at.markdown)
+        assert "只有一个 Run" in markdowns
+        assert "暂无可比较对象" in markdowns
+        dataset_id = at.session_state["dashboard_snapshot"].current_run.report.dataset.dataset_id
+        assert dataset_id in markdowns
+
+    def test_single_run_comparison_view_has_no_direction_claims(self, streamlit_app, tmp_path, monkeypatch):
+        monkeypatch.setenv("EVAL_DASHBOARD_REPORT_ROOT", str(tmp_path))
+        _write_run(tmp_path, "run_001")
+
+        at = streamlit_app.run()
+        at.sidebar.radio[0].set_value("对比状态").run()
+        assert not at.exception
+
+        full_text = " ".join(str(e.value) for e in list(at.markdown) + list(at.metric))
+        assert "提升" not in full_text
+        assert "下降" not in full_text
+        assert "变好" not in full_text
+        assert "变差" not in full_text
+        assert "修复" not in full_text
