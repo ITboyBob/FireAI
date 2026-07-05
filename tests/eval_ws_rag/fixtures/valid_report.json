@@ -1,0 +1,244 @@
+{
+  "schema_version": "1.0.0",
+  "run_id": "run_20260705_000000_mock001",
+  "created_at": "2026-07-05T00:00:00+00:00",
+  "dataset": {
+    "dataset_id": "ds_mock_001",
+    "dataset_fingerprint": "fp_mock_001",
+    "document_ids": ["doc_d97773f1500c"]
+  },
+  "protocol": {
+    "schema_version": "1.0.0",
+    "protocol_fingerprint": "judge=doubao-seed-2-1-pro-260628|judge_prompt=judge_v1|reps=3|order=seed_shuffled|metric=v1|thresholds={'answer_relevance': 0.8, 'citation_validity': 1.0, 'context_relevancy': 0.8, 'faithfulness': 0.9, 'refusal_appropriateness': 0.9, 'source_coverage': 0.9}|sha256=6e2ea1aded6a72722a41e994fc537e466c8b3833dffea0173aba532870ef0f7b",
+    "judge_model": "doubao-seed-2-1-pro-260628",
+    "judge_prompt_version": "judge_v1",
+    "judge_temperature": 0.0,
+    "judge_repetitions": 3,
+    "judge_calibrated": false,
+    "evidence_order_strategy": "seed_shuffled",
+    "metric_algorithm_version": "v1",
+    "thresholds": {
+      "context_relevancy": 0.8,
+      "source_coverage": 0.9,
+      "faithfulness": 0.9,
+      "answer_relevance": 0.8,
+      "citation_validity": 1.0,
+      "refusal_appropriateness": 0.9
+    },
+    "answer_model": "doubao-1-5-lite-32k-250115",
+    "answer_prompt_version": "answer_v1",
+    "top_k": 5
+  },
+  "system": {
+    "git_commit": "abc1234",
+    "git_dirty": false,
+    "corpus_fingerprint": "corpus_mock_001"
+  },
+  "summary": {
+    "document_id": "__summary__",
+    "title": "总体统计",
+    "question_count": 3,
+    "passed_questions": 2,
+    "failed_questions_count": 1,
+    "red_line_failures_count": 1,
+    "metrics": {
+      "context_relevancy": 0.85,
+      "source_coverage": 0.95,
+      "faithfulness": 0.9,
+      "answer_relevance": 0.85,
+      "citation_validity": 0.95,
+      "refusal_appropriateness": 0.9
+    },
+    "overall_pass_rate": 0.67,
+    "failed_questions": ["q_boundary_001"],
+    "questions": []
+  },
+  "documents": [
+    {
+      "document_id": "doc_d97773f1500c",
+      "title": "消防监督检查规定",
+      "source_sha256": "sha256_doc_d97773f1500c",
+      "content_class": "S1",
+      "question_count": 3,
+      "passed_questions": 2,
+      "failed_questions_count": 1,
+      "red_line_failures_count": 1,
+      "metrics": {
+        "context_relevancy": 0.85,
+        "source_coverage": 0.95,
+        "faithfulness": 0.9,
+        "answer_relevance": 0.85,
+        "citation_validity": 0.95,
+        "refusal_appropriateness": 0.9
+      },
+      "overall_pass_rate": 0.67,
+      "failed_questions": ["q_boundary_001"],
+      "questions": [
+        {
+          "question_id": "q_frequent_001",
+          "question": "消防监督检查规定第十条规定了什么？",
+          "question_type": "frequent",
+          "answerable": true,
+          "expected_behavior": "answer",
+          "expected_article": "第十条",
+          "source_chunk_id": "chunk_frequent_001",
+          "retrieved_chunks": [
+            {
+              "chunk_id": "chunk_frequent_001",
+              "document_id": "doc_d97773f1500c",
+              "path": "data/chunks/doc_d97773f1500c.jsonl",
+              "text": "公安机关消防机构应当对机关、团体、企业、事业等单位遵守消防法律、法规的情况依法进行监督检查。",
+              "retrieval_score": 0.92,
+              "keyword_score": 0.9,
+              "vector_score": 0.88,
+              "sources": ["keyword", "vector"],
+              "cited": true
+            }
+          ],
+          "answer": "根据第十条，公安机关消防机构应当对机关、团体、企业、事业等单位遵守消防法律、法规的情况依法进行监督检查。",
+          "citations": [
+            {
+              "document_id": "doc_d97773f1500c",
+              "path": "data/chunks/doc_d97773f1500c.jsonl",
+              "text": "公安机关消防机构应当对机关、团体、企业、事业等单位遵守消防法律、法规的情况依法进行监督检查。",
+              "matched_chunk_id": "chunk_frequent_001",
+              "citation_label": "《消防监督检查规定》第十条"
+            }
+          ],
+          "refused": false,
+          "uncertainty": null,
+          "metrics": {
+            "context_relevancy": 0.9,
+            "source_coverage": 1.0,
+            "faithfulness": 0.95,
+            "answer_relevance": 0.9,
+            "citation_validity": 1.0,
+            "refusal_appropriateness": 1.0
+          },
+          "red_line_failures": [],
+          "failure_reasons": [],
+          "judge_result": {
+            "context_relevancy": 0.9,
+            "faithfulness": 0.95,
+            "answer_relevance": 0.9,
+            "details": [
+              {
+                "repetition": 1,
+                "context_helpful": [true],
+                "claims_verdict": [{"claim": "公安机关消防机构应进行监督检查", "verdict": "supported"}],
+                "answer_relevance_likert": 5
+              }
+            ],
+            "prompt_version": "judge_v1",
+            "model": "doubao-seed-2-1-pro-260628"
+          },
+          "passed": true
+        },
+        {
+          "question_id": "q_diversity_001",
+          "question": "消防监督检查规定自何时施行？",
+          "question_type": "diversity",
+          "answerable": true,
+          "expected_behavior": "answer",
+          "expected_article": "附则",
+          "source_chunk_id": "chunk_diversity_001",
+          "retrieved_chunks": [
+            {
+              "chunk_id": "chunk_diversity_001",
+              "document_id": "doc_d97773f1500c",
+              "path": "data/chunks/doc_d97773f1500c.jsonl",
+              "text": "本规定自2009年5月1日起施行。",
+              "retrieval_score": 0.88,
+              "keyword_score": 0.85,
+              "vector_score": 0.82,
+              "sources": ["keyword", "vector"],
+              "cited": true
+            }
+          ],
+          "answer": "本规定自2009年5月1日起施行。",
+          "citations": [
+            {
+              "document_id": "doc_d97773f1500c",
+              "path": "data/chunks/doc_d97773f1500c.jsonl",
+              "text": "本规定自2009年5月1日起施行。",
+              "matched_chunk_id": "chunk_diversity_001",
+              "citation_label": "《消防监督检查规定》施行日期"
+            }
+          ],
+          "refused": false,
+          "uncertainty": null,
+          "metrics": {
+            "context_relevancy": 0.85,
+            "source_coverage": 0.9,
+            "faithfulness": 1.0,
+            "answer_relevance": 0.85,
+            "citation_validity": 1.0,
+            "refusal_appropriateness": 1.0
+          },
+          "red_line_failures": [],
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "question_id": "q_boundary_001",
+          "question": "消防监督检查规定第两千条规定了什么？",
+          "question_type": "boundary",
+          "answerable": false,
+          "expected_behavior": "refuse",
+          "expected_article": null,
+          "source_chunk_id": "chunk_boundary_001",
+          "retrieved_chunks": [
+            {
+              "chunk_id": "chunk_boundary_001",
+              "document_id": "doc_d97773f1500c",
+              "path": "data/chunks/doc_d97773f1500c.jsonl",
+              "text": "无关片段",
+              "retrieval_score": 0.3,
+              "keyword_score": 0.3,
+              "vector_score": 0.2,
+              "sources": ["keyword"],
+              "cited": false
+            }
+          ],
+          "answer": "第两千条规定了罚款金额。",
+          "citations": [
+            {
+              "document_id": "doc_d97773f1500c",
+              "path": "data/chunks/doc_d97773f1500c.jsonl",
+              "text": "无关片段",
+              "matched_chunk_id": "chunk_boundary_001",
+              "citation_label": "《消防监督检查规定》第两千条"
+            }
+          ],
+          "refused": false,
+          "uncertainty": null,
+          "metrics": {
+            "context_relevancy": 0.3,
+            "source_coverage": 0.0,
+            "faithfulness": 0.0,
+            "answer_relevance": 0.2,
+            "citation_validity": 0.0,
+            "refusal_appropriateness": 0.0
+          },
+          "red_line_failures": [
+            {
+              "code": "citation_invalid",
+              "description": "引文无法在当前证据中验证"
+            }
+          ],
+          "failure_reasons": [
+            {
+              "code": "citation_invalid",
+              "description": "引文无法在当前证据中验证"
+            },
+            {
+              "code": "refusal_missed",
+              "description": "不可回答问题未正确拒答"
+            }
+          ],
+          "passed": false
+        }
+      ]
+    }
+  ]
+}
