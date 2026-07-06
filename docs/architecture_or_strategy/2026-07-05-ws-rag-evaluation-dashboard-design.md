@@ -3,7 +3,15 @@
 > 本文是 [Word/W 阶段单文件 RAG 问答评测设计](./2026-07-04-ws-rag-evaluation-design.md) 的 Dashboard 扩展项总览与设计入口。
 >
 > **设计状态：** 已审查完善，待按实施计划执行。
-> **能力状态：** `planned`。设计、计划或 mock 验证完成都不等于能力已经实现。
+> **能力状态：** `planned`（备注：`mock_mvp` 已完成；loader、四类视图、刷新/错误态、浏览器验证均已通过）。设计、计划或 mock 验证完成都不等于能力已经实现。
+
+## 本轮 mock MVP 完成证据（能力状态保持 `planned`）
+
+- mock Run：共享 fixture `tests/eval_ws_rag/fixtures/valid_report.json` / `valid_errors.json`，run_id 为 `run_20260705_000000_mock001`。
+- 测试覆盖：`tests/eval_ws_rag/test_dashboard_loader.py` 18 项、`tests/eval_ws_rag/test_dashboard_app.py`（Streamlit `AppTest`）16 项全部通过；`tests/eval_ws_rag` 专项共 197 项通过；仓库完整回归 672 项通过。
+- 浏览器验证：2026-07-05 在本机 `127.0.0.1:8501` 人工检查，总览、文件列表、问题下钻、不可比较空状态、显式刷新、错误态均正常。
+- 字段核对：单个 mock Run 的 summary、文件、问题、证据、引文、错误和不可比较空状态已逐项核对。
+- 真实 Run 尚未接入：Dashboard 当前只展示单个 mock Run，真实 Run 与双 Run 比较能力待后续验收。
 
 ## 1. 设计目标
 

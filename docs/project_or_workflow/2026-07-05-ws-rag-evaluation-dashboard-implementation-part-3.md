@@ -119,6 +119,16 @@ conda run -n fire python -m pytest -q
 - 主评测系统仍按自己的完成定义单独判断，不能因 Dashboard 完成而自动升级；
 - 索引和读取规则登记最终文档角色。
 
+### mock MVP 完成证据记录
+
+- **mock Run 标识**：共享 fixture 中的合法 mock Run `run_20260705_000000_mock001`，对应 `tests/eval_ws_rag/fixtures/valid_report.json` 与 `valid_errors.json`。
+- **loader 测试**：`tests/eval_ws_rag/test_dashboard_loader.py` 共 18 项，覆盖合法 mock Run 加载、暂存/隐藏/符号链接/缺失文件过滤、run_id 与 created_at 跨文件一致性、跨字段一致性、错误分类等，全部通过。
+- **`AppTest` 测试**：`tests/eval_ws_rag/test_dashboard_app.py` 共 16 项，覆盖应用加载、session state、总览、文件列表、问题下钻、不可比较空状态、显式刷新和错误态，全部通过。
+- **专项与完整回归**：`tests/eval_ws_rag` 197 项通过；仓库完整回归 672 项通过，不新增 warning、skip 或 xfail。
+- **浏览器验证**：2026-07-05 在本机 `127.0.0.1:8501` 启动 Dashboard，人工检查总览、文件列表、问题下钻、不可比较空状态、显式刷新、错误态均正常，无 traceback、凭据或原始 JSON 泄露。
+- **字段核对结论**：单个 mock Run 的 summary、文件聚合、问题明细、检索 chunk、citation 绑定、红线失败、执行错误和不可比较空状态均已逐项核对，页面未输出任何涨跌、改进/退化结论。
+- **后续待验收项**：Dashboard 当前只展示单个 mock Run，真实 Run 接入、双 Run 比较能力以及同口径 baseline/current 差值展示待后续任务完成。
+
 ### Step 4：检查文档
 
 **意图：** 检查空白错误、行数和断链。

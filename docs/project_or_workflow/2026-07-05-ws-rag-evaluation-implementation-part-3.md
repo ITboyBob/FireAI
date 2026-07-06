@@ -382,6 +382,48 @@ conda run -n fire python -m pytest -q
 
 **中文 commit：** `test(eval): 完成Word评测真实验收与文档收口`
 
+### Task 13 真实运行结果记录
+
+本轮真实验收已完成，结果如下：
+
+- **dataset ID：** `ws_rag_baseline_001`
+- **run ID：** `ws_rag_baseline_001_run_001`
+- **baseline 名称：** `ws_rag_baseline_001`
+- **来源文档：**
+  - W-S1 `doc_d97773f1500c`《消防监督检查规定》
+  - W-S2 `doc_0e84d13a099b`《河北省消防设施管理规定》
+- **问题构成：** 每份文档高频、边界、多样性各 1 题，共 6 题
+- **产物位置：** `reports/ws_rag_eval/ws_rag_baseline_001_run_001/report.json` 与 `errors.json` 成对存在
+
+**实际模型分工与切换原因：**
+
+- 答案生成：`doubao-1-5-lite-32k-250115`
+- 问题生成：`doubao-seed-2-1-pro-260628`（原配置 `deepseek-v4-pro-260425` 在火山方舟上不支持 `json_schema`）
+- Judge：`deepseek-v4-pro-260425`（原配置 `doubao-seed-2-1-pro-260628` 在火山方舟上结构化/数组输出长时间无响应）
+- 所有报告均声明 `judge_calibrated=false`
+
+**核验命令及结果：**
+
+```bash
+conda run -n fire python scripts/verify_ws_rag_evaluation_run.py \
+  --dataset data/eval/ws_rag_datasets/ws_rag_baseline_001/dataset.json \
+  --run reports/ws_rag_eval/ws_rag_baseline_001_run_001 \
+  --data-dir data
+```
+
+退出码 `0`，产物一致性通过。
+
+**回归测试结果：**
+
+- `tests/eval_ws_rag`：197 passed
+- 仓库完整回归：672 passed
+
+**关键 commit：**
+
+- `f74e00f` text JSON 回退修复
+- `98a14c8` embedder 与引文绑定修复
+- `fecb702` 首个真实 dataset/Run/baseline
+
 ## 4. 分卷三完成门禁
 
 **命令执行意图：** 检查所有评测计划和设计文档引用。

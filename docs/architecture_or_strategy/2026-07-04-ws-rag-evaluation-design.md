@@ -4,7 +4,18 @@
 **日期：** 2026-07-04  
 **设计文档状态：** 已形成 1.0 版；对应“总览 + 3 分卷”执行计划已建立
 
-**能力状态：** `in_progress`；代码、自动化测试和产物核验器已实现，`tests/eval_ws_rag` 共 189 项通过；真实模型 Run 尚未执行，不能标记为 `implemented`
+**能力状态：** `implemented`；代码、自动化测试、产物核验器已通过，首个真实模型 Run 已完成并登记为 baseline
+
+**首个真实 dataset/run：**
+
+- dataset ID：`ws_rag_baseline_001`
+- run ID：`ws_rag_baseline_001_run_001`
+- baseline 名称：`ws_rag_baseline_001`
+- 来源文档：W-S1 `doc_d97773f1500c`《消防监督检查规定》、W-S2 `doc_0e84d13a099b`《河北省消防设施管理规定》，每份文档高频、边界、多样性各 1 题，共 6 题
+- 答案生成模型：`doubao-1-5-lite-32k-250115`
+- 问题生成模型：`doubao-seed-2-1-pro-260628`（原配置 `deepseek-v4-pro-260425` 在火山方舟不支持 `json_schema`）
+- Judge 模型：`deepseek-v4-pro-260425`（原配置 `doubao-seed-2-1-pro-260628` 在火山方舟上结构化/数组输出长时间无响应）
+- 报告声明：`judge_calibrated=false`
 
 **执行入口：** [Word/W 单文件 RAG 问答评测实施计划](../project_or_workflow/2026-07-05-ws-rag-evaluation-implementation.md)
 
@@ -17,7 +28,7 @@
 - `scripts/eval_ws_rag/baseline.py`、`scripts/compare_ws_rag_runs.py`：基线登记与比较
 - `scripts/verify_ws_rag_evaluation_run.py`：产物只读核验器
 
-**Linear 进度快照：** 2026-07-05 里程碑“建立并完成Word文档的评测系统”代码实施推进中，真实模型 Run 待环境凭据确认
+**Linear 进度快照：** 2026-07-05 里程碑“建立并完成Word文档的评测系统”已通过首个真实模型 Run 验收，并登记首个 baseline `ws_rag_baseline_001`
 
 ## 1. 设计目标
 

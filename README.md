@@ -173,6 +173,97 @@ conda run -n fire python -m uvicorn app.main:create_app --factory --reload --por
 
 5. 在网页首页输入消防法规相关问题，查看回答、法律依据和条文原文。
 
+## 评测系统
+
+项目提供离线 RAG 评测能力，用于在真实模型上验证已导入法规的问答效果。评测代码位于 `scripts/eval_ws_rag/`，不改动在线服务。
+
+### 已有文件和 document-id 列表
+
+`document-id` 是每份法规导入成功后生成的唯一标识，可在以下两处找到：
+
+- `data/manifests/incremental_imports.json` 的 `document_id` 字段；
+- `data/chunks/` 目录下对应的 `<document_id>.jsonl` 文件。
+
+当前已导入的法规与 `document-id` 对照如下：
+
+| document-id | 法规名称 |
+| --- | --- |
+| doc_e656eadc89d0 | 河北省火灾高危单位消防安全管理规定 |
+| doc_69c2e31cbdd7 | 高层民用建筑消防消防安全管理规定 |
+| doc_2373a58c077e | 公共娱乐场所管理规定 |
+| doc_d42834f991f1 | 中华人民共和国消防救援衔条例 |
+| doc_7217aa1967d5 | 安全生产行政执法与刑事司法衔接工作办法 |
+| doc_4cefe1e66632 | 河北省消防安全领域信用管理暂行细则 |
+| doc_0d9a0b22e189 | 河北省消防技术服务监督管理规定 |
+| doc_405dcbcae152 | 河北省消防行政执法裁量实施办法 |
+| doc_17f21c6a42ec | 河北省火灾事故调查处理规定 |
+| doc_8984bc91baeb | 消防产品监督管理规定 |
+| doc_d97773f1500c | 消防监督检查规定 |
+| doc_0e84d13a099b | 河北省消防设施管理规定 |
+| doc_aa2b9b6c20ab | 社会消防安全教育培训规定 |
+| doc_1e3762c74ebf | 河北省消防救援机构执法过错责任追究规定 |
+
+### 生成/更新评测 dataset
+
+dataset 是不可变问题集。`--dataset-id` 由你自行命名（如 `ws_rag_baseline_001`），不能与已有 dataset 重名。
+
+环境变量要求（参考 `.env.example`）：
+
+- `WS_RAG_QUESTION_GENERATOR_API_KEY`
+- `WS_RAG_QUESTION_GENERATOR_BASE_URL`
+- `WS_RAG_QUESTION_GENERATOR_MODEL`
+
+命令示例：
+
+```bash
+conda run -n fire python scripts/generate_ws_rag_dataset.py \
+  --document-id doc_d97773f1500c \
+  --document-id doc_0e84d13a099b \
+  --dataset-id ws_rag_baseline_001 \
+  --seed 42
+```
+
+产物落在 `data/eval/ws_rag_datasets/<dataset_id>/dataset.json`。目录已存在时命令会失败，禁止覆盖。
+
+### 开启新一轮评测 run
+
+run 依赖已落盘的 dataset。`--run-id` 由你自行命名（如 `ws_rag_baseline_001_run_001`），不能与已有 run 重名。
+
+环境变量要求：
+
+- `CHAT_API_KEY`、`CHAT_BASE_URL`、`CHAT_MODEL`（答案生成）
+- `WS_RAG_JUDGE_API_KEY`、`WS_RAG_JUDGE_BASE_URL`、`WS_RAG_JUDGE_MODEL`（Judge）
+
+命令示例：
+
+```bash
+conda run -n fire python scripts/evaluate_ws_rag.py \
+  --dataset data/eval/ws_rag_datasets/ws_rag_baseline_001/dataset.json \
+  --run-id ws_rag_baseline_001_run_001
+```
+
+产物落在 `reports/ws_rag_eval/<run_id>/report.json` 和 `errors.json`。`run_id` 已存在会失败；致命错误时调试信息写入 `var/ws_rag_eval/<run_id>/debug.json`。
+
+核验命令：
+
+```bash
+conda run -n fire python scripts/verify_ws_rag_evaluation_run.py \
+  --dataset data/eval/ws_rag_datasets/ws_rag_baseline_001/dataset.json \
+  --run reports/ws_rag_eval/ws_rag_baseline_001_run_001 \
+  --data-dir data
+```
+
+### 启动 Dashboard
+
+Dashboard 是独立本机 Streamlit 工具，只读已发布的 Run。
+
+```bash
+conda run -n fire python -m streamlit run scripts/eval_ws_rag/dashboard.py \
+  --server.address 127.0.0.1
+```
+
+访问 <http://127.0.0.1:8501>。首轮仅展示单个 mock Run，真实 Run 接入和双 Run 比较能力待后续验收。
+
 ## 文档系统
 
 本仓库使用分层文档系统，避免新会话一次性加载全部历史资料：

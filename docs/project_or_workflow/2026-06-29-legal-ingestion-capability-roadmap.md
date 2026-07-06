@@ -153,7 +153,21 @@ W-S1 完成不等于 14 文件全量摄取完成，也不等于多格式法规�
 - 本轮未执行人工校准，报告声明 `judge_calibrated=false`；
 - Dashboard mock MVP 仍按[独立实施计划](./2026-07-05-ws-rag-evaluation-dashboard-implementation.md)推进，不纳入本里程碑能力状态。
 
+#### Dashboard mock MVP 完成证据
 
+- mock Run：共享 fixture `tests/eval_ws_rag/fixtures/valid_report.json` / `valid_errors.json`，run_id `run_20260705_000000_mock001`。
+- loader 测试：`tests/eval_ws_rag/test_dashboard_loader.py` 18 项通过，覆盖发现、校验、跨文件/跨字段一致性和错误分类。
+- `AppTest` 测试：`tests/eval_ws_rag/test_dashboard_app.py` 16 项通过，覆盖总览、文件列表、问题下钻、不可比较空状态、显式刷新和错误态。
+- 浏览器验证：2026-07-05 在本机 `127.0.0.1:8501` 人工检查，总览、文件列表、问题下钻、不可比较空状态、显式刷新、错误态均正常。
+- 字段核对：单个 mock Run 的 summary、文件、问题、证据、引文、错误和不可比较空状态已逐项核对。
+- Dashboard 能力状态仍保持 `planned`，仅交付状态记为 `mock_mvp`；真实 Run 接入与双 Run 比较待后续验收。
+
+#### 当前仍存在的文档缺口
+
+- `README.md` 尚未写入以下三块操作指南：
+  1. 如何更新 dataset（新增/修改题目、法规或模型配置）；
+  2. 如何开启新一轮评测 run；
+  3. 如何启动 Dashboard 查看单个 mock Run 结果。
 
 本里程碑完成不代表 Judge 已获法律专家校准，也不代表 RAG 端到端性能已达标；首个 baseline 仅建立可复现的测量基线。
 
@@ -196,3 +210,4 @@ W-S1 完成不等于 14 文件全量摄取完成，也不等于多格式法规�
 | 2026-07-05 | 收敛主评测与 Dashboard 首轮输入：三类模型改由环境变量控制并串行、额外重试 1 次；固定两份法规和每类 1 题；取消本轮人工校准，首个真实 Run 只登记 baseline；Dashboard 只使用一个 mock Run | 用户确认的模型、文档、问题数量、调用和基线策略；主评测与 Dashboard 设计/计划同步更新，能力仍为 `planned` |
 | 2026-07-05 | 完成 Word/W 单文件 RAG 问答评测全部代码、测试和产物核验器：共享 schema、dataset、Runner、Judge、规则校验、聚合、原子发布、编排 CLI、运行配置、未校准声明、基线登记、同口径比较和核验器均落地；189 项评测测试通过。真实模型 Run 尚未执行 | `tests/eval_ws_rag` 189 项通过；`scripts/evaluate_ws_rag.py --show-config` 可显示三类模型配置；能力由 `planned` 更新为 `in_progress` |
 | 2026-07-05 | 完成首个真实模型 Run 并登记 baseline：修复火山方舟端点 json_schema 不稳定问题、补全评测编排器向量 embedder、修正 Runner 引文绑定逻辑；能力由 `in_progress` 更新为 `implemented` | 真实 dataset `ws_rag_baseline_001`、Run `ws_rag_baseline_001_run_001`、baseline 登记均完成；`scripts/verify_ws_rag_evaluation_run.py` 核验通过；`tests/eval_ws_rag` 197 项通过；主评测与 Dashboard 全部 Task 已 commit |
+| 2026-07-06 | Dashboard mock MVP 完成：loader 18 项、`AppTest` 16 项、专项 197 项、完整回归 672 项全部通过；浏览器关键路径人工验证正常；Dashboard 能力保持 `planned`（交付状态 `mock_mvp`）；`README.md` 缺少 dataset 更新、新 run 开启和 Dashboard 启动三块操作指南 | mock Run `run_20260705_000000_mock001`（共享 fixture）；浏览器验证 2026-07-05 本机 `127.0.0.1:8501`；真实 Run 接入与双 Run 比较待后续验收 |
