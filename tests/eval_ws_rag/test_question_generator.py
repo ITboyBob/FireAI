@@ -177,6 +177,39 @@ def test_rejects_invalid_schema_response():
         )
 
 
+def test_question_ids_unique_across_documents():
+    """回归：跨文档连续编号时问题 ID 在 dataset 内全局唯一。"""
+    chunks = _make_chunks()
+    responses = [
+        _generated_question("frequent", answerable=True),
+        _generated_question("boundary", answerable=False),
+        _generated_question("diversity", answerable=True, expected_article="第二条"),
+    ]
+    client = QuestionGeneratorClient(complete=_fake_complete(responses))
+    counts = {"frequent": 1, "boundary": 1, "diversity": 1}
+
+    doc1_questions = generate_document_questions(
+        client=client,
+        chunks=chunks,
+        document_id="doc_a",
+        counts=counts,
+        seed=42,
+        start_index=1,
+    )
+    doc2_questions = generate_document_questions(
+        client=client,
+        chunks=chunks,
+        document_id="doc_b",
+        counts=counts,
+        seed=42,
+        start_index=len(doc1_questions) + 1,
+    )
+
+    ids = [q.question_id for q in doc1_questions + doc2_questions]
+    assert len(ids) == 6
+    assert len(ids) == len(set(ids))
+
+
 def test_serial_calls_and_retry_once():
     chunks = _make_chunks()
     calls: list[int] = []

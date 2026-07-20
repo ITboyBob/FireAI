@@ -5,7 +5,7 @@ import json
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from scripts.eval_ws_rag.report_models import _check_schema_version
 
@@ -57,6 +57,20 @@ class EvaluationDataset(BaseModel):
         if not value or not value.strip():
             raise ValueError("dataset_fingerprint must not be empty")
         return value
+
+    @model_validator(mode="after")
+    def _question_ids_unique_across_documents(self) -> "EvaluationDataset":
+        """数据契约第 10 条：每个 question_id 在 dataset 内唯一。"""
+        seen: set[str] = set()
+        for document in self.documents:
+            for question in document.questions:
+                if question.question_id in seen:
+                    raise ValueError(
+                        f"question_id {question.question_id} 在 dataset 内重复"
+                        f"（出现于文档 {document.document_id}）"
+                    )
+                seen.add(question.question_id)
+        return self
 
     def canonical_payload(self) -> str:
         """Return deterministic canonical JSON text used for fingerprinting."""

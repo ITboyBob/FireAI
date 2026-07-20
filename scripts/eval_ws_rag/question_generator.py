@@ -154,10 +154,14 @@ def generate_document_questions(
     document_id: str,
     counts: dict[str, int],
     seed: int,
+    start_index: int = 1,
 ) -> list[Any]:
     """Generate validated questions for one document across all configured types.
 
     Returns a list of dicts ready to become DatasetQuestion instances.
+
+    ``start_index`` 是 dataset 级连续编号的起始值，调用方负责跨文档递增，
+    以保证 question_id 在整个 dataset 内唯一（数据契约第 10 条）。
     """
     article_nos = {str(c.get("article_no")) for c in chunks if c.get("article_no")}
     chunk_ids = {str(c.get("chunk_id")) for c in chunks if c.get("chunk_id")}
@@ -178,7 +182,8 @@ def generate_document_questions(
 
     seen_questions: set[str] = set()
     questions: list[dict[str, Any]] = []
-    for index, gq in enumerate(generated, start=1):
+    next_index = start_index
+    for gq in generated:
         normalized = gq.question.strip()
         if not normalized:
             raise QuestionGenerationError("generated question text is empty")
@@ -212,7 +217,7 @@ def generate_document_questions(
 
         questions.append(
             DatasetQuestion(
-                question_id=f"q_{gq.question_type}_{index:03d}",
+                question_id=f"q_{gq.question_type}_{next_index:03d}",
                 question=gq.question,
                 question_type=gq.question_type,
                 answerable=gq.answerable,
@@ -222,6 +227,7 @@ def generate_document_questions(
                 answer_sketch=gq.answer_sketch,
             )
         )
+        next_index += 1
     return questions
 
 

@@ -163,6 +163,45 @@ def test_cli_does_not_run_rag():
                 assert "answer" not in q
 
 
+def test_cli_generates_globally_unique_question_ids():
+    """回归：两份文档的 question_id 必须在 dataset 内全局唯一。"""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        chunks_dir = tmp_path / "chunks"
+        chunks_dir.mkdir()
+        for doc_id in ("doc_a", "doc_b"):
+            chunks = _make_chunks()
+            for chunk in chunks:
+                chunk["document_id"] = doc_id
+            (chunks_dir / f"{doc_id}.jsonl").write_text(
+                "\n".join(json.dumps(c, ensure_ascii=False) for c in chunks),
+                encoding="utf-8",
+            )
+        output_dir = tmp_path / "datasets"
+
+        with patch.object(
+            dataset_cli,
+            "_build_question_generator_client",
+            return_value=_fake_client_for_three_types(),
+        ):
+            rc = dataset_cli.main(
+                [
+                    "--document-id", "doc_a",
+                    "--document-id", "doc_b",
+                    "--dataset-id", "ds_unique_ids",
+                    "--seed", "42",
+                    "--chunks-dir", str(chunks_dir),
+                    "--output-dir", str(output_dir),
+                ]
+            )
+        assert rc == 0
+        dataset_path = output_dir / "ds_unique_ids" / "dataset.json"
+        data = json.loads(dataset_path.read_text(encoding="utf-8"))
+        ids = [q["question_id"] for doc in data["documents"] for q in doc["questions"]]
+        assert len(ids) == 6
+        assert len(ids) == len(set(ids))
+
+
 def test_real_chunks_fingerprint_stable():
     chunks_dir = Path("data/chunks")
     if not chunks_dir.exists():

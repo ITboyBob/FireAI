@@ -103,6 +103,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     documents: list[DatasetDocument] = []
+    next_index = 1
     for document_id in args.document_id:
         try:
             loaded = load_document_chunks(args.chunks_dir, document_id)
@@ -117,6 +118,7 @@ def main(argv: list[str] | None = None) -> int:
                 document_id=document_id,
                 counts=counts,
                 seed=args.seed,
+                start_index=next_index,
             )
         except QuestionGenerationError as exc:
             LOGGER.error("生成问题失败: %s", exc)
@@ -125,6 +127,8 @@ def main(argv: list[str] | None = None) -> int:
         if not questions:
             LOGGER.error("文档 %s 未生成任何问题", document_id)
             return 1
+
+        next_index += len(questions)
 
         documents.append(
             DatasetDocument(

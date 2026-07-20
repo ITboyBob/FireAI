@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import json
 import tempfile
 import threading
@@ -148,6 +149,34 @@ def test_directory_publish_is_atomic():
         runs = [p for p in root.iterdir() if p.is_dir() and not p.name.startswith(".")]
         assert runs == [root / "run_001"]
         assert set(f.name for f in runs[0].iterdir()) == {"report.json", "errors.json"}
+
+
+def test_publish_rejects_duplicate_question_ids_across_documents():
+    """契约第 10 条：发布前必须拒绝跨文档 question_id 重号的报告。"""
+    fixture_path = Path("tests/eval_ws_rag/fixtures/valid_report.json")
+    report_dict = json.loads(fixture_path.read_text(encoding="utf-8"))
+    report_dict["run_id"] = "run_dup_qid"
+
+    duplicated = copy.deepcopy(report_dict["documents"][0])
+    duplicated["document_id"] = "doc_dup"
+    report_dict["documents"].append(duplicated)
+    report_dict["dataset"]["document_ids"].append("doc_dup")
+
+    summary = report_dict["summary"]
+    summary["question_count"] = 6
+    summary["passed_questions"] = 4
+    summary["failed_questions_count"] = 2
+    summary["red_line_failures_count"] = 2
+    summary["failed_questions"] = ["q_boundary_001", "q_boundary_001"]
+
+    report = EvaluationReport.model_validate(report_dict)
+    errors = _make_errors("run_dup_qid", report.created_at)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        with pytest.raises(ValueError, match="question_id"):
+            publish_run_atomic(report, errors, root)
+        assert not (root / "run_dup_qid").exists()
 
 
 def test_file_lock_serializes_publishers(tmp_path):

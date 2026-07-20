@@ -259,26 +259,8 @@ Dashboard 是独立本机 Streamlit 工具，只读已发布的 Run。
 
 ```bash
 conda run -n fire python -m streamlit run scripts/eval_ws_rag/dashboard.py \
-  --server.address 127.0.0.1
+  --server.address 127.0.0.1 \
+  --server.headless true
 ```
 
-访问 <http://127.0.0.1:8501>。首轮仅展示单个 mock Run，真实 Run 接入和双 Run 比较能力待后续验收。
-
-## 文档系统
-
-本仓库使用分层文档系统，避免新会话一次性加载全部历史资料：
-
-- [文档索引](docs/system_meta/文档索引.md)：登记全部文档的角色、读取时机和权威级别。
-- [文档读取规则](docs/system_meta/文档读取规则.md)：定义默认最小读取集合、任务映射和冲突优先级。
-- [消防问答系统 2.0 PRD](docs/architecture_or_strategy/2026-04-11-fire-qa-system-2.0-prd.md)：当前唯一产品标准。
-- [工程技术标准](docs/architecture_or_strategy/工程技术标准.md)：当前技术架构和工程约束。
-- [法规摄取总体架构入口](docs/architecture_or_strategy/2026-06-29-legal-ingestion-overall-architecture.md)：法规摄取三层文档结构、统一入口、策略路由和提交边界。
-- [法规摄取能力路线图](docs/project_or_workflow/2026-06-29-legal-ingestion-capability-roadmap.md)：当前能力、依赖、里程碑顺序和状态的总体规划入口。
-- [统一法规摄取入口 ADR](docs/architecture_or_strategy/2026-06-29-unified-legal-ingestion-entry-adr.md)：记录唯一薄 CLI 与独立策略路由的决策原因。
-- [多格式法律语料摄取组件设计](docs/architecture_or_strategy/2026-06-28-multi-format-legal-corpus-ingestion-design.md)：多格式数据流、组件职责和集成边界专项。
-- [S3 正文后排除边界专项设计](docs/architecture_or_strategy/2026-07-04-s3-trailing-exclusion-boundary-design.md)：S3 尾部附件、评分表、模板和印发材料的边界信号、排除契约与质量门禁。
-- [S3 边界能力与 W-S3 组合验收计划](docs/project_or_workflow/2026-07-04-s3-boundary-and-w-s3-acceptance-implementation.md)：S3 独立策略、v3 门禁、W-S3 真实预演、正式导入和状态收口步骤。
-- [W-S1 端到端摄取实施计划](docs/project_or_workflow/2026-06-29-w-s1-end-to-end-ingestion-implementation.md)：W-S1 里程碑的任务分卷、质量资格和真实验收入口。
-- [S2 边界能力与 W-S2 组合验收计划](docs/project_or_workflow/2026-06-30-s2-boundary-and-w-s2-acceptance-implementation.md)：S2 边界、元数据证据、W-S2 真实验收和正式导入步骤；当前已随两份 W-S2 文件正式提交完成。
-
-`README.md` 只承担项目介绍、安装、运行和文档入口职责，不覆盖 PRD 或工程技术标准。
+访问 <http://127.0.0.1:8501>。`--server.headless true` 用于跳过 Streamlit 首次运行的交互式邮箱向导（`conda run` 的非交互 stdin 会让该向导直接失败），启动后不再自动打开浏览器，需手动访问上述地址。首轮仅展示单个 mock Run，真实 Run 接入和双 Run 比较能力待后续验收。

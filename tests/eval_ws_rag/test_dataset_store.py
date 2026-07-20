@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 from scripts.eval_ws_rag.dataset_models import EvaluationDataset
 from scripts.eval_ws_rag.dataset_store import (
@@ -137,6 +138,49 @@ def test_save_dataset_atomic_and_refuse_overwrite():
 
         with pytest.raises(FileExistsError):
             save_dataset_atomic(ds, root_path)
+
+
+def test_dataset_rejects_duplicate_question_ids_across_documents():
+    """契约第 10 条：每个 question_id 在 dataset 内唯一，跨文档重号必须拒绝。"""
+    question = {
+        "question_id": "q_frequent_001",
+        "question": "同一 ID 的问题？",
+        "question_type": "frequent",
+        "answerable": True,
+        "expected_behavior": "answer",
+        "expected_article": "第十条",
+        "source_chunk_id": "chunk_001",
+        "answer_sketch": "摘要",
+    }
+    documents = [
+        {
+            "document_id": "doc_a",
+            "title": "法规A",
+            "source_sha256": "sha_a",
+            "content_class": "S1",
+            "source_summary": "",
+            "questions": [question],
+        },
+        {
+            "document_id": "doc_b",
+            "title": "法规B",
+            "source_sha256": "sha_b",
+            "content_class": "S2",
+            "source_summary": "",
+            "questions": [question],
+        },
+    ]
+    with pytest.raises(ValidationError, match="question_id"):
+        EvaluationDataset(
+            schema_version="1.0.0",
+            dataset_id="ds_dup_qid",
+            dataset_fingerprint="placeholder",
+            created_at=datetime(2026, 7, 5, 0, 0, 0, tzinfo=timezone.utc),
+            generator_model="deepseek-v4-pro-260425",
+            generator_prompt_version="qg_v1",
+            generation_seed=42,
+            documents=documents,
+        )
 
 
 def test_load_dataset_detects_fingerprint_mismatch():

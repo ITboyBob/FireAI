@@ -35,6 +35,18 @@ class FileLock:
             self._local_lock.release()
 
 
+def _validate_unique_question_ids(report: EvaluationReport) -> None:
+    """数据契约第 10 条：每个 question_id 在报告内跨文档唯一，重号即拒绝发布。"""
+    seen: set[str] = set()
+    for document in report.documents:
+        for question in document.questions:
+            if question.question_id in seen:
+                raise ValueError(
+                    f"question_id {question.question_id} 跨文档重复，拒绝发布"
+                )
+            seen.add(question.question_id)
+
+
 def publish_run_atomic(
     report: EvaluationReport,
     errors: ErrorReport,
@@ -73,6 +85,7 @@ def publish_run_atomic(
                 raise ValueError("run_id mismatch between report.json and errors.json")
             if reloaded_report.created_at != reloaded_errors.created_at:
                 raise ValueError("created_at mismatch between report.json and errors.json")
+            _validate_unique_question_ids(reloaded_report)
 
             staging_dir.rename(final_dir)
             _fsync_path(reports_root)
