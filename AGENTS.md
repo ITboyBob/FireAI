@@ -1,8 +1,13 @@
 # AGENTS.md
 
-## 当前目标：升级项目
+## 当前目标：分析现有评测系统和模版方案的差距
+[新方案](/Users/itboybob/Project/fire/新评测和优化方案.md)
 
-- 升级背景：查看Linear issue `BOB-46` 
+[optimization模版](https://github.com/trpc-group/trpc-agent-python/tree/main/examples/optimization/quickstart)
+
+ [evaluation模版](https://github.com/trpc-group/trpc-agent-python/tree/main/examples/evaluation/quickstart) 
+
+[终极目标：Evaluation-Optimization Loop](https://github.com/trpc-group/trpc-agent-python/issues/91) 
 
 ## 强制规则
 
