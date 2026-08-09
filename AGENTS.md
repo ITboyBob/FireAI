@@ -1,18 +1,25 @@
 # AGENTS.md
 
-## 当前目标：分析现有评测系统和模版方案的差距
-[新方案](/Users/itboybob/Project/fire/新评测和优化方案.md)
+## 当前目标：审核所有设计文档
+>原则：
+>确保所有评测维度的模块边界清晰，无杂糅冗余
 
-[optimization模版](https://github.com/trpc-group/trpc-agent-python/tree/main/examples/optimization/quickstart)
+验收标准：架构覆盖完整全面无遗漏关键组件+可直接基于设计文档撰写执行计划
 
- [evaluation模版](https://github.com/trpc-group/trpc-agent-python/tree/main/examples/evaluation/quickstart) 
+### 评测方案SoT
+[新评测系统设计总卷（SoT 与分卷导航）](/Users/itboybob/Project/fire/新评测和优化方案.md)
 
-[终极目标：Evaluation-Optimization Loop](https://github.com/trpc-group/trpc-agent-python/issues/91) 
+## 上游模版（默认不读取）
+>针对每份模版的默认边界：不完全沿用具体字段名，只参考模版文件的内容范围
 
+ [evaluation模版](https://github.com/trpc-group/trpc-agent-python/tree/main/examples/evaluation/quickstart)
+
+------
 ## 强制规则
 
 1. 所有包安装必须在 conda 环境 `fire` 中执行。所有代码执行必须在 conda 环境 `fire` 中执行。推荐使用 `conda run -n fire ...` 显式执行，避免误用 `base` 或系统 Python。
 2. 本项目创建的任何issue都必须在Linear的Project“消防AI”下创建
+3. 任何 pytest、CI，或需要验证默认配置不受仓库 `.env` 污染的进程，必须在 import DeepEval 前设置 `DEEPEVAL_DISABLE_DOTENV=1`。这是 DeepEval 官方的 dotenv 加载开关，不是 warning suppression，也不替代独立的 telemetry 隐私配置。
 
 ## 编码规则
 
@@ -38,7 +45,7 @@
 - 顺从既有代码风格，一致性优先
 - 发现不相干的死代码，提一句让用户决定，不自己删
 - 任何改动产生的未使用变量、函数、import，必须删除
-- 做出任何改动后必须重跑所有测试，保证所有测试通过。
+- 做出任何代码改动后必须重跑所有测试，保证所有测试通过；相反，纯文档修改不用跑测试
 
 ### 4. Goal-Driven Execution（目标驱动执行）
 

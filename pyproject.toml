@@ -9,14 +9,22 @@ description = "Local-only fire law RAG with offline indexing and a thin FastAPI 
 readme = "README.md"
 requires-python = ">=3.14,<3.15"
 dependencies = [
+  "deepeval==4.1.4",
   "faiss-cpu>=1.14.3,<2.0",
   "fastapi>=0.135,<1.0",
   "jinja2>=3.1.6,<4.0",
+  "langchain-community==0.4.1",
   "numpy>=2.4,<3.0",
-  "openai>=2.30,<3.0",
+  "openai==2.30.0",
+  "pydantic==2.13.4",
+  "pydantic-core==2.46.4",
   "pydantic-settings>=2.13,<3.0",
+  "ragas==0.4.3",
+  "rich==13.9.4",
   "sentence-transformers>=5.3,<6.0",
   "streamlit>=1.58.0,<2.0",
+  "trulens-core==2.9.0",
+  "trulens-feedback==2.9.0",
   "uvicorn>=0.42,<1.0",
 ]
 
