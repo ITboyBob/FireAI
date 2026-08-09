@@ -191,12 +191,12 @@ conda run -n fire python -m uvicorn app.main:create_app --factory --reload --por
 
 | 卷册 | 入口 | 职责 |
 | --- | --- | --- |
-| 总卷 | [新评测系统设计总卷](./新评测和优化方案.md) | 划定 evaluation 范围，列出八个维度，规定读取顺序和跨卷规则 |
-| 分卷一 | [评测执行与报告架构](./docs/architecture_or_strategy/2026-07-23-evaluation-optimization-loop-architecture-design.md) | 运行被测 RAG，保存逐 case 观测，调用评分与聚合，维护 run 状态，直接写出两份报告 |
-| 分卷二 | [val_set 生成与冻结](./docs/architecture_or_strategy/2026-07-27-ragas-val-set-query-generation-design.md) | 从冻结 chunks 生成 Query 与参考答案，组织人工核验，发布正式 `val_set.json` |
-| 分卷三 | [Metric 与评分契约](./docs/architecture_or_strategy/2026-07-27-ragas-response-reference-rubric-judge-design.md) | 定义 `metrics.json`、八项 Metric、统一结果、聚合算法和单项错误语义 |
+| 总卷 | [新评测系统设计总卷](./新评测系统设计总卷.md) | 划定 evaluation 范围，列出八个维度，规定读取顺序和跨卷规则 |
+| 分卷一 | [评测执行与报告架构](./docs/architecture_or_strategy/2026-07-23-evaluation-optimization-loop-architecture-design.md) | 运行被测 RAG，保存逐 case 观测，调用评分与聚合，维护 run 状态，直接写出两份报告；定义后续 `system_snapshot.json` 契约 |
+| 分卷二 | [val_set 生成与冻结](./docs/architecture_or_strategy/2026-07-27-ragas-val-set-query-generation-design.md) | 从当前仓库全部 chunks 纯脚本生成 Query 与参考答案，并按 Fire 业务假设冻结正式、完整 \(G_q\) 后发布 `val_set.json` |
+| 分卷三 | [Metric 与评分契约](./docs/architecture_or_strategy/2026-07-27-ragas-response-reference-rubric-judge-design.md) | 定义 `metrics.json`、八项 Metric、\(C_q\) hash、统一结果、聚合算法与稳定错误码 |
 
-运行层读取正式 `val_set.json` 与 `metrics.json`，执行当前被测 RAG，再让 JSON writer 与 Markdown writer 从同一个不可变 `AggregatedEvaluationResult` 分别直接写出 `report.json` 和 `report.md`。Markdown 不读取 JSON，也不依赖旧展示工具。单项 Metric 错误不会停止 run；系统继续执行，最终标记 `incomplete`，并仍写出两份报告。当前评测运行代码与真实端到端 baseline 尚未实现或验证。
+运行层读取正式 `val_set.json` 与 `metrics.json`，执行当前被测 RAG，再让 JSON writer 与 Markdown writer 从同一个不可变 `AggregatedEvaluationResult` 分别直接写出 `report.json` 和 `report.md`。Markdown 不读取 JSON，也不依赖旧展示工具。单项 Metric 错误不会停止 run；系统继续执行，最终标记 `incomplete`，并仍写出两份报告。`system_snapshot.json` 的后续契约已确定，仍只在评测数据集生成完成后进入后续阶段，不进入第一阶段执行计划。当前评测运行代码与真实端到端 baseline 尚未实现或验证。
 
 ### 已有文件和 document-id 列表
 
