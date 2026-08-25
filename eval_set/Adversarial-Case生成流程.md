@@ -6,7 +6,7 @@ Status: Draft
 
 # 流程定位
 
-针对[问答数据](/Users/itboybob/Project/fire/eval_set/RAG_Golden_Set.md)当中每一个QA的可复用的改写方式
+针对[问答数据](/Users/itboybob/Project/fire/eval_set/RAG_Golden_Set.md)当中每一个QA执行改写，生成对应“Adversarial Case”
 
 # 流程概览
 
