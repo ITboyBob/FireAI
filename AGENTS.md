@@ -1,23 +1,17 @@
 # AGENTS.md
 
-## 当前目标：分析[执行流程](/Users/itboybob/Project/fire/新修订流程.md)和[原Todo](/Users/itboybob/Project/fire/To-do.md)的关系
+## 当前目标：完善[生成流程草稿](/Users/itboybob/Project/fire/eval_set/Adversarial-Case生成流程.md)
+
 
 ### 背景
-- [已有的Golden Set ](RAG_Golden_Set.md) 只包含正例输入，覆盖度不足；目前已经确定 Golden Set 将包含“正例”“Edge Case”“Adversarial Case”3个一级Bucket；“正例”Bucket的所有数据集已准备好；“Edge Case”Bucket的“二级Bucket”设计规范已确定；
+- [已有的Golden Set ](RAG_Golden_Set.md) 只包含正例输入，覆盖度不足；
 - 知识库范围：
 [1](法律文本/)和[2](新法规文件/)
 - 现有Golden Set计划作为在受控状态下生成“Edge Case”和“Adversarial Case”的“生成种子”；边界说明：现有Golden Set无法涵盖消防法律领域的所有场景
 
 ### 已确定事实
-- 行动思路：把路径 B 做 value discovery，同时把外部研究用于方法借鉴和遗漏检查
-> 路径 B ：以现有正例 Golden Set 为配对生成种子，结合消防法规中的主体、义务、监管程序、行为对象和潜在滥用方式，在尽量保持法律知识需求与证据不变的前提下发现 B1…Bn。
->
-> 外部研究使用边界：只用于借鉴分析方法、转换结构、术语和遗漏检查，不直接移植具体标签
-
- - [二级 Bucket B_i 设计规范.md (line 8)](/Users/itboybob/Project/fire/二级 Bucket B_i 设计规范.md:8) 规定每个最终 B_i 必须具备的定义字段与边界，[Adversarial Cases 二级Bucket Labels.md (line 6)](/Users/itboybob/Project/fire/Adversarial Cases 二级Bucket Labels.md:6) 提供生成、标注和检查 B_i 的辅助标签输入，二者不构成平级二级 Bucket
  - 从正例转换Adversarial Case的 Intent ：中性目的 → 恶意目的
  - Risk Type 与经过消防法律领域化的 Authorization 暂作为辅助标签
->query transformation mechanism 与 misuse scenario 共同定义 B_i 的转换逻辑和领域含义；Risk Type 记录可能造成的风险后果，Authorization 记录行为主体是否具备相应权限。后两者只对生成后的样本进行横向标注，不决定样本属于哪个 B_i，也不与前两者构造笛卡尔积
 
 
 ### 附录：“Edge Case”Bucket的“二级Bucket”
