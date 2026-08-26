@@ -1,15 +1,13 @@
 # AGENTS.md
 
-## 当前目标：优化[对抗集提示词](/Users/itboybob/Project/fire/eval_set/Adversarial_Case_Prompt.md)
+## 当前目标：讨论“Edge Case”的具体生成机制
 
 ### 背景
-- [已有的Golden Set ](RAG_Golden_Set.md) 只包含正例输入，覆盖度不足；
 - 知识库范围：
 [1](法律文本/)和[2](新法规文件/)
-- 现有Golden Set计划作为在受控状态下生成“Edge Case”和“Adversarial Case”的“生成种子”；边界说明：现有Golden Set无法涵盖消防法律领域的所有场景
-
-### 已确定事实
- - 从正例转换Adversarial Case的 Intent ：中性目的 → 恶意目的
+- 现有Golden Set计划作为在受控状态下生成“Edge Case”和“Adversarial Case”的“生成种子”
+- 已确定“Adversarial Case”的初步生成机制：利用[Adversarial Case生成提示词](/Users/itboybob/Project/fire/eval_set/Adversarial_Case_Prompt.md)
+- 边界说明：Golden Set、“Edge Case”和“Adversarial Case”不需要涵盖消防法律领域的所有场景
 
 ------
 ## 强制规则
