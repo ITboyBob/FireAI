@@ -23,7 +23,6 @@ stats:
 | 理解离线索引构建（语料→结构化→切块→双索引）全流程 | 建库脚本 | `scripts/CODEMAP.md` + `scripts/build_corpus.py` + `scripts/build_index.py` | `tests/integration/pipeline/test_build_pipeline.py` |
 | 理解增量导入的 staging 校验、提交与失败回滚机制 | 摄取管线 | `scripts/import_new_corpus.py` + `app/services/incremental_import.py` | `tests/integration/pipeline/test_ws3_qualified_incremental_import.py` |
 | 理解 W/S1/S2/S3 边界判定与质量门禁判定矩阵 | 摄取管线 | `app/services/legal_quality_gates.py.analysis.md` + `app/services/legal_ingestion_orchestrator.py` | `app/services/CODEMAP.md` 边界判定各域 |
-| 理解评测子系统入口与报告产物链路 | 评测子系统 | `scripts/eval_ws_rag/CODEMAP.md` + `scripts/evaluate_ws_rag.py` | `reports/ws_rag_eval/ws_rag_baseline_002_run_001/report.json` |
 | 理解新评测系统（evaluation-only）四卷结构与设计权威口径 | 架构设计文档 | `docs/CODEMAP.md` + `docs/architecture_or_strategy/2026-07-23-evaluation-optimization-loop-architecture-design.md` | 根目录 `新评测系统设计总卷.md`（已被 AGENTS.md 标注过时，注意甄别） |
 | 查找 Golden Set 与 Adversarial Case 生成素材及流程 | 评测素材 | `eval_set/CODEMAP.md` + `eval_set/Adversarial_Case生成流程.md` | `eval_set/RAG_Golden_Set.json` |
 | 了解测试分层与某生产模块如何被验证 | 测试层 | `tests/CODEMAP.md` Task Guide | 对应生产模块的 CODEMAP 行 |
@@ -34,13 +33,11 @@ stats:
 | Dir | Domain | Depends On | Purpose |
 |---|---|---|---|
 | `app/` | 后端服务 | data/ 运行时产物、外部 LLM/嵌入模型 | FastAPI 后端：会话管理、双路证据检索、法条绑定生成、摄取质量门禁管线与 Web UI |
-| `scripts/` | 建库/评测脚本 | app.core, app.services, scripts.eval_ws_rag | CLI 入口层：离线建库、增量导入、评测数据集生成/运行/对比/校验 |
-| `scripts/eval_ws_rag/` | 评测子系统 | app.core, app.services(检索/答案/嵌入), app.schemas | W-S RAG 离线评测：编排器、RAG runner、LLM judge、报告聚合与发布、dashboard |
-| `tests/` | 测试层 | app, scripts（被测目标）、fixtures | unit/integration/eval_ws_rag 三层测试 + 各阶段最小样本 fixtures |
+| `scripts/` | 建库脚本 | app.core, app.services | CLI 入口层：离线建库、增量导入 |
+| `tests/` | 测试层 | app, scripts（被测目标）、fixtures | unit/integration 两层测试 + 各阶段最小样本 fixtures |
 | `docs/` | 架构设计文档 | — | 设计/实施/参考三类 markdown 文档的时间线归档（59 篇） |
 | `eval_set/` | 评测素材 | — | Golden Set 正例 QA 与 Adversarial Case / Edge Case 生成素材（部分为 Draft/Under Review） |
-| `data/` | 构建产物存储 | 由 scripts 写入 | 大部分为 gitignored 可重建产物；仓库内仅跟踪 `data/eval/` 下 baseline 清单与 dataset.json 及 retrieval.db |
-| `reports/` | 评测产物 | scripts.eval_ws_rag 发布写入 | 已发布的评测 run 输出（当前仅 ws_rag_baseline_002_run_001，已知负基线：6/6 题红线未通过） |
+| `data/` | 构建产物存储 | 由 scripts 写入 | 大部分为 gitignored 可重建产物 |
 | `法律文本/`（gitignored）/ `新法规文件/` | 原始语料素材（非代码，PDF/docx） | 被 corpus_ingestor/incremental import 消费 | 原始法规文件；不在源码统计与子级 CODEMAP 覆盖范围内 |
 | `var/`（gitignored） | 本机运行时数据 | app/main、评测脚本写入 | conversations.db 会话库与评测调试临时产物 |
 

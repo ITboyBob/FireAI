@@ -224,7 +224,7 @@ conda run -n fire python -m uvicorn app.main:create_app --factory --reload --por
 | doc_aa2b9b6c20ab | 社会消防安全教育培训规定 |
 | doc_1e3762c74ebf | 河北省消防救援机构执法过错责任追究规定 |
 
-### 生成/更新评测 dataset
+### 生成/更新评测 dataset（已废弃）
 
 dataset 是不可变问题集。`--dataset-id` 由你自行命名（如 `ws_rag_baseline_001`），不能与已有 dataset 重名。
 
@@ -246,7 +246,7 @@ conda run -n fire python scripts/generate_ws_rag_dataset.py \
 
 产物落在 `data/eval/ws_rag_datasets/<dataset_id>/dataset.json`。目录已存在时命令会失败，禁止覆盖。
 
-### 开启新一轮评测 run
+### 开启新一轮评测 run（已废弃）
 
 run 依赖已落盘的 dataset。`--run-id` 由你自行命名（如 `ws_rag_baseline_001_run_001`），不能与已有 run 重名。
 
@@ -274,7 +274,7 @@ conda run -n fire python scripts/verify_ws_rag_evaluation_run.py \
   --data-dir data
 ```
 
-### 启动 Dashboard
+### 启动 Dashboard（已废弃）
 
 Dashboard 是独立本机 Streamlit 工具，只读已发布的 Run。
 

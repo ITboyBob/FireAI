@@ -1,6 +1,8 @@
 # AGENTS.md
 
 ## 当前目标：
+- 删除旧评测系统代码
+- 更新新评测系统文档
 
 ### 背景
 - 知识库范围：
@@ -8,7 +10,7 @@
 - 现有Golden Set计划作为在受控状态下生成“Adversarial Case”的“生成种子”
 - 已确定“Adversarial Case”的初步生成机制：利用[Adversarial Case生成提示词](/Users/itboybob/Project/fire/eval_set/Adversarial_Case_Prompt.md)
 - 边界说明：Golden Set、“Edge Case”和“Adversarial Case”不需要涵盖消防法律领域的所有场景
-- [这里](/Users/itboybob/Project/fire/新评测系统设计总卷.md)记录了过时的评测系统设计；此外仓库还包含过时的评测系统代码文件
+- [这里](/Users/itboybob/Project/fire/新评测系统设计总卷.md)记录了过时的评测系统设计，需要更新；仓库还包含过时的评测系统代码文件
 
 ------
 ## 强制规则
