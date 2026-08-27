@@ -7,7 +7,7 @@ generated_at: 2026-08-27
 
 ## Summary
 
-tests/ 是消防法律 RAG 系统的全量测试层：unit 覆盖 api/core/docs/services 分层的离线摄取管线与在线问答服务，integration 覆盖 FastAPI 端点全链路与 W-S1/S2/S3 真实文件摄取、增量导入及批处理 CLI，eval_ws_rag 覆盖 W-S RAG 评测子系统全流程，fixtures 提供各阶段最小样本数据。
+tests/ 是消防法律 RAG 系统的全量测试层：unit 覆盖 api/core/docs/services 分层的离线摄取管线与在线问答服务，integration 覆盖 FastAPI 端点全链路与 W-S1/S2/S3 真实文件摄取、增量导入及批处理 CLI，fixtures 提供各阶段最小样本数据。
 
 ## Task Guide
 
@@ -22,8 +22,6 @@ tests/ 是消防法律 RAG 系统的全量测试层：unit 覆盖 api/core/docs/
 | 了解会话轮次服务的上下文继承、自动标题与流式行为 | 对话管理 | `tests/unit/services/test_conversation_turn_service.py` | `test_context_manager.py`、`test_turn_classifier.py`、`test_conversation_presenter.py` |
 | 理解答案生成的证据绑定与多厂商客户端容错测试 | 答案生成 | `tests/unit/services/test_answer_service.py` | `tests/integration/api/test_chat_api.py` |
 | 了解 API 层聊天与会话端点的集成契约 | API 集成 | `tests/integration/api/test_chat_api.py`、`test_conversations_api.py` | `tests/unit/api/` |
-| 理解评测子系统 preflight → 打分 → 聚合 → 发布链路的测试切入方式 | 评测测试 | `tests/eval_ws_rag/test_orchestrator.py` | `test_llm_judge.py`、`test_rule_validator.py`、`test_report_publisher.py` |
-| 了解评测运行结果校验器（verifier）如何保证 run 完整性 | 运行校验器 | `tests/eval_ws_rag/test_real_run_verifier.py` | `eval_ws_rag/fixtures/valid_report.json` |
 | 了解离线构建管线一次性产出全部索引工件的验收方式 | 构建管线 | `tests/integration/pipeline/test_build_pipeline.py` | `tests/unit/services/test_vector_index.py` |
 
 ## Subdirectories
@@ -32,7 +30,6 @@ tests/ 是消防法律 RAG 系统的全量测试层：unit 覆盖 api/core/docs/
 |---|---|---|---|
 | `unit/` | 单元测试 | app.api, app.core.settings, app.services, docs/ | 四个分层：api（FastAPI 依赖注入接线）、core（Settings 路径派生）、docs（W-S1 计划文档合规校验）、services（最大主体：法律摄取管线 legal_* 系列、切块/解析、索引检索、对话管理、答案生成共 36 个文件） |
 | `integration/` | 集成测试 | app.main, app.services, scripts 入口 CLI | 两个方向：api（TestClient 驱动的聊天/会话/健康端点全链路）、pipeline（W-S1/S2/S3 真实文件摄取、合格增量导入的回滚矩阵、批处理 CLI、todo 基线范围推导、正式索引状态断言） |
-| `eval_ws_rag/` | 评测测试 | scripts.eval_ws_rag, scripts.evaluate_ws_rag, scripts.generate_ws_rag_dataset, scripts.verify_ws_rag_evaluation_run | W-S RAG 离线评测子系统单元测试：数据集生成与存储、RAG runner、LLM judge、规则红线校验、报告聚合与原子发布、orchestrator preflight、Streamlit 面板、CLI 与 run verifier；`fixtures/` 含合法报告样本 |
 | `fixtures/` | 测试数据 | app.services（被样本间接驱动） | 离线管线各阶段最小样本：`raw/`（真实 doc/docx 二进制）、`normalized/` 与 `structured/`（清洗前后文本片段）、`legal_ingestion/todo_baseline.json`（14 文件基线清单）；`chunks/` 目前为空占位 |
 
 ### unit/api
@@ -132,30 +129,6 @@ tests/ 是消防法律 RAG 系统的全量测试层：unit 覆盖 api/core/docs/
 | test_ws3_legal_corpus_quality.py | 语料质量门 | 参数化验证 WS3 单用例通过质量门 |
 | test_ws3_qualified_incremental_import.py | 合格增量导入 | 验证 WS3 单文件提交及 source digest/staged digest/索引发布/manifest 发布四级失败的逐一回滚，及 force-batch 报告 |
 
-### eval_ws_rag
-
-| File | Domain | Function |
-|---|---|---|
-| test_baseline.py | 评测基线 | 验证基线注册表加载 run 并写入、拒绝覆盖（replace 可记录前次 run）、缺报告拒绝、损坏注册表不被修改 |
-| test_dashboard_app.py | 评测面板 | 验证 Streamlit 面板的应用外壳与状态、总览与文件列表、下钻视图、对比不可用与刷新/错误态 |
-| test_dashboard_loader.py | 评测面板 | 验证共享 schema、run 发现、快照与单 run 视图数据装配，并用真实夹具回归 |
-| test_dataset_store.py | 评测数据集 | 验证规范化 payload 确定性、指纹忽略键序与 created_at、问题文本/期望条文/期望行为任一变化必变指纹 |
-| test_document_loader.py | 评测数据集 | 验证加载单文档 chunks 并拒绝空文件、坏 JSON、混合第二文档、非 W 抽取类别与不支持内容类别 |
-| test_eval_chat_client.py | LLM 判断客户端 | 验证 context/faithfulness/relevance 三类判断的解析、响应 schema 校验、Likert 越界拒绝、瞬时错误重试一次 |
-| test_evaluate_cli.py | 评测 CLI | 验证 evaluate CLI 必须提供 dataset 与 run id、成功路径执行完整流程、致命失败退出码 1 |
-| test_generate_dataset_cli.py | 评测 CLI | 验证 dataset CLI 按 document_id 创建数据集、不触发 RAG、question id 全局唯一、真实 chunks 指纹稳定 |
-| test_llm_judge.py | LLM 判断 | 验证三次重复打分取平均且保留原始细节、每次洗牌顺序不同、同种子可复现、串行执行、隐藏版本名 |
-| test_orchestrator.py | 评测编排 | 验证配置阈值读取及 preflight 对缺失 dataset/chunks/索引文件、指纹不匹配、已存在 run 的拒绝等编排主流程 |
-| test_question_generator.py | 评测数据集 | 验证三类题型生成、ID 稳定与去重、answerable 必须指向既有条文而 unanswerable 相反、非法 schema 响应拒绝 |
-| test_rag_runner.py | RAG 运行器 | 验证逐题记录检索块、citation 按标签（而非路径）绑定、原始证据传入答案、空检索导致拒答、query 格式错误可恢复而融合错误致命 |
-| test_real_run_verifier.py | 运行校验器 | 验证 verify_run 对 report/errors 身份一致性、dataset_id/source sha256 匹配的拒绝矩阵及 CLI 退出码 |
-| test_report_aggregator.py | 报告聚合 | 验证文档级指标平均与失败计数、run 级按问题数加权聚合、零问题拒绝、文档顺序稳定并与 report model 校验联动 |
-| test_report_models.py | 报告模型 | 验证分数范围、顶层必需对象、身份与协议指纹、summary 一致性、report-errors 配对与版本兼容 |
-| test_report_publisher.py | 报告发布 | 验证 report+errors 双文件原子发布、拒绝覆盖与 header 不匹配、第二文件失败不留半成品目录、跨文档重复 question id 拒绝 |
-| test_rule_validator.py | 规则红线 | 验证 citation 必须绑回检索块、期望条文覆盖率通过/失败两态、answerable 被拒答与 unanswerable 被回答两条红线的失败记录 |
-| fixtures/valid_report.json | 评测夹具 | 合法完整 EvaluationReport 样本，供面板加载与校验器测试复用 |
-| fixtures/valid_errors.json | 评测夹具 | 与 valid_report.json 配套的错误清单样本，用于 errors 配对场景 |
-
 ## File Dependencies
 
 | File 组 | 被测目标（app/scripts 模块） |
@@ -165,5 +138,4 @@ tests/ 是消防法律 RAG 系统的全量测试层：unit 覆盖 api/core/docs/
 | unit/services 摄取组（legal_*、structure_parser、chunk_builder、corpus_ingestor、normalizer、legal_textutil） | `app.services.legal_extractor/boundary/s2/s3/ingestion_orchestrator/batch/inventory/qualified_import/quality_gates/strategy_registry`、`structure_parser`、`chunk_builder` |
 | unit/services 索引检索组（keyword_index、vector_index、retriever、query_normalizer、incremental_import/manifest、knowledge_version） | `app.services.keyword_index`、`vector_index`/`vector_store`/`embedder`、`retriever`、`query_normalizer`、`incremental_import`、`incremental_manifest`、`knowledge_version` |
 | integration/pipeline | 上述离线模块的端到端组合 + 统一 CLI（import-new-corpus、build、batch 命令）|
-| eval_ws_rag | `scripts.eval_ws_rag.*`（orchestrator、llm_judge、rag_runner、rule_validator、report_*、dataset_store、baseline、runtime_config、dashboard_*）+ `scripts.evaluate_ws_rag`、`scripts.generate_ws_rag_dataset`、`scripts.verify_ws_rag_evaluation_run` |
 | unit/docs | docs/ 下 W-S1 计划同步文档、阅读规则文档与 README |

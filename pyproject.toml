@@ -22,7 +22,6 @@ dependencies = [
   "ragas==0.4.3",
   "rich==13.9.4",
   "sentence-transformers>=5.3,<6.0",
-  "streamlit>=1.58.0,<2.0",
   "trulens-core==2.9.0",
   "trulens-feedback==2.9.0",
   "uvicorn>=0.42,<1.0",
