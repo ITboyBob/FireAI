@@ -1,6 +1,6 @@
 # AGENTS.md
 
-## 当前目标：讨论“Edge Case”的具体生成机制
+## 当前目标：
 
 ### 背景
 - 知识库范围：
@@ -16,4 +16,19 @@
 1. 所有包安装必须在 conda 环境 `fire` 中执行。所有代码执行必须在 conda 环境 `fire` 中执行。推荐使用 `conda run -n fire ...` 显式执行，避免误用 `base` 或系统 Python。
 2. 用户主动要求创建issue时，必须在Linear的Project“消防AI”下创建issue
 3. 任何 pytest、CI，或需要验证默认配置不受仓库 `.env` 污染的进程，必须在 import DeepEval 前设置 `DEEPEVAL_DISABLE_DOTENV=1`。这是 DeepEval 官方的 dotenv 加载开关，不是 warning suppression，也不替代独立的 telemetry 隐私配置。
+
+## CODEMAP Navigation Protocol
+
+This project uses hierarchical `CODEMAP.md` index files for code navigation. Files over 1000 lines may have companion `.analysis.md` structural maps.
+
+### Navigation Rules
+
+1. Start from root `CODEMAP.md`. Read Task Guide first.
+2. Task Guide match: Target = primary read set. Also Check = conditional candidates (decide after reading Target).
+3. No Task Guide match → filter Subdirectories by Domain, enter only matching-domain subdirectories.
+4. Drill down layer by layer; consult local Task Guide at each level before reading source files.
+5. Container directories (no source files): read only Task Guide + Subdirectories.
+6. Large files: read `.analysis.md` Feature Index first, match Intent to line ranges. Use Logical Sections as fallback.
+7. Batch-read final target files in parallel.
+8. No speculative expansion: extend read set only when already-read code proves the need.
 
