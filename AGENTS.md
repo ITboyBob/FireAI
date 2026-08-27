@@ -10,7 +10,7 @@
 - 现有Golden Set计划作为在受控状态下生成“Adversarial Case”的“生成种子”
 - 已确定“Adversarial Case”的初步生成机制：利用[Adversarial Case生成提示词](/Users/itboybob/Project/fire/eval_set/Adversarial_Case_Prompt.md)
 - 边界说明：Golden Set、“Edge Case”和“Adversarial Case”不需要涵盖消防法律领域的所有场景
-- [这里](/Users/itboybob/Project/fire/新评测系统设计总卷.md)记录了过时的评测系统设计，需要更新；仓库还包含过时的评测系统代码文件
+- [新评测系统设计总卷](/Users/itboybob/Project/fire/新评测系统设计总卷.md)是 evaluation-only 的范围与导航入口；评测数据集独立生成规范唯一位于[eval_set/](/Users/itboybob/Project/fire/eval_set/)，Metric 与评测方法由两份分卷定义。仓库还包含待删除的旧评测系统代码文件
 
 ------
 ## 强制规则
@@ -33,4 +33,3 @@ This project uses hierarchical `CODEMAP.md` index files for code navigation. Fil
 6. Large files: read `.analysis.md` Feature Index first, match Intent to line ranges. Use Logical Sections as fallback.
 7. Batch-read final target files in parallel.
 8. No speculative expansion: extend read set only when already-read code proves the need.
-

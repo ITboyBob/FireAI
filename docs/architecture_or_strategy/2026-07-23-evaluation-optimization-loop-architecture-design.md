@@ -12,25 +12,25 @@
 | --- | --- | --- |
 | 总卷 | [新评测系统设计总卷](../../新评测系统设计总卷.md) | evaluation 范围、八个维度、读取顺序和跨卷规则 |
 | 分卷一（本文） | `2026-07-23-evaluation-optimization-loop-architecture-design.md` | 运行被测 RAG、保存逐 case 观测、调用评分与聚合、维护 run 状态、直接写出两份报告 |
-| 分卷二 | [val_set 生成与冻结](./2026-07-27-ragas-val-set-query-generation-design.md) | 当前仓库全部 chunks 到正式 `val_set.json` 的纯脚本生成、校验与发布 |
+| 评测数据集 | [eval_set/ 规范](../../eval_set/CODEMAP.md) | 独立生成评测数据集；规定数据集生成边界 |
 | 分卷三 | [Metric 与评分契约](./2026-07-27-ragas-response-reference-rubric-judge-design.md) | `metrics.json`、八项 Metric、统一结果、聚合算法、稳定错误码与未决错误边界 |
 
 本文只回答以下问题：
 
-- 何时读取正式 `val_set.json` 与 `metrics.json`。
+- 何时读取按 `eval_set/` 规范独立生成的评测数据集与 `metrics.json`。
 - 怎样在不改变被测 RAG 行为的前提下运行每个 case 并保存观测。
 - 何时调用分卷三定义的评分与聚合。
 - 怎样维护 run 状态。
 - 怎样让两个 writer 读取同一个不可变聚合结果并分别直接写出 JSON 和 Markdown。
 
-本文不定义 `val_set.json` 或 `metrics.json` 字段，不复述 Metric 公式、rubric、结果字段、聚合数学或单项错误字段。
+本文不定义评测数据集或 `metrics.json` 的字段，不复述 Metric 公式、rubric、结果字段、聚合数学或单项错误字段。
 
 ## 1. 架构结论
 
 新评测系统采用一次性离线运行流程：
 
 ```text
-正式 val_set.json + 正式 metrics.json
+独立生成的评测数据集 + 正式 metrics.json
   -> PreflightValidator
   -> EvaluationRunner
   -> RagExecutionAdapter
@@ -50,14 +50,14 @@
 
 ### 2.1 正式输入
 
-第一阶段的一次 run 只接受两份已经冻结的数据文件：
+第一阶段的一次 run 只接受两份已经确定的数据输入：
 
-- 正式 `val_set.json`：由分卷二定义，经纯脚本生成、校验并发布。
+- 评测数据集：按 `eval_set/` 规范独立生成；分卷一不定义其字段、身份或生成规则。
 - 正式 `metrics.json`：由分卷三定义并发布。
 
-运行开始后，两份正式输入在本次 run 内保持不变。分卷一保存两份文件的稳定身份引用和快照副本，使报告能追溯到本次实际读取的输入，但不在本文复制两份文件的 schema。
+运行开始后，两份输入在本次 run 内保持不变。分卷一保存实际读取输入的追溯信息，但不在本文复制评测数据集的 schema。
 
-被测系统快照不是第一阶段上游输入。preflight 首次读取 chunks 时建立不可变的 run 内 \(C_q\) 快照并计算 `cq_content_hash`；同一对象用于 \(G_q \subseteq C_q\)、Accuracy 和最终 `report.json.system_snapshot`，报告构建不得重新读取 chunks。不创建独立 `system_snapshot.json` 文件。以下契约定义此报告字段，不得将它解释为 `val_set.json` 或 `metrics.json` 的冻结输入。
+被测系统快照不是第一阶段上游输入。preflight 首次读取仓库现存 chunks，建立不可变的 run 内 \(G_q\) snapshot；该 snapshot 标识 \(G_q\)，并用于机械校验 \(C_q \subseteq G_q\)、Accuracy 和最终 `report.json.system_snapshot`。\(C_q\) 是评测数据集 answer 对应的 chunk；\(G_q\) 与 \(C_q\) 均不绑定特定字段。报告构建不得重新读取 chunks，且不创建独立 `system_snapshot.json` 文件。
 
 #### 2.1.1 `report.json.system_snapshot` 契约
 
@@ -67,7 +67,7 @@
 | --- | --- |
 | `retrieval_pipeline` | 有序数组，保存关键词检索、向量检索和加权融合的实际顺序与配置 |
 | `chunking` | 保存当前法规条文切分规则及稳定 `chunk_id` 形态 |
-| `indexed_documents` | 对象；保存当次快照的原始源文档名、文档/chunk 计数与 \(C_q\) 内容 hash |
+| `indexed_documents` | 对象；保存当次 snapshot 的原始源文档名、文档/chunk 计数；整个系统 snapshot 标识 \(G_q\) |
 
 `retrieval_pipeline` 必须投影当前代码的三个有序阶段：
 
@@ -86,7 +86,6 @@
 | `source_documents` | 原始源文档 basename 数组；每项必须是“题目 + 真实扩展名”，不得使用 chunk JSONL、`document_id`、路径或无扩展名标题 |
 | `document_count` | 从当前索引映射机械统计的文档数 |
 | `chunk_count` | 从当前索引映射机械统计的 chunk 数 |
-| `cq_content_hash` | 分卷三定义的 \(C_q\) canonical JSON SHA-256 |
 
 `source_documents[]` 记录当次快照的源文档 basename；即使后续该文档已不在仓库，快照仍保留当时名称。截至 2026-08-09，当前 `vector_map.json` 与 chunks 核验为 20 个文档、876 个 chunks；这只是易变的当前核验结果，实际快照必须重新机械计算。
 
@@ -115,7 +114,7 @@
 | 同上 | `消防安全责任制实施办法.doc` |
 | 同上 | `机关、团体、企业、事业单位消防安全管理规定.doc` |
 
-机器友好的 `report.json` 保留 `system_snapshot.indexed_documents.source_documents` 与 `system_snapshot.indexed_documents.cq_content_hash`；人类友好的 `report.md` 只展示 `source_documents`，不得展示 `cq_content_hash`。两份报告均不另建 \(C_q\) 文件清单或重复 hash 字段。
+机器友好的 `report.json` 保留系统 snapshot 的完整投影；人类友好的 `report.md` 只展示 `source_documents`。两份报告均不将 \(G_q\) 或 \(C_q\) 绑定到某个特定字段，也不另建独立集合文件。
 
 ### 2.2 运行输出
 
@@ -141,20 +140,20 @@ reports/evaluation_baseline/<run_id>/
 
 `PreflightValidator` 在创建正式 run 之前完成以下检查：
 
-1. 确认 `val_set.json` 和 `metrics.json` 均存在且可读。
-2. 分别调用分卷二和分卷三提供的契约校验器，不在运行层重写校验规则。
+1. 确认按 `eval_set/` 规范生成的评测数据集和 `metrics.json` 均可读。
+2. 按 `eval_set/` 的规范确认评测数据集可供评测，并调用分卷三提供的 `metrics.json` 契约校验器；运行层不重写数据集生成或字段规则。
 3. 确认 Metric 集合与总卷列出的八个维度一致。
 4. 本地校验 `WS_RAG_JUDGE_*`、火山方舟 URL 契约、`WS_RAG_MODEL_MAX_RETRIES` 与共享 Judge client 的构造性；不联网。
 5. 确认每个 case 能提供分卷三声明的评分输入。
-6. 按分卷三定义首次读取当前仓库 chunks，建立不可变的 run 内 \(C_q\) 快照并计算 `cq_content_hash`，校验每个 \(G_q \subseteq C_q\)。
+6. 按分卷三定义首次读取当前仓库 chunks，建立标识 \(G_q\) 的不可变 run 内 snapshot，并校验每个 \(C_q \subseteq G_q\)。
 7. 确认被测 RAG 的运行入口与所需索引可用。
 8. 确认目标 `run_id` 不会覆盖已有报告目录。
 
-只有 preflight 全部通过才创建正式 run 并进入 `running`。Preflight 收集所有安全可评估错误：缺失的上游文件不再解析、不能成立的配置不再检查依赖它的 case、不可用的 RAG 入口不再检查索引，`run_id` 冲突独立检查；它不调用真实 RAG、Judge 或 Metric。Judge 配置只作本地构造性校验，不联网。未通过的输入不进入 run 生命周期，也不产生看似完成的 baseline 报告。未通过条件的稳定错误码、稳定顺序和选择优先级由[分卷三第 9 节](./2026-07-27-ragas-response-reference-rubric-judge-design.md#9-稳定错误码与处理责任)统一定义，本卷不复制值域。
+只有 preflight 全部通过才创建正式 run 并进入 `running`。Preflight 收集所有安全可评估错误：无法按 `eval_set/` 规范使用评测数据集时不进入运行，不能成立的配置不再检查依赖它的 case，不可用的 RAG 入口不再检查索引，`run_id` 冲突独立检查；它不调用真实 RAG、Judge 或 Metric。Judge 配置只作本地构造性校验，不联网。未通过的输入不进入 run 生命周期，也不产生看似完成的 baseline 报告。评测数据集生成的错误边界以 `eval_set/` 为准；其余评测运行 preflight 的稳定错误码、稳定顺序和选择优先级由[分卷三第 9 节](./2026-07-27-ragas-response-reference-rubric-judge-design.md#9-稳定错误码与处理责任)统一定义，本卷不复制值域。
 
 ## 4. 逐 case 执行流程
 
-`EvaluationRunner` 按冻结 `val_set` 的 case 顺序执行，每个 case 完成以下动作：
+`EvaluationRunner` 按评测数据集的 case 顺序执行，每个 case 完成以下动作：
 
 1. 从冻结 case 读取 Query 及其评测引用。
 2. 通过 `RagExecutionAdapter` 调用当前被测 RAG。
@@ -178,13 +177,13 @@ reports/evaluation_baseline/<run_id>/
 
 Recorder 不补造、去重或重排最终列表，也不把未实际返回的数据写入持久化观测。`citations`、`scope`、`uncertainty`、`evidence` 不拼接进 `answer_text`，也不传给生成端 Metric；尤其不得泄漏 `evidence`。
 
-冻结参考答案和相关集合由分卷二提供；Metric 读取哪些观测、怎样解释空值以及怎样生成结果由分卷三决定。本文不建立第二份评分输入表。
+参考答案与 \(C_q\) 由 `eval_set/` 的评测数据集规范提供；Metric 读取哪些观测、怎样解释空值以及怎样生成结果由分卷三决定。本文不建立第二份评分输入表。
 
 ## 6. 组件职责
 
 | 组件 | 执行动作 | 明确不做 |
 | --- | --- | --- |
-| `PreflightValidator` | 调用上游校验器，建立 run 内 \(C_q\) 快照，检查 Judge 配置、运行入口与输出目标 | 不重写上游 schema，不联网调用 Judge |
+| `PreflightValidator` | 按 `eval_set/` 规范检查评测数据集，建立标识 \(G_q\) 的 run 内 snapshot，检查 Judge 配置、运行入口与输出目标 | 不重写上游 schema，不联网调用 Judge |
 | `EvaluationRunner` | 排列 case 执行、评分、聚合和写出顺序 | 不计算任何 Metric |
 | `RagExecutionAdapter` | 用 Query 调用当前 RAG，暴露最终融合后有序 chunks 与 `ChatResponse.conclusion` | 不改变被测 RAG 行为 |
 | `CaseObservationRecorder` | 保存实际 Query、最终有序 chunks 的稳定 `chunk_id` 与完整 `text`，以及非空 `answer_text` | 不补造、去重或重排最终列表 |
@@ -198,7 +197,7 @@ Recorder 不补造、去重或重排最终列表，也不把未实际返回的�
 
 ## 7. Metric 调度与聚合调用
 
-`MetricDispatcher` 读取正式 `metrics.json`，为每个 case 调用分卷三登记的八项实现。所有需要检索输出的 Metric 只从冻结 case 与本次 `CaseObservation` 消费最终融合后有序 chunks；生成端 Metric 不消费 chunks。Accuracy 评分时，Dispatcher 只使用 preflight 建立的同一不可变 run 内 \(C_q\) 快照；不得重新读取 chunks。Dispatcher 不在运行层改变参数或补充评分规则。
+`MetricDispatcher` 读取正式 `metrics.json`，为每个 case 调用分卷三登记的八项实现。所有需要检索输出的 Metric 只从评测数据集与本次 `CaseObservation` 消费最终融合后有序 chunks；生成端 Metric 不消费 chunks。Accuracy 评分时，Dispatcher 只使用 preflight 建立的同一不可变 run 内 \(G_q\) snapshot；不得重新读取 chunks。Dispatcher 不在运行层改变参数或补充评分规则。
 
 全部 case 的八项调用结束后，`EvaluationRunner` 只调用一次 `ResultAggregator`。`ResultAggregator` 严格执行分卷三的聚合契约并返回汇总结果；分卷一不计算均值、不筛除错误 case，也不定义空值传播。
 
@@ -286,9 +285,8 @@ preflight 失败不创建正式 run，也不创建 `run_status.json`。不支持
 | `run_id` | 本次评测的稳定身份 |
 | `created_at` | 本次对象冻结时间 |
 | `status` | 仅 `completed` 或 `incomplete`；`failed` 不建立该对象 |
-| `val_set` | 正式 `val_set.json` 的 `val_set_id` 与 `content_hash` 引用 |
 | `metrics_config` | 正式 `metrics.json` 的 schema 版本与配置 hash 引用 |
-| `system_snapshot` | 由 preflight 的同一不可变 run 内 \(C_q\) 快照与 §2.1.1 的其他投影构成；`report.json` 保留完整对象，Builder 不重新读取 chunks |
+| `system_snapshot` | 由 preflight 的同一不可变 run 内 \(G_q\) snapshot 与 §2.1.1 的其他投影构成；`report.json` 保留完整对象，Builder 不重新读取 chunks |
 | `cases` | 全部逐 case 观测及其八项 `MetricResult`，嵌套结构由下表固定 |
 | `metric_summaries` | 分卷三返回的八项 `MetricSummary` |
 
@@ -325,7 +323,7 @@ preflight 失败不创建正式 run，也不创建 `run_status.json`。不支持
 
 `MarkdownReportWriter` 负责把对象中的 run 概况、逐 case 结果、八项汇总和错误证据组织成 Markdown 文件。两个 writer 都只输出最终融合后有序 chunks 的稳定 `chunk_id` 与完整 `text`。Markdown writer 不解析 JSON，也不依赖模板页面、Dashboard、Streamlit、Rich 或旧报告工具。
 
-`JsonReportWriter` 保留 `system_snapshot.indexed_documents.source_documents` 与 `system_snapshot.indexed_documents.cq_content_hash`；`MarkdownReportWriter` 只展示 `source_documents`，不得展示 C_q hash。该展示差异不改变两个 writer 读取同一个不可变聚合对象的约束。
+`JsonReportWriter` 保留系统 snapshot 的完整投影；`MarkdownReportWriter` 只展示 `source_documents`，不新增 \(G_q\) 或 \(C_q\) 的字段投影。该展示差异不改变两个 writer 读取同一个不可变聚合对象的约束。
 
 两份 writer 的一致性验证比较同一对象投影出的 run 身份、输入身份、case 集合、Metric 结果、汇总结果和 run 状态。验证目标是确认两种表达来自同一对象，不是让 Markdown 反向解析 JSON。任一 writer 或发布步骤失败均为 fatal，不发布单份报告；状态记录失败只重试一次，第二次失败以 CLI 报错且不递归记录。各稳定错误码与非 Metric CLI envelope、退出码由分卷三第 9 节定义。
 
@@ -342,7 +340,7 @@ preflight 失败不创建正式 run，也不创建 `run_status.json`。不支持
 
 ## 12. 可直接转为实施计划的工作顺序
 
-1. 接入分卷二的正式 `val_set.json` 校验器和稳定身份。
+1. 按 `eval_set/` 规范接入独立生成的评测数据集，不在运行层复述其生成或字段契约。
 2. 接入分卷三的正式 `metrics.json` 校验器、八项实现和统一结果。
 3. 实现 `RagExecutionAdapter`，只暴露本次实际返回的最终融合后有序 chunks 与 `ChatResponse.conclusion`。
 4. 实现 `CaseObservationRecorder`，验证它保存实际 Query、最终有序 chunks 与非空 `answer_text`，且不改变被测 RAG 输出。
@@ -353,13 +351,13 @@ preflight 失败不创建正式 run，也不创建 `run_status.json`。不支持
 9. 验证 `completed`、`incomplete` 与 `failed` 三条终态路径，以及非 Metric CLI 输出。
 10. 使用冻结输入运行真实被测 RAG，完成首个 baseline 端到端验收。
 
-实施计划不得在上述任务中重新发明 `val_set`、Metric 或聚合字段；发现缺口时回到对应分卷补齐后再继续。
+实施计划不得在上述任务中重新发明评测数据集、Metric 或聚合字段；发现缺口时回到 `eval_set/` 或对应分卷补齐后再继续。
 
 ## 13. 验收检查
 
-- preflight 只调用分卷二、分卷三的正式校验规则，并机械拒绝任一 \(G_q\) 不属于 \(C_q\) 的 case；其稳定码、顺序和不创建正式 run 的动作均以分卷三为准。
-- 被测系统快照不作为第一阶段上游输入；preflight 首次读取 chunks 时建立不可变的 run 内 \(C_q\) 快照，供 \(G_q \subseteq C_q\)、Accuracy 与构建 `AggregatedEvaluationResult` 时的 `report.json.system_snapshot` 共用。报告构建不得重新读取 chunks，且不创建独立文件。
-- `report.json` 同时保留 `source_documents` 与 `cq_content_hash`；`report.md` 只展示 `source_documents`，不展示 hash，也不复制第二份。
+- preflight 按 `eval_set/` 规范确认评测数据集可供评测，调用分卷三的正式评分校验规则，并机械拒绝任一 \(C_q\) 不属于 \(G_q\) 的 case；评测数据集生成错误以 `eval_set/` 为准，其余评测运行稳定码、顺序和不创建正式 run 的动作均以分卷三为准。
+- 被测系统快照不作为第一阶段上游输入；preflight 首次读取 chunks 时建立标识 \(G_q\) 的不可变 run 内 snapshot，供 \(C_q \subseteq G_q\)、Accuracy 与构建 `AggregatedEvaluationResult` 时的 `report.json.system_snapshot` 共用。报告构建不得重新读取 chunks，且不创建独立文件。
+- `report.json` 保留系统 snapshot 的完整投影；`report.md` 只展示 `source_documents`，不为 \(G_q\) 或 \(C_q\) 另设字段或独立文件。
 - 每个冻结 case 只运行一次当前被测 RAG。
 - Recorder 只保存实际 Query、最终融合后有序 chunks 的稳定 `chunk_id` 与完整 `text`，以及非空 `answer_text=ChatResponse.conclusion.strip()`；不拼接或传递 `citations`、`scope`、`uncertainty`、`evidence`，数组顺序就是唯一 rank，不补造、去重或重排。
 - 所有需要检索输出的 Metric 只消费最终融合后有序 chunks；生成端 Metric 不消费 chunks。

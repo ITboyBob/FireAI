@@ -7,16 +7,16 @@
 
 ## 0. 卷册导航与本卷边界
 
-- [返回设计总卷](../../新评测系统设计总卷.md)：确认八个评测维度与四份文档的职责顺序。
+- [返回设计总卷](../../新评测系统设计总卷.md)：确认八个评测维度、`eval_set/` 与两份分卷的职责顺序。
 - [分卷一：评测执行与报告架构](./2026-07-23-evaluation-optimization-loop-architecture-design.md)：读取何时调用评分、怎样继续运行以及怎样写出结果。
-- [分卷二：val_set 生成与冻结](./2026-07-27-ragas-val-set-query-generation-design.md)：读取 Query、参考答案和完整 relevance ground truth 的来源。
+- [评测数据集规范](../../eval_set/CODEMAP.md)：读取评测数据集独立生成的规范与边界。
 - 当前分卷：独占 `metrics.json`、八项 Metric 的输入与算法、`MetricResult`、`MetricSummary`、逐 Metric 聚合、稳定错误码及未决错误边界。
 
-本卷不生成 `val_set.json`，不安排评测步骤，不定义 run 状态、输出目录或 Markdown 格式。
+本卷不生成评测数据集，不安排评测步骤，不定义 run 状态、输出目录或 Markdown 格式。
 
 ## 1. 决策结论
 
-一份 `metrics.json` 固定八项 Metric 的 ID、输入、参数、计分和聚合规则。评分器读取分卷二冻结的 val case 与分卷一捕获的 RAG 观测，逐项返回统一 `MetricResult`；随后按同一 `metric_id` 聚合全部 val cases，返回 `MetricSummary`。
+一份 `metrics.json` 固定八项 Metric 的 ID、输入、参数、计分和聚合规则。评分器读取按 `eval_set/` 规范独立生成的评测 case 与分卷一捕获的 RAG 观测，逐项返回统一 `MetricResult`；随后按同一 `metric_id` 聚合全部评测 case，返回 `MetricSummary`。
 
 任何单项评分失败都返回 `status=error` 与空分数，不终止评测调用链；后续 case 和其他 Metric 继续执行。只要该 Metric 任一 case 的 `status=error` 或 `normalized_score=null`，其 `MetricSummary` 就返回 `status=incomplete` 与空均值。分卷一只能消费这一结果，不得重新计算或静默排除失败 case。
 
@@ -24,7 +24,7 @@ Ragas `RubricsScoreWithReference` 是八项 Metric 之一，与其他七项共�
 
 ## 2. 单一事实来源
 
-本卷是 `metrics.json`、八项评分定义、`MetricResult`、`MetricSummary` 和逐 Metric 聚合算法的唯一事实来源。总卷只列出评测维度并导航到本卷；分卷一只调用本卷定义的评分器；分卷二只产生本卷读取的 val case。描述冲突时以本卷为准。
+本卷是 `metrics.json`、八项评分定义、`MetricResult`、`MetricSummary` 和逐 Metric 聚合算法的唯一事实来源。总卷只列出评测维度并导航到本卷；分卷一只调用本卷定义的评分器；评测数据集由 `eval_set/` 独立生成。描述冲突时以本卷为准。
 
 ## 3. `metrics.json` 契约
 
@@ -59,12 +59,11 @@ Ragas `RubricsScoreWithReference` 是八项 Metric 之一，与其他七项共�
 对 Query \(q\)：
 
 - \(R_q\) 是每个 Query 最终融合后的有序、最多 5 个 chunks 的检索结果，且 `chunk_id` 唯一；重复 ID 使依赖 \(R_q\) 的对应 Metric 返回错误，不得静默去重。“5”只表示该最终列表截断，不是 Precision/Recall 的名称，也不是五个问题或五次运行。
-- \(G_q\) 是分卷二随 val case 冻结的完整 relevance ground truth，必须非空；空集合应在执行评分前被分卷一的 preflight 拒绝。它默认等于 Ragas scenario 的 `source_chunk_ids` 所对应 chunks；这是 Fire 评测协议的业务假设，不是 Ragas 自动证明的完整性，可导致检索指标系统性偏差。
-- \(C_q\) 是当前仓库全部 chunks 集合。唯一物理来源是 `Settings.data_dir / "chunks"`：`Settings.data_dir` 默认为 `data`，按文件名顺序读取该目录下全部 `*.jsonl` 的所有 chunk 记录，与 `scripts/build_index.py::load_chunks` 一致。\(G_q\) 是随 val case 冻结的相关 chunk 集合；\(R_q\) 是本次 RAG 执行产生的最终融合结果。
-- \(C_q\) 不设立上游冻结时点。preflight 首次读取 chunks 时建立不可变的 run 内快照并计算 `cq_content_hash`；同一对象用于 \(G_q \subseteq C_q\)、Accuracy 和 `report.json.system_snapshot.indexed_documents.cq_content_hash`，报告构建不得重新读取 chunks。
-- `cq_content_hash` 按以下唯一规则计算：读取 `Settings.data_dir / "chunks"` 下全部 `*.jsonl`，解析每个完整 chunk 对象；先校验 `chunk_id` 全局唯一，再按 `chunk_id` 升序排列；每个对象使用 UTF-8、key 排序、紧凑分隔符且不转义非 ASCII 的 canonical JSON；对完整 canonical JSON 数组计算 SHA-256，保存为 `sha256:<64hex>`。
-- `report.json` 同时保留 `system_snapshot.indexed_documents.source_documents` 与 `system_snapshot.indexed_documents.cq_content_hash`；人类友好的 `report.md` 只引用和展示 `source_documents`，不得展示 C_q hash。两份报告均不另建独立的 \(C_q\) 文件清单或重复 hash 字段；`source_documents` 仅为人类可读源文件清单，名称不变不能证明 \(C_q\) 内容不变，机器身份由 `cq_content_hash` 承担。
-- preflight 逐 case 在该 run 内 \(C_q\) 快照上机械校验 \(G_q \subseteq C_q\)；任一 `chunk_id` 不在 \(C_q\) 时，不进入评分或 run 生命周期。
+- \(G_q\) 是仓库现存 chunk 集合。preflight 首次读取 `Settings.data_dir / "chunks"` 下全部 `*.jsonl` 的完整 chunk 对象，校验 `chunk_id` 全局唯一并建立不可变系统 snapshot；该 snapshot 标识本次 run 的 \(G_q\)。
+- \(C_q\) 是评测数据集 answer 对应的 chunk，必须非空；空集合应在执行评分前被分卷一的 preflight 拒绝。\(C_q\) 与 \(G_q\) 均不绑定特定字段。
+- 系统 snapshot 的身份按以下规则机械确定：完整 chunk 对象按 `chunk_id` 升序排列，每个对象使用 UTF-8、key 排序、紧凑分隔符且不转义非 ASCII 的 canonical JSON，对完整 canonical JSON 数组计算 SHA-256。字段名与报告投影位置不是 \(G_q\) 或 \(C_q\) 的业务定义。
+- `report.json` 保留系统 snapshot 的完整投影；人类友好的 `report.md` 只展示 `source_documents`。两份报告均不另建 \(G_q\) 或 \(C_q\) 的独立文件或特定字段清单。
+- preflight 逐 case 在该 run 内 \(G_q\) snapshot 上机械校验 \(C_q \subseteq G_q\)；任一 \(C_q\) 的 `chunk_id` 不在 \(G_q\) 时，不进入评分或 run 生命周期。
 - 所有读取检索输出的 Metric 只能消费最终 \(R_q\)；禁止读取融合前 chunks、融合前 rank、candidate IDs，或建立绕过 \(R_q\) 的隐藏旁路。
 - DeepEval 与 Ragas 两个生成端 Metric 不消费 \(R_q\)，也不读取任何融合前检索数据。两者只读取 `answer_text=ChatResponse.conclusion.strip()`，该字符串必须非空；`citations`、`scope`、`uncertainty`、`evidence` 不拼接或传入，尤其不得泄漏 `evidence`。
 - 分数越界不得 clamp，必须返回该项错误。
@@ -73,21 +72,21 @@ Ragas `RubricsScoreWithReference` 是八项 Metric 之一，与其他七项共�
 
 ### 5.1 `retrieval_precision`
 
-- 输入：\(R_q\) 与 \(G_q\) 的 `chunk_id`。
-- 公式：\(\mathrm{Precision}(q)=|R_q\cap G_q|/|R_q|\)。
+- 输入：\(R_q\) 与 \(C_q\) 的 `chunk_id`。
+- 公式：\(\mathrm{Precision}(q)=|R_q\cap C_q|/|R_q|\)。
 - 输出：`[0,1]`；\(R_q\) 为空时为 `0`。
 - details：恒为 `null`；输入错误由统一 `errors` 说明。
 
 ### 5.2 `retrieval_recall`
 
-- 输入：\(R_q\) 与 \(G_q\) 的 `chunk_id`。
-- 公式：\(\mathrm{Recall}(q)=|R_q\cap G_q|/|G_q|\)。
+- 输入：\(R_q\) 与 \(C_q\) 的 `chunk_id`。
+- 公式：\(\mathrm{Recall}(q)=|R_q\cap C_q|/|C_q|\)。
 - 输出：`[0,1]`；\(R_q\) 为空时为 `0`。
-- details：恒为 `null`；\(G_q\) 为空不进入评分。
+- details：恒为 `null`；\(C_q\) 为空不进入评分。
 
 ### 5.3 `trulens_context_relevance_with_cot_reasons`
 
-- 输入：同一 Query 与 \(R_q\) 中每个 chunk 的文本；不读取 \(G_q\)、生成回答、参考答案或 rank。
+- 输入：同一 Query 与 \(R_q\) 中每个 chunk 的文本；不读取 \(C_q\)、生成回答、参考答案或 rank。
 - 实现：使用 TruLens `2.9.0` 的 `context_relevance_with_cot_reasons` 逐 chunk 调用 Judge；每次真实返回 `(normalized_score, metadata)`，`chunk_id` 由 Fire 根据输入 \(R_q\) 关联，case 分数为全部 `normalized_score` 的等权平均。
 - Judge transport：使用 §10.1 的 `FireTruLensProvider`；Fire 只负责请求/响应边界，不修改 TruLens prompt、rubric、评分或聚合。
 - 输出：`raw_score=null`；`normalized_score` 为 case 均值；非空检索时 `details={chunks:[{chunk_id, normalized_score, reason}]}`，数组顺序与 \(R_q\) 一致且不设置 `rank`。
@@ -95,22 +94,22 @@ Ragas `RubricsScoreWithReference` 是八项 Metric 之一，与其他七项共�
 
 ### 5.4 `retrieval_accuracy`
 
-- 输入：\(R_q\)、\(G_q\) 的 `chunk_id`，以及 preflight 建立的同一不可变 run 内 \(C_q\) 快照。
-- 分类：在 \(C_q\) 内，以 \(R_q\) 为预测正例、\(G_q\) 为真实正例，计算 TP、TN、FP、FN。
+- 输入：\(R_q\)、\(C_q\) 的 `chunk_id`，以及 preflight 建立的同一不可变 run 内 \(G_q\) snapshot。
+- 分类：在 \(G_q\) 内，以 \(R_q\) 为预测正例、\(C_q\) 为真实正例，计算 TP、TN、FP、FN。
 - 公式：\(\mathrm{Accuracy}(q)=(TP+TN)/(TP+TN+FP+FN)\)。
 - 输出：`[0,1]`；`details` 恒为 `null`。
-- 边界：分母为 `0` 或 \(R_q\) 中出现不属于 \(C_q\) 的 ID 时返回错误；评分器不得改变 \(C_q\)。
+- 边界：分母为 `0` 或 \(R_q\) 中出现不属于 \(G_q\) 的 ID 时返回错误；评分器不得改变 \(G_q\)。
 
 ### 5.5 `retrieval_map`
 
-- 输入：有序 \(R_q\) 与 \(G_q\) 的 `chunk_id`。
-- 公式：\(\mathrm{AP@5}(q)=\sum_{r=1}^{|R_q|}\mathrm{Precision@r}(q)\times rel_q(r)/\min(|G_q|,5)\)。
+- 输入：有序 \(R_q\) 与 \(C_q\) 的 `chunk_id`。
+- 公式：\(\mathrm{AP@5}(q)=\sum_{r=1}^{|R_q|}\mathrm{Precision@r}(q)\times rel_q(r)/\min(|C_q|,5)\)。
 - 输出：单 case AP@5 为 `[0,1]`；\(R_q\) 为空或无命中时为 `0`；`details` 恒为 `null`。
 - 跨 case：全部 AP@5 等权平均后形成本 Metric 的 MAP@5。
 
 ### 5.6 `retrieval_mrr`
 
-- 输入：有序 \(R_q\) 与 \(G_q\) 的 `chunk_id`。
+- 输入：有序 \(R_q\) 与 \(C_q\) 的 `chunk_id`。
 - 公式：第一个相关 chunk 的 rank 为 \(r\) 时，\(\mathrm{RR@5}(q)=1/r\)。
 - 输出：单 case RR@5 为 `[0,1]`；\(R_q\) 为空或无命中时为 `0`；`details` 恒为 `null`。
 - 跨 case：全部 RR@5 等权平均后形成本 Metric 的 MRR@5。
@@ -118,7 +117,7 @@ Ragas `RubricsScoreWithReference` 是八项 Metric 之一，与其他七项共�
 ### 5.7 `deepeval_answer_relevancy`
 
 - 评测关系：Answer Relevancy 评估回答相对 Query 的相关性。
-- 输入：`LLMTestCase.input=Query`、`LLMTestCase.actual_output=answer_text`；不读取参考答案、retrieved/reference contexts、\(R_q\) 或 \(G_q\)。
+- 输入：`LLMTestCase.input=Query`、`LLMTestCase.actual_output=answer_text`；不读取参考答案、retrieved/reference contexts、\(R_q\) 或 \(C_q\)。
 - 实现：DeepEval `4.1.4` `AnswerRelevancyMetric`；按 `verdict != "no"` 的数量除以 verdict 总数计分，因此 `yes` 与 `idk` 均计为相关，空 verdict 返回 `1`。
 - Judge transport：显式将 §10.2 的 `FireDeepEvalJudge` 注入 `AnswerRelevancyMetric(model=...)`，不使用 DeepEval 默认模型或 `OPENAI_API_KEY`。
 - 参数：`include_reason=true`、`strict_mode=false`、`async_mode=true`。
@@ -128,11 +127,11 @@ Ragas `RubricsScoreWithReference` 是八项 Metric 之一，与其他七项共�
 ### 5.8 `ragas_rubrics_score_with_reference`
 
 - 评测关系：Response—Reference Answer 评估回答相对参考答案的正确性、完整性和清晰程度。
-- 输入：`user_input=Query`、`response=answer_text`、`reference=分卷二脚本生成并随 val case 冻结的参考答案`；不得传入 `retrieved_contexts`、`reference_contexts` 或 \(R_q\)。
+- 输入：`user_input=Query`、`response=answer_text`、`reference=评测数据集提供的参考答案`；不得传入 `retrieved_contexts`、`reference_contexts` 或 \(R_q\)。
 - 实现：Ragas `0.4.3` `RubricsScoreWithReference`；使用 `AsyncOpenAI` 客户端与 `llm_factory` 建立独立 Judge，调用 `await metric.ascore(...)`。
 - 参数：读取 `WS_RAG_JUDGE_API_KEY`、`WS_RAG_JUDGE_BASE_URL`、`WS_RAG_JUDGE_MODEL`，`temperature=0`；默认只执行一次逻辑评分。
 - 输出：从真实返回对象 `result.value` 读取 `raw_score`，范围 `1–5`；`normalized_score=(raw_score-1)/4`；`details={reason: result.reason}`；错误时 `details=null`。
-- 边界：不读取来源 chunks，不参与分卷二的数据集生成与冻结，也不调用其他 Ragas Metric。
+- 边界：不读取来源 chunks，不参与评测数据集生成，也不调用其他 Ragas Metric。
 
 ## 6. Ragas rubric
 
@@ -180,12 +179,12 @@ Ragas `RubricsScoreWithReference` 是八项 Metric 之一，与其他七项共�
 
 ## 8. `MetricSummary` 与聚合
 
-同一 `metric_id` 的全部 val cases 必须聚合为一个 `MetricSummary`：
+同一 `metric_id` 的全部评测 case 必须聚合为一个 `MetricSummary`：
 
 | 字段 | 契约 |
 | --- | --- |
 | `metric_id` | 对应 `metrics.json` 中的稳定 ID |
-| `case_count` | 正式 val case 总数 |
+| `case_count` | 正式评测 case 总数 |
 | `error_case_count` | `MetricResult.status=error` 的 case 数 |
 | `mean_score` | 全部 case 的 `normalized_score` 等权算术平均；任一值为 `null` 时整体为 `null` |
 | `status` | 任一 `MetricResult.status=error` 或 `normalized_score=null` 时为 `incomplete`；否则为 `completed` |
@@ -194,49 +193,27 @@ Ragas `RubricsScoreWithReference` 是八项 Metric 之一，与其他七项共�
 
 ## 9. 稳定错误码与处理责任
 
-全部错误码使用小写点分命名空间；`code` 值稳定，人类可读 `message` 允许变化但必须脱敏。本节登记的稳定错误码总数为 44（原有 28 个，本轮新增 16 个）。本节是新评测四文档已确定错误码、选择优先级与处理边界的唯一事实来源；分卷一和分卷二只执行职责内动作并引用本节，不复制值域。
+全部错误码使用小写点分命名空间；`code` 值稳定，人类可读 `message` 允许变化但必须脱敏。本节是分卷一与分卷三已确定评测运行错误码、选择优先级与处理边界的唯一事实来源；评测数据集生成的错误边界只由 `eval_set/` 规范定义。
 
-### 9.1 `val_set.json` 生成与发布
-
-| 阶段 | 稳定 `code` | 触发条件 | 固定动作 |
-| --- | --- | --- | --- |
-| 生成 | `eval.val_set.generate.source_chunks_empty` | 当前仓库 chunks 为空 | hard fail，旧正式文件保持不变 |
-| 生成 | `eval.val_set.generate.source_chunk_id_duplicate` | 输入 `chunk_id` 重复 | hard fail，旧正式文件保持不变 |
-| 生成 | `eval.val_set.generate.ragas_generation_failed` | Ragas 生成失败 | 终止生成，不发布部分结果，旧正式文件保持不变 |
-| 发布 | `eval.val_set.publish.schema_invalid` | 临时产物 schema 非法 | 拒绝原子替换，旧正式文件保持不变 |
-| 发布 | `eval.val_set.publish.val_set_id_invalid` | `val_set_id` 校验失败 | 拒绝原子替换，旧正式文件保持不变 |
-| 发布 | `eval.val_set.publish.case_id_invalid` | 任一 `case_id` 校验失败 | 拒绝原子替换，旧正式文件保持不变 |
-| 发布 | `eval.val_set.publish.content_hash_invalid` | `content_hash` 校验失败 | 拒绝原子替换，旧正式文件保持不变 |
-| 发布 | `eval.val_set.publish.case_count_mismatch` | `len(cases) != val_set_case_count` | 拒绝原子替换，旧正式文件保持不变 |
-| 发布 | `eval.val_set.publish.temp_write_failed` | 同目录临时文件创建、写入、flush 或 fsync 失败 | 不执行 replace，旧正式文件保持不变 |
-| 发布 | `eval.val_set.publish.atomic_replace_failed` | 已校验的同目录临时文件 replace 失败 | 旧正式文件保持不变；如清理也失败，追加清理失败码 |
-| 发布 | `eval.val_set.publish.temp_cleanup_failed` | replace 失败后清理临时文件失败 | 作为第二个错误追加；不改变 replace 失败结论 |
-| 发布 | `eval.val_set.publish.durability_unconfirmed` | replace 成功但父目录 fsync 失败 | 不回滚；不得声称旧正式文件保持不变 |
-
-发布固定遵循“同目录临时文件 write/flush/fsync → 完整契约校验 → replace → 父目录 fsync”。发布失败同时匹配专用码与 `eval.val_set.publish.schema_invalid` 时，必须选择专用码。
-
-### 9.2 Preflight
+### 9.1 Preflight
 
 | 稳定 `code` | 触发条件 |
 | --- | --- |
-| `eval.preflight.val_set_missing` | `val_set.json` 不存在 |
-| `eval.preflight.val_set_unreadable` | `val_set.json` 不可读或无法解析 |
-| `eval.preflight.val_set_contract_invalid` | `val_set.json` 其他契约校验失败的兜底码 |
 | `eval.preflight.metrics_config_missing` | `metrics.json` 不存在 |
 | `eval.preflight.metrics_config_unreadable` | `metrics.json` 不可读或无法解析 |
 | `eval.preflight.metrics_config_contract_invalid` | `metrics.json` 其他契约校验失败的兜底码 |
 | `eval.preflight.metric_set_mismatch` | Metric 集合不是总卷固定的八项 |
 | `eval.preflight.judge_config_invalid` | `WS_RAG_JUDGE_API_KEY`、`WS_RAG_JUDGE_BASE_URL` 或 `WS_RAG_JUDGE_MODEL` 缺失/空白；Base URL 不符合当前支持的火山方舟 HTTPS `/api/v3` 契约；`WS_RAG_MODEL_MAX_RETRIES` 无法解析或越界；或共享 Judge client 不能由这些已定义配置构造 |
-| `eval.preflight.relevance_ground_truth_empty` | \(G_q\) 为空 |
-| `eval.preflight.relevance_ground_truth_outside_corpus` | 任一 \(G_q\) 的 `chunk_id` 不属于当前 \(C_q\) |
+| `eval.preflight.relevance_ground_truth_empty` | \(C_q\) 为空 |
+| `eval.preflight.relevance_ground_truth_outside_corpus` | 任一 \(C_q\) 的 `chunk_id` 不属于当前 \(G_q\) |
 | `eval.preflight.case_scoring_input_invalid` | case 不能提供声明的评分输入 |
 | `eval.preflight.rag_entrypoint_unavailable` | 被测 RAG 运行入口不可用 |
 | `eval.preflight.rag_index_unavailable` | 被测 RAG 所需索引不可用 |
 | `eval.preflight.run_id_conflict` | 目标 `run_id` 会覆盖已有报告目录 |
 
-Preflight 收集所有安全可评估错误，而非首错即停：上游文件缺失时不解析该文件，配置无法成立时不执行依赖配置的 case 检查，RAG 入口不可用时不继续索引检查，`run_id` 冲突独立检查；不调用真实 RAG、Judge 或 Metric。Judge 配置只做本地构造性校验，不联网。汇总顺序固定为 val_set 文件错误、metrics 文件错误、`metric_set_mismatch`、`judge_config_invalid`、`relevance_ground_truth_empty`、`relevance_ground_truth_outside_corpus`、`case_scoring_input_invalid`、RAG 入口、RAG 索引、`run_id` 冲突。每个 validator 对每个逻辑目标最多产生一次错误；汇总器不得按可变 `message` 进行事后去重。任一 preflight 错误都固定为：不创建正式 run，不调用 RAG 或任何 Metric，不写出报告。同一失败同时匹配专用码与 `*_contract_invalid` 兜底码时，必须选择专用码；Judge 配置失败同时匹配通用配置错误时，必须选择 `judge_config_invalid`。
+Preflight 收集所有安全可评估错误，而非首错即停：配置无法成立时不执行依赖配置的 case 检查，RAG 入口不可用时不继续索引检查，`run_id` 冲突独立检查；不调用真实 RAG、Judge 或 Metric。Judge 配置只做本地构造性校验，不联网。汇总顺序固定为 metrics 文件错误、`metric_set_mismatch`、`judge_config_invalid`、`relevance_ground_truth_empty`、`relevance_ground_truth_outside_corpus`、`case_scoring_input_invalid`、RAG 入口、RAG 索引、`run_id` 冲突。每个 validator 对每个逻辑目标最多产生一次错误；汇总器不得按可变 `message` 进行事后去重。任一 preflight 错误都固定为：不创建正式 run，不调用 RAG 或任何 Metric，不写出报告。同一失败同时匹配专用码与 `*_contract_invalid` 兜底码时，必须选择专用码；Judge 配置失败同时匹配通用配置错误时，必须选择 `judge_config_invalid`。
 
-### 9.3 Metric
+### 9.2 Metric
 
 | 稳定 `code` | 触发条件 |
 | --- | --- |
@@ -247,11 +224,11 @@ Preflight 收集所有安全可评估错误，而非首错即停：上游文件�
 | `eval.metric.score_out_of_range` | 返回分数超出契约范围 |
 | `eval.metric.trulens_reason_missing` | TruLens `metadata` 缺少非空 `reason` |
 | `eval.metric.accuracy_zero_denominator` | Accuracy 分母为 `0` |
-| `eval.metric.accuracy_retrieved_chunk_outside_corpus` | \(R_q\) 出现不属于 \(C_q\) 的 `chunk_id` |
+| `eval.metric.accuracy_retrieved_chunk_outside_corpus` | \(R_q\) 出现不属于 \(G_q\) 的 `chunk_id` |
 
 同一 Metric 失败同时匹配专用码和通用码时，必须选择专用码。`status=completed` 时 `errors=[]`；`status=error` 时 `errors` 恰好一个元素，并返回 `raw_score=null`、`normalized_score=null`、`details=null`。主错误选择优先级依次为专项输入错误、`eval.metric.input_invalid`、`eval.metric.dependency_call_failed`、`eval.metric.trulens_reason_missing`、`eval.metric.dependency_response_parse_failed`、`eval.metric.score_out_of_range`，以免同一根因被级联展开。分卷一继续其他 Metric 和后续 case；对应 `MetricSummary` 与 run 标记为 `incomplete`，两份报告仍必须写出。
 
-### 9.4 Run 生命周期与非 Metric CLI
+### 9.3 Run 生命周期与非 Metric CLI
 
 | 阶段 | 稳定 `code` | 触发条件 | 固定动作 |
 | --- | --- | --- | --- |
@@ -268,16 +245,16 @@ Preflight 收集所有安全可评估错误，而非首错即停：上游文件�
 
 `failed` 的优先级高于 `incomplete`，高于 `completed`；故已经出现单项 Metric 错误后发生上述任一 fatal 失败，终态仍为 `failed`。`completed` 与 `incomplete` 的双报告须在隐藏 staging 目录完成并 flush/fsync 后，整体 rename 到正式 run 目录，再 fsync 父目录；禁止先逐文件发布、失败后回删。隐藏 staging 目录不得被报告发现逻辑视为正式 run。
 
-非 Metric 错误固定使用单行 stderr JSON envelope：顶层仅 `schema_version`、`status`、`run_id`、`errors`；其中 `errors[]` 每项仅 `code`、`message`。stdout 不得混入错误。退出码固定为：`0` 表示数据集生成成功或 run 为 `completed`；`1` 表示 val_set 发布/preflight 失败、run 为 `incomplete` 或 `failed`；`2` 表示 argparse 参数或用法错误。
+非 Metric 错误固定使用单行 stderr JSON envelope：顶层仅 `schema_version`、`status`、`run_id`、`errors`；其中 `errors[]` 每项仅 `code`、`message`。stdout 不得混入错误。退出码固定为：`0` 表示 run 为 `completed`；`1` 表示 preflight 失败、run 为 `incomplete` 或 `failed`；`2` 表示 argparse 参数或用法错误。
 
 `run_status.json` 的位置、完整 schema、状态与错误字段约束只由[分卷一 §8.1](./2026-07-23-evaluation-optimization-loop-architecture-design.md#81-run_statusjson-契约)定义；本卷只提供其中 `code` 可选的稳定值域。
 
-### 9.5 最小测试约束
+### 9.4 最小测试约束
 
 - 每个已列 `code` 至少有一个可重复的触发用例，并断言对应阶段的固定动作。
 - 同时匹配专用码与通用/兜底码时，测试必须断言只选择专用码。
-- 生成与 preflight 测试必须断言其错误不进入 `MetricResult.errors`；Metric 错误测试必须断言 `completed` 的空 errors、`error` 的唯一主错误、统一空分数/空 details、继续调度、summary/run `incomplete` 与双报告写出。
-- Preflight 测试必须覆盖依赖门禁、稳定多错误顺序与每目标一次；val_set 发布测试必须覆盖临时文件写入失败、replace 失败与清理失败组合，以及 replace 成功后父目录 fsync 失败的持久性未确认。
+- Preflight 测试必须断言其错误不进入 `MetricResult.errors`；Metric 错误测试必须断言 `completed` 的空 errors、`error` 的唯一主错误、统一空分数/空 details、继续调度、summary/run `incomplete` 与双报告写出。
+- Preflight 测试必须覆盖依赖门禁、稳定多错误顺序与每目标一次。
 - Run 测试必须覆盖三类 RAG/观测 fatal、聚合/构建/两类 writer fatal、状态记录一次重试和整目录发布；断言 fatal 优先于 `incomplete`、不伪造 MetricResult、不发布单份报告。CLI 测试必须断言 stderr 单行 envelope、stdout 无错误及三类退出码。
 - 错误 `message` 测试必须确认不含密钥、完整请求/响应或错误堆栈。
 - `run_status.json` 测试必须按分卷一 §8.1 断言位置、四个顶层字段、错误项双字段、状态特定 errors、目录内容与失败时 CLI 事实来源；不得从本卷新增字段或错误码。
@@ -288,7 +265,6 @@ Preflight 收集所有安全可评估错误，而非首错即停：上游文件�
 - DeepEval 项固定 `deepeval==4.1.4`；任何 pytest、CI 或默认配置验证在 import 前设置 `DEEPEVAL_DISABLE_DOTENV=1`。
 - Ragas 项固定 `ragas==0.4.3`、`langchain-community==0.4.1` 与 `openai==2.30.0`；公开导入仅使用 `from ragas.llms import llm_factory` 与 `from ragas.metrics.collections import RubricsScoreWithReference`。
 - Fire 评分代码不得直接导入 `DomainSpecificRubrics`、`ragas.evaluate`、LangChain wrapper 或任何 LangChain 类。
-- 分卷二的数据集生成 LLM 使用 `WS_RAG_QUESTION_GENERATOR_*`，本卷 Judge 使用 `WS_RAG_JUDGE_*`；两者建立独立客户端和 LLM 实例。
 
 ### 10.1 TruLens Fire provider
 
@@ -322,10 +298,10 @@ Fire 不修改 TruLens 的评测语义 prompt、rubric、解析、评分或聚�
 ## 11. 实施验收
 
 - 校验 `metrics.json` 恰好包含八项配置，且配置 hash 能检测 rubric 或参数变化。
-- 验证 `cq_content_hash` 在文件顺序、JSONL 记录顺序、对象 key 顺序或空白变化时保持不变，任一完整 chunk 对象内容变化时 hash 改变，且重复 `chunk_id` 在计算前被拒绝；`report.json` 同时保留 `system_snapshot.indexed_documents.source_documents` 与 `system_snapshot.indexed_documents.cq_content_hash`，`report.md` 只展示 `source_documents` 且不展示 hash。
-- 验证 Precision/Recall 按本卷公式计分，名称不含 `@5`；\(R_q\) 仍是每 Query 最多 5 个 chunks 的最终有序结果，并非五个问题或五次运行。验证 AP@5 的分母固定为 `min(|G_q|,5)`。
-- 验证 preflight 机械拒绝任一 \(G_q\) 超出 \(C_q\) 的 case，错误码为 `eval.preflight.relevance_ground_truth_outside_corpus`，且不创建正式 run、不调用网络。
-- 验证 run 内 \(C_q\) 快照只在 preflight 首次读取 chunks 时建立并计算 `cq_content_hash`；同一对象被 \(G_q \subseteq C_q\)、Accuracy 与 `report.json.system_snapshot` 使用，报告构建不得重新读取 chunks。
+- 验证系统 snapshot 在文件顺序、JSONL 记录顺序、对象 key 顺序或空白变化时保持不变，任一完整 chunk 对象内容变化时身份改变，且重复 `chunk_id` 在计算前被拒绝；`report.json` 保留系统 snapshot 的完整投影，`report.md` 只展示 `source_documents`。
+- 验证 Precision/Recall 按本卷公式计分，名称不含 `@5`；\(R_q\) 仍是每 Query 最多 5 个 chunks 的最终有序结果，并非五个问题或五次运行。验证 AP@5 的分母固定为 `min(|C_q|,5)`。
+- 验证 preflight 机械拒绝任一 \(C_q\) 超出 \(G_q\) 的 case，错误码为 `eval.preflight.relevance_ground_truth_outside_corpus`，且不创建正式 run、不调用网络。
+- 验证 run 内 \(G_q\) snapshot 只在 preflight 首次读取 chunks 时建立；同一对象被 \(C_q \subseteq G_q\)、Accuracy 与 `report.json.system_snapshot` 使用，报告构建不得重新读取 chunks。
 - 验证 Judge 三项配置缺失/空白、不支持的 Base URL、`WS_RAG_MODEL_MAX_RETRIES` 无法解析或越界、或共享 Judge client 不可构造时，preflight 不联网并以 `eval.preflight.judge_config_invalid` 拒绝 run。
 - 使用精确 `WS_RAG_JUDGE_*` 配置分别完成真实 TruLens 与 DeepEval 调用，验证请求字段映射、结构化 schema、空/非法响应和失败路径；import 或 mock 不构成验收。
 - 验证两个生成端 Metric 只接收非空 `answer_text=ChatResponse.conclusion.strip()`；不拼接或传递 `citations`、`scope`、`uncertainty`、`evidence`。

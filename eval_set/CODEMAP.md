@@ -7,7 +7,7 @@ generated_at: 2026-08-27
 
 ## Summary
 
-`eval_set/` 存放以 Golden Set 为种子、用于评测的对抗样本生成素材：Adversarial Case 的生成流程与提示词、Edge Case 五类二级 Bucket 设计方案，以及作为生成输入的正例问答数据 `RAG_Golden_Set.json`。
+`eval_set/` 是评测数据集独立生成规范的唯一入口，存放以 Golden Set 为种子、用于评测的对抗样本生成素材：Adversarial Case 的生成流程与提示词、Edge Case 五类二级 Bucket 设计方案，以及作为生成输入的正例问答数据 `RAG_Golden_Set.json`。
 
 ## Files
 

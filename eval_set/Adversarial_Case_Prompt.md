@@ -1,6 +1,6 @@
 ---
 Title: Adversarial Case生成Prompt
-Description: 本提示词是[对抗集生成流程](/Users/itboybob/Project/fire/eval_set/Adversarial-Case生成流程.md)的具体实现形式，受[对抗集生成流程](/Users/itboybob/Project/fire/eval_set/Adversarial-Case生成流程.md)约束
+Description: 本提示词是[对抗集生成流程](/Users/itboybob/Project/fire/eval_set/Adversarial_Case生成流程.md)的具体实现形式，受[对抗集生成流程](/Users/itboybob/Project/fire/eval_set/Adversarial_Case生成流程.md)约束
 Status: Under Review
 ---
 

@@ -144,14 +144,14 @@ W-S1 完成不等于 14 文件全量摄取完成，也不等于多格式法规�
 
 当前已确认：
 
-- 1.0 版 [Word/W 阶段单文件 RAG 问答评测设计](../architecture_or_strategy/2026-07-04-ws-rag-evaluation-design.md) 已存在；
-- [Word/W 单文件 RAG 问答评测实施计划](./2026-07-05-ws-rag-evaluation-implementation.md) 已按“总览 + 3 分卷”建立；
+- 1.0 版 Word/W 单文件 RAG 问答评测设计文档已删除，不再作为读取入口；
+- 对应的 Word/W 单文件 RAG 问答评测实施计划档案已删除，不再作为读取入口；
 - 共享报告模型 `scripts/eval_ws_rag/report_models.py`、不可变 dataset、`scripts/eval_ws_rag/rag_runner.py`、独立 Judge `scripts/eval_ws_rag/llm_judge.py`、规则校验 `scripts/eval_ws_rag/rule_validator.py`、聚合 `scripts/eval_ws_rag/report_aggregator.py`、原子发布 `scripts/eval_ws_rag/report_publisher.py`、主编排 `scripts/eval_ws_rag/orchestrator.py`、CLI `scripts/evaluate_ws_rag.py`、运行配置 `scripts/eval_ws_rag/runtime_config.py`、基线登记 `scripts/eval_ws_rag/baseline.py`、比较 CLI `scripts/compare_ws_rag_runs.py` 和产物核验器 `scripts/verify_ws_rag_evaluation_run.py` 均已实现并通过自动化测试；
 - 评测相关自动化测试共 202 项通过，不调用外部模型；
 - 真实 Run `ws_rag_baseline_002_run_001` 已生成：答案模型 `doubao-1-5-lite-32k-250115`、Judge 模型 `deepseek-v4-pro-260425`（因火山方舟上 `doubao-seed-2-1-pro-260628` 对结构化输出响应异常，实际运行时切换为同一 provider 下响应正常的 `deepseek-v4-pro-260425`）、问题生成模型 `doubao-seed-2-1-pro-260628`；
 - baseline `ws_rag_baseline_002` 已登记，dataset 与 run 产物已通过 `scripts/verify_ws_rag_evaluation_run.py` 核验；2026-07-20 发现并修复问题 ID 跨文档重号缺陷（生成器改为 dataset 级连续编号，dataset 模型与发布链路补齐数据契约第 10 条唯一性校验），旧 `ws_rag_baseline_001` 的 dataset 与 run 产物已彻底清除，baseline `ws_rag_baseline_001` 经 `replace=True` 替换指向同一新 Run（保留 `previous_run_path` 审计轨迹）；
 - 本轮未执行人工校准，报告声明 `judge_calibrated=false`；
-- Dashboard mock MVP 仍按[独立实施计划](./2026-07-05-ws-rag-evaluation-dashboard-implementation.md)推进，不纳入本里程碑能力状态。
+- Dashboard mock MVP 的独立实施计划档案已删除，不再作为读取入口，也不纳入本里程碑能力状态。
 
 #### Dashboard mock MVP 完成证据
 
@@ -206,7 +206,7 @@ W-S1 完成不等于 14 文件全量摄取完成，也不等于多格式法规�
 | 2026-07-04 | 完成 W-S3“总览 + 2 分卷”实施计划；S3 仍为 `planned`，未开始业务代码或正式导入 | 计划拆为 8 个 Task，固定官方契约核验、TDD、v3 门禁、真实预演、临时回滚、正式导入和逐 Task 中文 commit 策略 |
 | 2026-07-04 | S3 边界策略与 W-S3 组合验收完成：独立正文后排除策略落地，29 条正文真实文件正式提交；S3 与 W-S3 里程碑状态更新为 `implemented`；单文件批次导入新增 `force_batch` 参数以修复 CLI 单来源批次路径 | 正式批次 `c132d0f3-aa52-40cc-a1c8-7e26cb0209e1`：`selected=1`、`committed=1`、`failed=0`；`tests/integration/pipeline/test_ws3_formal_index_state.py` 与 `test_ws3_qualified_incremental_import.py` 通过；完整回归 471 项通过；正式索引共 20 份文档、876 关键词 chunks、876 FAISS 向量，manifest 14 条记录 |
 | 2026-07-04 | 登记 Word/W 单文件 RAG 问答评测里程碑；设计文档已形成 1.0 版，设计与执行计划编写进行中；能力保持 `planned` | Linear 里程碑“建立并完成Word文档的评测系统”进度 25%，唯一附属 issue `BOB-20` 为 `In Progress`；仓库未发现实施计划、评测代码、自动化测试或真实评测报告 |
-| 2026-07-05 | 完成 Word/W 单文件 RAG 问答评测“总览 + 3 分卷”实施计划；固定不可变 dataset、共享报告 schema、真实 RAG/Judge、目录级原子发布、校准、基线和真实验收顺序；能力保持 `planned` | [Word/W 单文件 RAG 问答评测实施计划](./2026-07-05-ws-rag-evaluation-implementation.md)及三个分卷；尚无业务代码、自动化测试、真实报告或校准证据 |
+| 2026-07-05 | 完成 Word/W 单文件 RAG 问答评测“总览 + 3 分卷”实施计划；固定不可变 dataset、共享报告 schema、真实 RAG/Judge、目录级原子发布、校准、基线和真实验收顺序；能力保持 `planned` | 对应实施计划及三个分卷已删除；尚无业务代码、自动化测试、真实报告或校准证据 |
 | 2026-07-05 | 收敛主评测与 Dashboard 首轮输入：三类模型改由环境变量控制并串行、额外重试 1 次；固定两份法规和每类 1 题；取消本轮人工校准，首个真实 Run 只登记 baseline；Dashboard 只使用一个 mock Run | 用户确认的模型、文档、问题数量、调用和基线策略；主评测与 Dashboard 设计/计划同步更新，能力仍为 `planned` |
 | 2026-07-05 | 完成 Word/W 单文件 RAG 问答评测全部代码、测试和产物核验器：共享 schema、dataset、Runner、Judge、规则校验、聚合、原子发布、编排 CLI、运行配置、未校准声明、基线登记、同口径比较和核验器均落地；189 项评测测试通过。真实模型 Run 尚未执行 | `tests/eval_ws_rag` 189 项通过；`scripts/evaluate_ws_rag.py --show-config` 可显示三类模型配置；能力由 `planned` 更新为 `in_progress` |
 | 2026-07-05 | 完成首个真实模型 Run 并登记 baseline：修复火山方舟端点 json_schema 不稳定问题、补全评测编排器向量 embedder、修正 Runner 引文绑定逻辑；能力由 `in_progress` 更新为 `implemented` | 真实 dataset `ws_rag_baseline_001`、Run `ws_rag_baseline_001_run_001`、baseline 登记均完成；`scripts/verify_ws_rag_evaluation_run.py` 核验通过；`tests/eval_ws_rag` 197 项通过；主评测与 Dashboard 全部 Task 已 commit |
