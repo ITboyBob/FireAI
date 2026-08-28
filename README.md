@@ -185,14 +185,15 @@ conda run -n fire python -m uvicorn app.main:create_app --factory --reload --por
 
 ### 新评测系统（evaluation-only）
 
-新评测系统仍处于设计阶段，由“总卷、`eval_set/`、两份分卷”共同说明。它只运行独立的 evaluation 流程；旧 Word/W RAG 评测的 Dataset、Query、Metric、报告、Dashboard、Streamlit、Rich 和报告代码均不复用。所有相关任务先读总卷，再按职责进入对应入口：
+新评测系统仍处于设计阶段，由“总卷、BOB-56 审查、`eval_set/`、两份分卷”共同说明。它只运行独立的 evaluation 流程；旧 Word/W RAG 评测的 Dataset、Query、Metric、报告、Dashboard、Streamlit、Rich 和报告代码均不复用。所有相关任务先读总卷；判断整体规范能否实施或验收时，再先读 BOB-56 审查：
 
 | 卷册 | 入口 | 职责 |
 | --- | --- | --- |
-| 总卷 | [新评测系统设计总卷](./新评测系统设计总卷.md) | 划定 evaluation 范围，列出八个维度，规定读取顺序和跨卷规则 |
+| 总卷 | [新评测系统设计总卷](./新评测系统设计总卷.md) | 划定 evaluation 范围，列出七个维度，规定读取顺序和跨卷规则 |
+| BOB-56 审查 | [评测系统规范依赖审查](./docs/architecture_or_strategy/2026-08-27-evaluation-system-specification-dependency-review.md) | 判断整体规范能否验收，记录 BOB-55 阻塞、已确认事项与未决依赖 |
 | 评测数据集 | [eval_set/ 规范](./eval_set/CODEMAP.md) | 独立生成评测数据集；不定义 Metric、运行编排或报告 |
 | 分卷一 | [评测执行与报告架构](./docs/architecture_or_strategy/2026-07-23-evaluation-optimization-loop-architecture-design.md) | 运行被测 RAG，保存逐 case 观测，调用评分与聚合，维护 run 状态，直接写出两份报告；系统 snapshot 标识仓库现存 chunk 集合 \(G_q\) |
-| 分卷三 | [Metric 与评分契约](./docs/architecture_or_strategy/2026-07-27-ragas-response-reference-rubric-judge-design.md) | 定义 `metrics.json`、八项 Metric、\(G_q\)/\(C_q\) 的业务边界、统一结果、聚合算法与稳定错误码 |
+| 分卷三 | [Metric 与评分契约](./docs/architecture_or_strategy/2026-07-27-ragas-response-reference-rubric-judge-design.md) | 定义 `metrics.json`、七项 Metric、\(G_q\)/\(C_q\) 的业务边界、统一结果、聚合算法与稳定错误码 |
 
 运行层读取按 `eval_set/` 规范独立生成的评测数据集与 `metrics.json`，执行当前被测 RAG，再让 JSON writer 与 Markdown writer 从同一个不可变 `AggregatedEvaluationResult` 分别直接写出 `report.json` 和 `report.md`。\(G_q\) 是系统 snapshot 标识的仓库现存 chunk 集合，\(C_q\) 是评测数据集 answer 对应的 chunk；二者不绑定特定字段。Markdown 不读取 JSON，也不依赖旧展示工具。单项 Metric 错误不会停止 run；系统继续执行，最终标记 `incomplete`，并仍写出两份报告。当前评测运行代码与真实端到端 baseline 尚未实现或验证。
 

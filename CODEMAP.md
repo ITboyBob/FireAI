@@ -23,7 +23,7 @@ stats:
 | 理解离线索引构建（语料→结构化→切块→双索引）全流程 | 建库脚本 | `scripts/CODEMAP.md` + `scripts/build_corpus.py` + `scripts/build_index.py` | `tests/integration/pipeline/test_build_pipeline.py` |
 | 理解增量导入的 staging 校验、提交与失败回滚机制 | 摄取管线 | `scripts/import_new_corpus.py` + `app/services/incremental_import.py` | `tests/integration/pipeline/test_ws3_qualified_incremental_import.py` |
 | 理解 W/S1/S2/S3 边界判定与质量门禁判定矩阵 | 摄取管线 | `app/services/legal_quality_gates.py.analysis.md` + `app/services/legal_ingestion_orchestrator.py` | `app/services/CODEMAP.md` 边界判定各域 |
-| 理解新评测系统（evaluation-only）设计权威口径 | 架构设计文档 | 根目录 `新评测系统设计总卷.md` + `docs/architecture_or_strategy/2026-07-23-evaluation-optimization-loop-architecture-design.md` | `eval_set/CODEMAP.md`（评测数据集）+ 分卷三 Metric 与评分契约 |
+| 理解或审查新评测系统（evaluation-only）整体规范 | 架构设计文档 | 根目录 `新评测系统设计总卷.md` + BOB-56 `docs/architecture_or_strategy/2026-08-27-evaluation-system-specification-dependency-review.md` | 分卷一运行架构 + `eval_set/CODEMAP.md` + 分卷三 Metric 契约 |
 | 查找 Golden Set 与 Adversarial Case 生成素材及流程 | 评测素材 | `eval_set/CODEMAP.md` + `eval_set/Adversarial_Case生成流程.md` | `eval_set/RAG_Golden_Set.json` |
 | 了解测试分层与某生产模块如何被验证 | 测试层 | `tests/CODEMAP.md` Task Guide | 对应生产模块的 CODEMAP 行 |
 | 理解配置加载与环境变量入口 | 配置中心 | `app/core/settings.py` + `.env.example` | — |
@@ -36,7 +36,7 @@ stats:
 | `scripts/` | 建库脚本 | app.core, app.services | CLI 入口层：离线建库、增量导入 |
 | `tests/` | 测试层 | app, scripts（被测目标）、fixtures | unit/integration 两层测试 + 各阶段最小样本 fixtures |
 | `docs/` | 架构设计文档 | — | 设计、实施与参考三类 markdown 文档的时间线归档 |
-| `eval_set/` | 评测素材 | — | 评测数据集独立生成规范，以及 Golden Set 正例 QA 与 Adversarial Case / Edge Case 生成素材（部分为 Draft/Under Review） |
+| `eval_set/` | 评测素材 | — | 评测数据集独立生成规范，以及 Golden Set 正例 QA 与 Adversarial Case / Edge Case 生成素材；正式文件组织已确认采用三类 JSONL + manifest，schema 仍待 BOB-55（部分为 Draft/Under Review） |
 | `data/` | 构建产物存储 | 由 scripts 写入 | 大部分为 gitignored 可重建产物 |
 | `法律文本/`（gitignored）/ `新法规文件/` | 原始语料素材（非代码，PDF/docx） | 被 corpus_ingestor/incremental import 消费 | 原始法规文件；不在源码统计与子级 CODEMAP 覆盖范围内 |
 | `var/`（gitignored） | 本机运行时数据 | app/main、评测脚本写入 | conversations.db 会话库与评测调试临时产物 |
@@ -66,5 +66,5 @@ stats:
 | AGENTS.md | 代理导航 | 当前目标/强制规则；文末附 CODEMAP Navigation Protocol 导航协议块 |
 | pyproject.toml | 包配置 | fire-law-rag 依赖声明、pytest testpaths 配置 |
 | .env.example | 配置模板 | CHAT_*、EMBEDDING_MODEL_NAME、WS_RAG_* 等环境变量样例 |
-| 新评测系统设计总卷.md | 架构设计文档 | 新评测系统 evaluation-only 总卷；与 `eval_set/`、分卷一和分卷三共同构成当前文档入口 |
+| 新评测系统设计总卷.md | 架构设计文档 | 新评测系统 evaluation-only 总卷；导航 BOB-56 审查、`eval_set/`、分卷一和分卷三，明确七项 Metric 仅评测 Golden Set，并标明当前受 BOB-55 阻塞 |
 | 评测维度.md | 架构设计文档 | 评测维度备忘 |

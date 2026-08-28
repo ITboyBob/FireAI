@@ -2,18 +2,19 @@
 
 > **卷册角色**：新评测系统的运行编排、run 状态与双报告写出分卷
 >
-> **最后更新**：2026-08-09
+> **最后更新**：2026-08-27
 >
-> **当前状态**：架构已收敛为 evaluation-only，代码尚未实现
+> **当前状态**：Under Review；BOB-56 受 BOB-55 阻塞，代码尚未实现
 
 ## 0. 卷册导航与本卷边界
 
 | 卷册 | 文档 | 负责内容 |
 | --- | --- | --- |
-| 总卷 | [新评测系统设计总卷](../../新评测系统设计总卷.md) | evaluation 范围、八个维度、读取顺序和跨卷规则 |
+| 总卷 | [新评测系统设计总卷](../../新评测系统设计总卷.md) | evaluation 范围、七个维度、读取顺序和跨卷规则 |
+| BOB-56 审查 | [评测系统规范依赖审查](./2026-08-27-evaluation-system-specification-dependency-review.md) | 判断数据格式、方法与指标能否共同验收；登记候选方案、依赖顺序和决策门禁 |
 | 分卷一（本文） | `2026-07-23-evaluation-optimization-loop-architecture-design.md` | 运行被测 RAG、保存逐 case 观测、调用评分与聚合、维护 run 状态、直接写出两份报告 |
 | 评测数据集 | [eval_set/ 规范](../../eval_set/CODEMAP.md) | 独立生成评测数据集；规定数据集生成边界 |
-| 分卷三 | [Metric 与评分契约](./2026-07-27-ragas-response-reference-rubric-judge-design.md) | `metrics.json`、八项 Metric、统一结果、聚合算法、稳定错误码与未决错误边界 |
+| 分卷三 | [Metric 与评分契约](./2026-07-27-ragas-response-reference-rubric-judge-design.md) | `metrics.json`、七项 Metric、统一结果、聚合算法、稳定错误码与未决错误边界 |
 
 本文只回答以下问题：
 
@@ -24,6 +25,8 @@
 - 怎样让两个 writer 读取同一个不可变聚合结果并分别直接写出 JSON 和 Markdown。
 
 本文不定义评测数据集或 `metrics.json` 的字段，不复述 Metric 公式、rubric、结果字段、聚合数学或单项错误字段。
+
+本文以下内容是 BOB-55/BOB-56 决策通过后的候选运行契约。正式数据 schema 尚未冻结；已确认正式文件组织采用三类 JSONL + manifest，且现有七项 Metric 仅适用于 Golden Set。Adversarial / Edge 的额外 Metric 仍待定义，D1 尚未关闭；在[BOB-56 审查第 8 节](./2026-08-27-evaluation-system-specification-dependency-review.md#8-已确认与待决策事项)的未决事项关闭前，不得据本文进入实现或声称架构已经整体收敛。
 
 ## 1. 架构结论
 
@@ -57,7 +60,7 @@
 
 运行开始后，两份输入在本次 run 内保持不变。分卷一保存实际读取输入的追溯信息，但不在本文复制评测数据集的 schema。
 
-被测系统快照不是第一阶段上游输入。preflight 首次读取仓库现存 chunks，建立不可变的 run 内 \(G_q\) snapshot；该 snapshot 标识 \(G_q\)，并用于机械校验 \(C_q \subseteq G_q\)、Accuracy 和最终 `report.json.system_snapshot`。\(C_q\) 是评测数据集 answer 对应的 chunk；\(G_q\) 与 \(C_q\) 均不绑定特定字段。报告构建不得重新读取 chunks，且不创建独立 `system_snapshot.json` 文件。
+被测系统快照不是第一阶段上游输入。preflight 首次读取仓库现存 chunks，建立不可变的 run 内 \(G_q\) snapshot；该 snapshot 标识 \(G_q\)，并用于机械校验 \(C_q \subseteq G_q\) 和最终 `report.json.system_snapshot`。\(C_q\) 是评测数据集 answer 对应的 chunk；\(G_q\) 与 \(C_q\) 均不绑定特定字段。报告构建不得重新读取 chunks，且不创建独立 `system_snapshot.json` 文件。
 
 #### 2.1.1 `report.json.system_snapshot` 契约
 
@@ -142,7 +145,7 @@ reports/evaluation_baseline/<run_id>/
 
 1. 确认按 `eval_set/` 规范生成的评测数据集和 `metrics.json` 均可读。
 2. 按 `eval_set/` 的规范确认评测数据集可供评测，并调用分卷三提供的 `metrics.json` 契约校验器；运行层不重写数据集生成或字段规则。
-3. 确认 Metric 集合与总卷列出的八个维度一致。
+3. 确认 Golden Set 的 Metric 集合与总卷列出的七个维度一致；Adversarial / Edge 只在其额外 Metric 已定义后校验对应集合。
 4. 本地校验 `WS_RAG_JUDGE_*`、火山方舟 URL 契约、`WS_RAG_MODEL_MAX_RETRIES` 与共享 Judge client 的构造性；不联网。
 5. 确认每个 case 能提供分卷三声明的评分输入。
 6. 按分卷三定义首次读取当前仓库 chunks，建立标识 \(G_q\) 的不可变 run 内 snapshot，并校验每个 \(C_q \subseteq G_q\)。
@@ -160,7 +163,7 @@ reports/evaluation_baseline/<run_id>/
 3. 保存本次实际返回的最终融合后有序 chunks；每项只表达稳定 `chunk_id` 与本次实际使用的完整 `text`，数组顺序就是唯一 rank。
 4. 从被测 RAG 的 `ChatResponse.conclusion` 派生 `answer_text=conclusion.strip()`，验证其非空，并将该字符串保存为最终回答。
 5. 把完整 `CaseObservation` 交给 `MetricDispatcher`。
-6. 调用分卷三定义的八项 Metric，并保存其返回结果。
+6. 对 Golden Set 调用分卷三定义的七项 Metric，并保存其返回结果；Adversarial / Edge 只在额外 Metric 已定义后进入各自评测。
 7. 即使某一项 Metric 返回错误，也继续调用本 case 其余 Metric，并继续运行后续 case。
 
 评测适配层不得为了补齐观测而再次检索、静默去重、重新排序、补写回答或改变被测 RAG 的输入。缺失或非法观测如何形成单项结果，由分卷三解释；分卷一只执行“继续运行并保留返回结果”。
@@ -177,7 +180,7 @@ reports/evaluation_baseline/<run_id>/
 
 Recorder 不补造、去重或重排最终列表，也不把未实际返回的数据写入持久化观测。`citations`、`scope`、`uncertainty`、`evidence` 不拼接进 `answer_text`，也不传给生成端 Metric；尤其不得泄漏 `evidence`。
 
-参考答案与 \(C_q\) 由 `eval_set/` 的评测数据集规范提供；Metric 读取哪些观测、怎样解释空值以及怎样生成结果由分卷三决定。本文不建立第二份评分输入表。
+参考答案与 \(C_q\) 在 BOB-55 完成后由 `eval_set/` 的正式评测数据集规范提供；Metric 读取哪些观测、怎样解释空值以及怎样生成结果由分卷三决定。本文不建立第二份评分输入表。
 
 ## 6. 组件职责
 
@@ -187,7 +190,7 @@ Recorder 不补造、去重或重排最终列表，也不把未实际返回的�
 | `EvaluationRunner` | 排列 case 执行、评分、聚合和写出顺序 | 不计算任何 Metric |
 | `RagExecutionAdapter` | 用 Query 调用当前 RAG，暴露最终融合后有序 chunks 与 `ChatResponse.conclusion` | 不改变被测 RAG 行为 |
 | `CaseObservationRecorder` | 保存实际 Query、最终有序 chunks 的稳定 `chunk_id` 与完整 `text`，以及非空 `answer_text` | 不补造、去重或重排最终列表 |
-| `MetricDispatcher` | 按分卷三配置调用八项 Metric，并收集全部返回结果 | 不解释公式或错误字段，不向生成端 Metric 传入 chunks |
+| `MetricDispatcher` | 对 Golden Set 按分卷三配置调用七项 Metric；在定义完成后调用 Adversarial / Edge 的额外 Metric，并收集返回结果 | 不解释公式或错误字段，不向生成端 Metric 传入 chunks |
 | `ResultAggregator` | 在全部 case 执行后调用分卷三定义的聚合算法 | 不另写聚合规则 |
 | `AggregatedEvaluationResultBuilder` | 合并 run 上下文与分卷三返回的 case、汇总结果，冻结最终对象 | 不重新计算分数 |
 | `JsonReportWriter` | 直接从最终对象写出 JSON | 不生成 Markdown |
@@ -197,9 +200,9 @@ Recorder 不补造、去重或重排最终列表，也不把未实际返回的�
 
 ## 7. Metric 调度与聚合调用
 
-`MetricDispatcher` 读取正式 `metrics.json`，为每个 case 调用分卷三登记的八项实现。所有需要检索输出的 Metric 只从评测数据集与本次 `CaseObservation` 消费最终融合后有序 chunks；生成端 Metric 不消费 chunks。Accuracy 评分时，Dispatcher 只使用 preflight 建立的同一不可变 run 内 \(G_q\) snapshot；不得重新读取 chunks。Dispatcher 不在运行层改变参数或补充评分规则。
+`MetricDispatcher` 读取正式 `metrics.json`，仅为 Golden Set 调用分卷三登记的七项实现。Adversarial / Edge 不得调用这七项；其额外 Metric 必须在定义完成后由对应契约登记。所有需要检索输出的 Golden Set Metric 只从评测数据集与本次 `CaseObservation` 消费最终融合后有序 chunks；生成端 Metric 不消费 chunks。Dispatcher 不在运行层改变参数或补充评分规则。
 
-全部 case 的八项调用结束后，`EvaluationRunner` 只调用一次 `ResultAggregator`。`ResultAggregator` 严格执行分卷三的聚合契约并返回汇总结果；分卷一不计算均值、不筛除错误 case，也不定义空值传播。
+Golden Set 的七项调用结束后，`EvaluationRunner` 只调用一次 `ResultAggregator`。Adversarial / Edge 的聚合须等待其额外 Metric 契约。`ResultAggregator` 严格执行对应评分契约并返回汇总结果；分卷一不计算均值、不筛除错误 case，也不定义空值传播。
 
 单项 Metric 返回错误时执行路径固定为：
 
@@ -274,7 +277,7 @@ preflight 失败不创建正式 run，也不创建 `run_status.json`。不支持
 - 本次实际读取的冻结输入身份。
 - 本次构建的被测系统快照。
 - 每个 case 的运行观测与分卷三返回结果。
-- 分卷三返回的八项汇总结果。
+- 分卷三返回的 Golden Set 七项汇总结果，以及已定义的 Adversarial / Edge 额外 Metric 汇总结果。
 
 顶层字段固定为：
 
@@ -287,8 +290,8 @@ preflight 失败不创建正式 run，也不创建 `run_status.json`。不支持
 | `status` | 仅 `completed` 或 `incomplete`；`failed` 不建立该对象 |
 | `metrics_config` | 正式 `metrics.json` 的 schema 版本与配置 hash 引用 |
 | `system_snapshot` | 由 preflight 的同一不可变 run 内 \(G_q\) snapshot 与 §2.1.1 的其他投影构成；`report.json` 保留完整对象，Builder 不重新读取 chunks |
-| `cases` | 全部逐 case 观测及其八项 `MetricResult`，嵌套结构由下表固定 |
-| `metric_summaries` | 分卷三返回的八项 `MetricSummary` |
+| `cases` | 全部逐 case 观测及其适用的 `MetricResult`；Golden Set 固定七项，其他类型待额外 Metric 契约定义 |
+| `metric_summaries` | Golden Set 七项 `MetricSummary`，以及已定义的额外 Metric 汇总 |
 
 `cases` 的嵌套结构固定为：
 
@@ -301,7 +304,7 @@ preflight 失败不创建正式 run，也不创建 `run_status.json`。不支持
 | `cases[].observation.final_retrieved_chunks` | 本次实际返回的最终融合后有序 chunk 数组；数组顺序就是唯一 rank |
 | `cases[].observation.final_retrieved_chunks[]` | 每项恰好包含 `chunk_id` 与完整 `text` |
 | `cases[].observation.answer` | 非空 `answer_text=ChatResponse.conclusion.strip()` |
-| `cases[].metric_results` | 必须恰好包含八项 `MetricResult`；每项 `MetricResult.case_id` 必须等于父级 `cases[].case_id` |
+| `cases[].metric_results` | Golden Set 必须恰好包含七项 `MetricResult`；Adversarial / Edge 的结果集合待其额外 Metric 契约定义；每项 `MetricResult.case_id` 必须等于父级 `cases[].case_id` |
 
 `MetricResult` 的其他内部字段由分卷三独占定义，本文不重复。Recorder 与 Builder 对 `observation` 只复制本次实际运行事实，不补造、去重或重排。
 
@@ -321,7 +324,7 @@ preflight 失败不创建正式 run，也不创建 `run_status.json`。不支持
 6. 在同一 staging 目录中把同一个对象交给 `MarkdownReportWriter`，直接写出 `report.md`。
 7. `run_status.json`、两份报告与 staging 目录完成 flush/fsync 后，整体 rename 为正式 run 目录，并 fsync 父目录。
 
-`MarkdownReportWriter` 负责把对象中的 run 概况、逐 case 结果、八项汇总和错误证据组织成 Markdown 文件。两个 writer 都只输出最终融合后有序 chunks 的稳定 `chunk_id` 与完整 `text`。Markdown writer 不解析 JSON，也不依赖模板页面、Dashboard、Streamlit、Rich 或旧报告工具。
+`MarkdownReportWriter` 负责把对象中的 run 概况、逐 case 结果、七项汇总和错误证据组织成 Markdown 文件。两个 writer 都只输出最终融合后有序 chunks 的稳定 `chunk_id` 与完整 `text`。Markdown writer 不解析 JSON，也不依赖模板页面、Dashboard、Streamlit、Rich 或旧报告工具。
 
 `JsonReportWriter` 保留系统 snapshot 的完整投影；`MarkdownReportWriter` 只展示 `source_documents`，不新增 \(G_q\) 或 \(C_q\) 的字段投影。该展示差异不改变两个 writer 读取同一个不可变聚合对象的约束。
 
@@ -341,10 +344,10 @@ preflight 失败不创建正式 run，也不创建 `run_status.json`。不支持
 ## 12. 可直接转为实施计划的工作顺序
 
 1. 按 `eval_set/` 规范接入独立生成的评测数据集，不在运行层复述其生成或字段契约。
-2. 接入分卷三的正式 `metrics.json` 校验器、八项实现和统一结果。
+2. 接入分卷三的正式 `metrics.json` 校验器、Golden Set 七项实现和统一结果。
 3. 实现 `RagExecutionAdapter`，只暴露本次实际返回的最终融合后有序 chunks 与 `ChatResponse.conclusion`。
 4. 实现 `CaseObservationRecorder`，验证它保存实际 Query、最终有序 chunks 与非空 `answer_text`，且不改变被测 RAG 输出。
-5. 实现 `MetricDispatcher`，覆盖八项均被调用、检索端只消费最终有序 chunks、生成端不消费 chunks，以及单项错误后继续执行。
+5. 实现 `MetricDispatcher`，覆盖 Golden Set 七项均被调用、检索端只消费最终有序 chunks、生成端不消费 chunks，以及单项错误后继续执行；Adversarial / Edge 须在额外 Metric 定义后另行接入。
 6. 实现 `ResultAggregator` 适配层，只调用分卷三算法。
 7. 实现 run 状态转换、被测系统快照及不可变 `AggregatedEvaluationResult` 构建。
 8. 实现两个彼此独立的 writer、隐藏 staging 与整目录发布。
@@ -356,13 +359,13 @@ preflight 失败不创建正式 run，也不创建 `run_status.json`。不支持
 ## 13. 验收检查
 
 - preflight 按 `eval_set/` 规范确认评测数据集可供评测，调用分卷三的正式评分校验规则，并机械拒绝任一 \(C_q\) 不属于 \(G_q\) 的 case；评测数据集生成错误以 `eval_set/` 为准，其余评测运行稳定码、顺序和不创建正式 run 的动作均以分卷三为准。
-- 被测系统快照不作为第一阶段上游输入；preflight 首次读取 chunks 时建立标识 \(G_q\) 的不可变 run 内 snapshot，供 \(C_q \subseteq G_q\)、Accuracy 与构建 `AggregatedEvaluationResult` 时的 `report.json.system_snapshot` 共用。报告构建不得重新读取 chunks，且不创建独立文件。
+- 被测系统快照不作为第一阶段上游输入；preflight 首次读取 chunks 时建立标识 \(G_q\) 的不可变 run 内 snapshot，供 \(C_q \subseteq G_q\) 与构建 `AggregatedEvaluationResult` 时的 `report.json.system_snapshot` 共用。报告构建不得重新读取 chunks，且不创建独立文件。
 - `report.json` 保留系统 snapshot 的完整投影；`report.md` 只展示 `source_documents`，不为 \(G_q\) 或 \(C_q\) 另设字段或独立文件。
 - 每个冻结 case 只运行一次当前被测 RAG。
 - Recorder 只保存实际 Query、最终融合后有序 chunks 的稳定 `chunk_id` 与完整 `text`，以及非空 `answer_text=ChatResponse.conclusion.strip()`；不拼接或传递 `citations`、`scope`、`uncertainty`、`evidence`，数组顺序就是唯一 rank，不补造、去重或重排。
 - 所有需要检索输出的 Metric 只消费最终融合后有序 chunks；生成端 Metric 不消费 chunks。
-- `cases[]` 每项恰好包含 `case_id`、`observation`、`metric_results`，其中 `observation` 使用本文固定结构，`metric_results` 恰好八项且每项 `case_id` 与父 case 一致。
-- 每个 case 调用分卷三登记的全部八项 Metric。
+- `cases[]` 每项恰好包含 `case_id`、`observation`、`metric_results`，其中 `observation` 使用本文固定结构；Golden Set 的 `metric_results` 恰好七项且每项 `case_id` 与父 case 一致，Adversarial / Edge 的集合待额外 Metric 契约定义。
+- 每个 Golden Set case 调用分卷三登记的全部七项 Metric；Adversarial / Edge 不调用这七项。
 - 任一单项 Metric 错误后，其余 Metric 和后续 case 继续执行。
 - 聚合只在全部 case 执行结束后调用，并且只执行分卷三的算法。
 - 无单项错误时 run 终态为 `completed`。
@@ -380,12 +383,13 @@ preflight 失败不创建正式 run，也不创建 `run_status.json`。不支持
 
 | 能力 | 状态 |
 | --- | --- |
-| evaluation-only 执行流程 | 设计已确认，尚未实现 |
-| 正式输入 preflight | 设计已确认，尚未实现 |
-| 被测 RAG 适配与逐 case 观测 | 设计已确认，尚未实现 |
-| 八项 Metric 调度与统一聚合接入 | 设计已确认，尚未实现 |
-| `completed` / `incomplete` / `failed` run 状态 | 设计已确认，尚未实现 |
-| JSON 与 Markdown 从同一对象直接写出 | 设计已确认，尚未实现 |
+| evaluation-only 执行流程 | 候选设计；受 BOB-55/BOB-56 门禁，尚未实现 |
+| 正式输入 preflight | 候选设计；正式数据 schema 未冻结，尚未实现 |
+| 被测 RAG 适配与逐 case 观测 | 观测边界已定义；整体方法仍受 BOB-56 门禁，尚未实现 |
+| Golden Set 七项 Metric 调度与聚合接入 | 候选设计；尚未实现 |
+| Adversarial / Edge 额外 Metric 接入 | 未定义；D1 决定 Adversarial 首期目标，尚未实现 |
+| `completed` / `incomplete` / `failed` run 状态 | 候选设计；尚未实现 |
+| JSON 与 Markdown 从同一对象直接写出 | 候选设计；最终结果 schema 待上游决策后收口，尚未实现 |
 | 真实模型与新评测系统端到端 baseline | 尚未验证 |
 
 本卷不记录依赖安装日志、测试计数或临时 smoke 结果。实现状态只能由当前代码和真实验收证据更新。

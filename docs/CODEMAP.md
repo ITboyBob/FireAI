@@ -18,7 +18,7 @@ generated_at: 2026-08-27
 | 理解法规摄取质量门禁与批次状态设计 | 法规摄取设计系列 | `architecture_or_strategy/2026-06-28-legal-ingestion-quality-gates-and-batch-state-design.md` | W-S1 实施分卷三（质量资格部分） |
 | 理解 S1/S2/S3 正文边界策略的演进 | 法规摄取设计系列 | `architecture_or_strategy/2026-06-28-legal-content-boundary-and-intermediate-model-design.md`、`2026-07-04-s3-trailing-exclusion-boundary-design.md` | 实施记录：W-S1/W-S2/W-S3 实施系列 |
 | 理解 NDJSON 状态流问答交互设计 | 产品与技术设计 | `architecture_or_strategy/2026-04-23-fire-qa-ndjson-status-stream-design.md` | 2.0 实施计划分卷三 |
-| 理解新评测系统（evaluation-only）总体架构 | 新评测系统设计卷册 | 仓库根 `新评测系统设计总卷.md` + 分卷一 `architecture_or_strategy/2026-07-23-evaluation-optimization-loop-architecture-design.md` | `../eval_set/CODEMAP.md`（评测数据集）+ 分卷三 Metric 与评分契约 |
+| 理解新评测系统（evaluation-only）总体架构 | 新评测系统设计卷册 | 仓库根 `新评测系统设计总卷.md` + BOB-56 审查 `architecture_or_strategy/2026-08-27-evaluation-system-specification-dependency-review.md` | 分卷一运行架构 + `../eval_set/CODEMAP.md` + 分卷三 Metric 契约 |
 | 查找 TDD 实施记录（按里程碑） | 项目实施记录 | 各实施系列，如 `project_or_workflow/2026-07-04-s3-boundary-and-w-s3-acceptance-implementation.md` 系列 | 对应 design 文档核验实施一致性 |
 | 核验运行时依赖契约（textutil/Pydantic/pytest 等） | 参考资料·契约核验 | `reference_material/2026-06-30-s2-runtime-contract-verification.md` 等 4 篇核验记录 | 各对应实施计划 |
 | 追溯一期 RAG 历史设计 | 历史参考资料 | `reference_material/2026-03-28-fire-law-rag-design.md` + 实施计划系列 | 文内已声明被 2.0 PRD 与工程技术标准取代 |
@@ -35,7 +35,7 @@ generated_at: 2026-08-27
 
 ## Files
 
-### architecture_or_strategy（12 篇）
+### architecture_or_strategy（13 篇）
 
 | File 或系列 | Domain | 内容一句话 |
 | --- | --- | --- |
@@ -43,7 +43,7 @@ generated_at: 2026-08-27
 | `2026-04-11-fire-qa-system-2.0-prd.md` | 产品需求 | 消防问答系统 2.0 的唯一产品标准 PRD，定义定位、能力边界与验收口径。 |
 | `2026-04-23-fire-qa-ndjson-status-stream-design.md` | 交互设计 | 后端 NDJSON 状态流、前端基于可信 payload 逐字呈现的问答体验设计。 |
 | 法规摄取设计系列（7 篇）：`2026-06-28-multi-format-legal-corpus-ingestion-design.md`、`2026-06-28-legal-source-classification-and-extraction-design.md`、`2026-06-28-legal-content-boundary-and-intermediate-model-design.md`、`2026-06-28-legal-ingestion-quality-gates-and-batch-state-design.md`、`2026-06-29-unified-legal-ingestion-entry-adr.md`、`2026-06-29-legal-ingestion-overall-architecture.md`、`2026-07-04-s3-trailing-exclusion-boundary-design.md` | 法规摄取设计 | 总体架构 + ADR + 多格式摄取总设计与分类提取、正文边界、质量门禁三份专项分卷及 S3 尾部排除细化设计。 |
-| 新评测系统设计卷册（2 篇）：`2026-07-23-evaluation-optimization-loop-architecture-design.md`（分卷一）、`2026-07-27-ragas-response-reference-rubric-judge-design.md`（分卷三） | 新评测系统设计 | evaluation-only 新评测系统的评测执行与报告架构、八项 Metric 与评分契约；评测数据集规范位于仓库根 `eval_set/`，总卷位于仓库根 `新评测系统设计总卷.md`。 |
+| 新评测系统设计卷册（3 篇）：`2026-07-23-evaluation-optimization-loop-architecture-design.md`（分卷一）、`2026-07-27-ragas-response-reference-rubric-judge-design.md`（分卷三）、`2026-08-27-evaluation-system-specification-dependency-review.md`（BOB-56 审查） | 新评测系统设计 | evaluation-only 新评测系统的运行/报告架构、仅适用于 Golden Set 的七项 Metric 契约，以及三类 JSONL + manifest 的数据组织和格式—方法—指标依赖审查；数据生成素材位于仓库根 `eval_set/`，总卷位于仓库根 `新评测系统设计总卷.md`。 |
 
 ### project_or_workflow（22 篇）
 
