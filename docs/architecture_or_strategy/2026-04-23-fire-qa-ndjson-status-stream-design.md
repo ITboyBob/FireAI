@@ -158,12 +158,10 @@ Content-Type: application/x-ndjson; charset=utf-8
 
 `error` 用于流已经开始后的错误。`code` 至少包括：
 
-- `conversation_not_found`
-- `index_not_ready`
 - `model_error`
-- `validation_error`
-- `persistence_error`
 - `internal_error`
+
+`persistence_error` 为保留扩展码，仅当 `received` 已发出后的持久化步骤失败时使用。`conversation_not_found`、`index_not_ready`、`validation_error` 对应的失败类型按边界设计在流开始前以 HTTP `404`/`503`/`422` 表达，不出现在流中 `error` 事件。
 
 示例：
 
@@ -248,7 +246,7 @@ API 测试：
 - 验证每行都是完整 JSON。
 - 验证 `received.persisted` 为 `true`。
 - 验证流开始前的 `404 / 422 / 503`；当前已补 `422` 集成测试。`503` 既覆盖索引未就绪，也覆盖 `MissingEmbeddingDependencyError` / `MissingVectorStoreDependencyError` 这类检索依赖缺失路径，以及普通初始化异常路径。
-- 验证流开始后的 `error.code` 至少覆盖 `conversation_not_found`、`index_not_ready`、`model_error`、`validation_error`、`persistence_error`、`internal_error` 中的关键路径。
+- 验证流开始后的 `error.code` 至少覆盖 `model_error`、`internal_error`。
 
 前端测试：
 
