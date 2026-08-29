@@ -1,7 +1,7 @@
 # 实施计划：会话错误分支三需求（404 读取区分 / 流中会话竞态删除 / persistence_error 两档）
 
 - 文档性质：本 feature 的工程执行计划，步骤粒度为「一次可独立验证的最小变更」。
-- 执行约束：所有安装与代码执行使用 `conda run -n fire ...`；不新增依赖；TDD（先写测试再实现）；本 feature 不涉及 DeepEval，`DEEPEVAL_DISABLE_DOTENV` 不适用（计划内不含 DeepEval 相关测试）。
+- 执行约束：所有安装与代码执行使用 `conda run -n fire ...`；不新增依赖；TDD（先写测试再实现）；本 feature 不涉及 DeepEval，`DEEPEVAL_DISABLE_DOTENV` 不适用（计划内不含 DeepEval 相关测试）；前端行为验收使用 Playwright E2E（环境三件套已按《工程技术标准》就绪：playwright、Chromium、pytest-playwright）。
 
 ## 一、背景与范围
 
@@ -33,8 +33,9 @@
 ### 文档口径差异与裁决记录（实施前确认）
 
 - **设计文档 L168「已知限制」** 写明：`received` 已发出后的持久化链路中若会话被删除，「第一版按 `internal_error` 处理，不做精确归因」。而 PRD L150 对 `conversation_not_found` 的语义描述可能被误读为「流中任意位置会话删除都能归因」。本计划以 PRD 测试决策 L186（『`received` 前』限定）与设计文档「已知限制」取交集裁决：**`conversation_not_found` 仅覆盖 `received` 发出前的会话删除；`received` 之后出现的 `ConversationNotFoundError` 仍归 `internal_error`**。实现手段：API 事件生成器跟踪 `received` 是否已发出（见步骤 2）。此裁决与两文档均不冲突，无需改文档。
-- **待裁决 1**：一次性接口 `POST /messages` 对 `PersistenceError` 不新增 HTTP 映射（沿用现状「未捕获异常 → 500」）。PRD 仅约束 stream 接口。如后续需要同构映射，另行裁决。
-- **待裁决 2**：前端 `conversation_not_found` 分支的状态行文案（PRD 只规定错误面板文案四类动作，状态行措辞为工程自拟）。
+- **裁决 1（已裁决）**：一次性接口 `POST /messages` 对 `PersistenceError` **不补** HTTP 映射（沿用现状「未捕获异常 → 500」）。该接口无前端流量，用户端细粒度文案动机仅由 stream 承担；未来若重新获得真实调用方再裁决。
+- **裁决 2（已裁决）**：前端 `conversation_not_found` 分支的状态行文案定稿为「会话已失效，已返回首页。」（不承诺输入保留）。
+- **裁决 3（已裁决）**：竞态场景由 E2E mock 确定性构造（`page.route` 伪造 stream 事件序列，见步骤 5），不再依赖手工复现真实时序；后端事件契约仍由步骤 1 API 集成测试锁定。
 
 ## 三、分批实施总览
 
@@ -90,7 +91,7 @@ conda run -n fire python -m pytest tests/integration/api/test_conversations_api.
 
 #### 步骤 3：前端「错误对象开始携带 status / code / retryable」能力（需求 1、2、3 共享基座）
 
-- **测试方式说明**：仓库无 JS 单元测试框架；前端可执行验收仅依赖 Playwright E2E，而 `conda run -n fire python -c "import playwright"` 已确认**不可用**。按《工程技术标准》L76「不可用则记录阻塞，不私自安装」，本批前端验收走「阻塞登记 + 手工验收脚本」（步骤 5），无可执行自动化前端测试，**此为本 feature 的显式例外，须写入最终报告**。
+- **测试方式说明**：前端行为验收由 Playwright E2E 承担（用例见步骤 5），本步骤的 `node --check` 仅作语法冒烟。
 - **实现文件**：`app/static/app.js`。
 - **实现要点（三处小改动）**：
   1. `requestJson`（:117-140）`!response.ok` 分支：构造 `Error` 后挂载 `error.status = response.status` 再抛出。
@@ -120,7 +121,7 @@ node --check app/static/app.js
      - `state.activeConversationId = null; state.activeDetail = null; setView("home"); updateUrl(null, { replace: true }); renderConversationList(); renderThread(); await loadConversationList();`（复用 `deleteConversation` wasActive 分支 :543-550 的既有样板）；
      - 不调用 `replacePendingAssistantWithError`（activeDetail 已置空）；
      - 不调用 `clearComposerValues`（保留输入框草稿）；
-     - `setStatus` 文案自拟（待裁决 2），建议「会话已失效，已返回首页。输入内容已保留，可重新发起提问。」
+     - `setStatus` 文案（已裁决）：「会话已失效，已返回首页。」
 - **验证命令**：
 
 ```bash
@@ -128,32 +129,36 @@ node --check app/static/app.js
 ```
 
 - **预期输出**：语法通过。
-- **手工验收脚本（步骤 5 执行项）**：见下。
+- **E2E 用例**：见步骤 5（需求 1、需求 2 行为层均由 E2E 断言）。
 - **依赖**：步骤 3。
 - **风险**：中。`sendMessage` 捕获分支顺序须先判 `conversation_not_found` 再落入原兜底；`updateUrl(null, { replace: true })` 与 openConversation 失败分支的 replace 语义保持一致。
 
 ---
 
-#### 步骤 5：第一批 Playwright 可用性检查 + 手工验收登记
+#### 步骤 5：第一批 E2E 测试——前端 404 区分与竞态删除分支
 
-- **命令**：
+- **测试文件**：`tests/e2e/test_conversation_error_flows.py`（新建；沿用 pytest-playwright fixture）。
+- **mock 方式**：`page.route` 拦截 `/api/conversations*`，按用例伪造响应；stream 接口返回可控 NDJSON（带 `Content-Type: application/x-ndjson`，行尾含换行），detail/列表接口返回可控 JSON 与状态码；全程不依赖真实模型/索引。
+- **用例与断言要点**：
+  1. 需求 1-404：GET detail 返回 404 → 错误面板显示「会话不存在或已删除」，回到首页；
+  2. 需求 1-非404：GET detail 返回 500 → 文案不含「不存在或已删除」；
+  3. 需求 2-主用例：stream 返回单行 `{"type":"error","code":"conversation_not_found","message":"会话不存在或已删除","retryable":false}` → 错误面板文案正确、`page.url` 回 `/`、会话列表不含该项、输入框草稿保留；
+  4. 需求 2-边界（received 后）：stream 返回 `received` 行 + `internal_error` 行 → 页面不回首页，通用错误文案。
+- **验证命令**：
 
 ```bash
-conda run -n fire python -c "import importlib.util,sys; sys.exit(0 if importlib.util.find_spec('playwright') else 1)"
+conda run -n fire pytest tests/e2e -q
 ```
 
-- **预期输出**：当前已确认不可用（退出码 1）。按标准记录阻塞，执行手工验收脚本：
-  1. （需求 1）打开一个历史会话 URL，随后用另一终端 `curl -X DELETE` 删除该会话，再点击侧边栏该会话（或直接刷新 URL）→ 错误面板显示「会话不存在或已删除」。断网/500 场景用 DevTools Network 面板将 GET detail 请求设为 offline/阻断 → 错误面板为「读取会话失败」类文案，不含「不存在或已删除」。
-  2. （需求 2）双开页面同一后端：A 页开始流式提问，B 在 `received` 前后时间窗内删除会话（`received` 前窗口极小，用 DevTools network throttling 放大窗口）→ 错误面板显示「会话不存在或已删除」、URL 回 `/`、会话列表刷新、输入框草稿保留。
-- **无法手工稳定复现的项**：`received` 前竞态窗口极窄，手工触发困难；该项由步骤 1 的 API 集成测试承担行为锁定，手工仅登记尝试结果。
-- **风险**：低（登记性质）。
+- **预期输出**：4 个用例 PASS（先于步骤 3/4 实现时为 FAILED，符合 TDD）。
+- **风险**：中。NDJSON mock 需注意结尾换行与响应头；选择器依赖现有 `data-testid`。
 
 ---
 
 #### 步骤 6：第一批提交（需用户显式授权后执行）
 
 - **拟提交信息（中文）**：`第一批：会话404读取文案区分与流中会话删除conversation_not_found分支`
-- **拟包含文件**：`app/api/conversations.py`、`app/static/app.js`、`tests/integration/api/test_conversations_api.py`。
+- **拟包含文件**：`app/api/conversations.py`、`app/static/app.js`、`tests/integration/api/test_conversations_api.py`、`tests/e2e/test_conversation_error_flows.py`。
 - **回退预案**：见「八、回滚策略」。
 - **风险**：低。
 
@@ -299,8 +304,12 @@ conda run -n fire python -m pytest tests/integration/api/test_conversations_api.
 node --check app/static/app.js
 ```
 
-- **预期输出**：语法通过。
-- **手工验收登记**：固有档 DB 故障难以手工稳定复现（需注入 locked/读写异常）；由步骤 9/11 自动化承担行为锁定，手工仅核对文案代码路径（DevTools Sources 断点确认分支命中）。登记阻塞与结果。
+```bash
+conda run -n fire pytest tests/e2e -q
+```
+
+- **预期输出**：语法通过；E2E 全部 PASS。
+- **E2E 断言**：新增用例——stream mock 返回 `{"type":"error","code":"persistence_error","message":"回答无法保存，可能需要管理员检查系统存储或服务状态","retryable":false}` → 状态行为「重试也无法恢复本轮回答。」且不包含「重试将产生新的提问」；并补一个瞬时档对照用例（retryable=true → 状态行保持「…重试将产生新的提问」）。
 - **依赖**：步骤 3 的 code/retryable 携带能力。
 - **风险**：低。
 
@@ -341,11 +350,11 @@ conda run -n fire python -m pytest tests -q
 
 ### 映射 PRD《测试决策》新增 3 条（L185-L187）
 
-| PRD 验收条 | 对应自动化用例 | 手工/阻塞登记 |
+| PRD 验收条 | 对应自动化用例 | 前端行为层 E2E 用例 |
 |---|---|---|
-| L185：HTTP 404 打开已删会话显示「会话不存在或已删除」；mock 500/断网文案不含「不存在或已删除」 | 无（前端无 JS 测试框架，Playwright 阻塞） | 步骤 5 手工脚本第 1 项 |
-| L186：流中（received 前）会话被删 → 显示该文案、回 `/`、刷新列表、保留草稿，且 code ≠ internal_error | 步骤 1：`test_...conversation_not_found`（code/message/retryable）+ `test_...race_after_received`（internal_error 锁边界） | 步骤 5 手工脚本第 2 项（回 `/`、列表、草稿） |
-| L187：瞬时档用「服务内部异常，请稍后重试。」；固有档与快照守卫用「回答无法保存…」；固有档状态行不出现「重试将产生新的提问」；received 前落库失败仍为 internal_error | 步骤 7（分型）、步骤 9（transient/guard/pre-received 三锚点）、步骤 11（两档 API 事件 + internal_error 锚点） | 步骤 13 状态行文案 DevTools 断点核对 |
+| L185：HTTP 404 打开已删会话显示「会话不存在或已删除」；mock 500/断网文案不含「不存在或已删除」 | 无后端用例（前端行为） | 步骤 5 E2E 用例 1、2 |
+| L186：流中（received 前）会话被删 → 显示该文案、回 `/`、刷新列表、保留草稿，且 code ≠ internal_error | 步骤 1：`test_...conversation_not_found`（code/message/retryable）+ `test_...race_after_received`（internal_error 锁边界） | 步骤 5 E2E 用例 3（回 `/`、列表、草稿）；边界为用例 4 |
+| L187：瞬时档用「服务内部异常，请稍后重试。」；固有档与快照守卫用「回答无法保存…」；固有档状态行不出现「重试将产生新的提问」；received 前落库失败仍为 internal_error | 步骤 7（分型）、步骤 9（transient/guard/pre-received 三锚点）、步骤 11（两档 API 事件 + internal_error 锚点） | 步骤 13 两个状态行用例（固有档 + 瞬时档对照） |
 
 ### 映射设计文档验证清单（四 code + 两档）
 
@@ -377,12 +386,12 @@ conda run -n fire python -m pytest tests -q
 
 - **第一批回滚**：`git revert <提交1哈希>`（历史不改写）；若尚未提交，仅 `git restore` 计划内文件。回滚后重跑 `tests/integration/api/test_conversations_api.py` 应回到基线。
 - **第二批回滚**：先 `git revert <提交2哈希>`；第二批依赖第一批的 `event_generator` 结构（except 插入顺序），故若两批均需回滚，按逆序 revert（先 2 后 1）。
-- **部分失败回滚**：单步骤验证失败时不提交该批；前端 `app.js` 无自动化测试兜底，回滚后必须人工重开页面确认行为恢复。
+- **部分失败回滚**：单步骤验证失败时不提交该批；回滚后重跑 `conda run -n fire pytest tests/e2e -q` 确认前端行为恢复（必要时辅以手工抽查）。
 - 禁止用 `git reset`/`git checkout` 改写历史的方式回滚；一律走 `git revert`/`git restore`。
 
 ## 九、质量与风险备注
 
 - 步骤粒度：每步「测试→实现→验证命令」闭环；命令块均为单条命令。
 - PRD 与计划冲突时以 PRD 为准；已登记的口径差异见「二、文档口径差异与裁决记录」。
-- 已确认的环境事实：Playwright 在 `fire` 环境不可用（`importlib.util.find_spec('playwright')` 为 False）→ 前端 E2E 阻塞，按《工程技术标准》L76 登记不安装，前端验收用手工脚本 + 后端行为锁定替代，属本 feature 的显式例外。
-- 待裁决清单：①一次性 `/messages` 接口是否补 `PersistenceError` HTTP 映射（本计划不做）；②`conversation_not_found` 前端状态行自拟文案；③手工验收中 `received` 前竞态窗口难以稳定复现，最终以 API 集成测试为行为锚。
+- 已确认的环境事实：Playwright 三件套已安装可用（用户已授权；playwright、Chromium、pytest-playwright 均按《工程技术标准》就绪），前端行为验收由 Playwright E2E 承担。
+- 裁决清单（均已裁决）：①一次性 `/messages` 接口**不补** `PersistenceError` HTTP 映射（该接口无前端流量，用户端细粒度文案动机仅由 stream 承担；未来若重新获得真实调用方再裁决）；②`conversation_not_found` 前端状态行定稿「会话已失效，已返回首页。」（不承诺输入保留）；③`received` 前竞态场景由 E2E mock 确定性构造（`page.route` 伪造 stream 事件序列，见步骤 5），后端事件契约仍由步骤 1 API 集成测试锁定。
