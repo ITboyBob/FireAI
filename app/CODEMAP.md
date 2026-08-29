@@ -68,7 +68,7 @@ FastAPI 后端「消防问答系统 2.0」：会话管理、证据检索（SQLit
 | File | Domain | Deps | Function |
 | --- | --- | --- | --- |
 | chat.py | 问答路由 | ← core/settings, schemas/chat, services/{answer_service, chat_client, embedder, retriever, vector_index, vector_store}；→ conversations.py 复用其依赖工厂 | POST /api/chat 单轮问答；提供 get_retriever/get_chat_client 依赖工厂（含索引文件就绪检查 KEYWORD_DB_FILENAME="retrieval.db"、嵌入依赖缺失 503）；独立问答与消费本文件依赖工厂的唯一入口 |
-| conversations.py | 会话路由 | ← api/chat（get_chat_client/get_retriever）、core/settings、schemas/conversation、services/{context_manager, conversation_presenter, conversation_repository, conversation_service, conversation_summary, conversation_turn_service, knowledge_version, turn_classifier, chat_client} | 会话 CRUD、重命名、软删除；POST …/messages 同步问答；POST …/messages/stream 经 StreamingResponse 输出 SSE 式阶段事件；knowledge_version 注入回答快照 |
+| conversations.py | 会话路由 | ← api/chat（get_chat_client/get_retriever）、core/settings、schemas/conversation、services/{context_manager, conversation_presenter, conversation_repository, conversation_service, conversation_summary, conversation_turn_service, knowledge_version, turn_classifier, chat_client} | 会话 CRUD、重命名、软删除；POST …/messages 同步问答；POST …/messages/stream 经 StreamingResponse 输出 NDJSON 状态事件；knowledge_version 注入回答快照 |
 | health.py | 健康检查 | — | GET /api/health 返回 {"status": "ok"} |
 
 ### Files: core/

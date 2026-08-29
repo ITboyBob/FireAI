@@ -160,13 +160,19 @@ Content-Type: application/x-ndjson; charset=utf-8
 
 - `model_error`
 - `internal_error`
+- `conversation_not_found`
+- `persistence_error`
 
-`persistence_error` 为保留扩展码，仅当 `received` 已发出后的持久化步骤失败时使用。`conversation_not_found`、`index_not_ready`、`validation_error` 对应的失败类型按边界设计在流开始前以 HTTP `404`/`503`/`422` 表达，不出现在流中 `error` 事件。
+`conversation_not_found` 表示流中确认会话已被删除，`retryable` 为 `false`；它在流开始前仍以 HTTP `404` 表达（会话存在性预检）。`index_not_ready`、`validation_error` 对应的失败类型按边界设计在流开始前以 HTTP `503`/`422` 表达，不出现在流中 `error` 事件。`persistence_error` 仅当 `received` 已发出后的持久化步骤失败时使用，分两档：瞬时档（可重试，仅限 locked 类数据库异常）文案为"服务内部异常，请稍后重试。"；固有档（不可重试）文案为"回答无法保存，可能需要管理员检查系统存储或服务状态"。`received` 发出前的失败（含用户消息落库失败）不属于 `persistence_error`，仍按 `internal_error` 表达。
+
+已知限制：`received` 已发出后的持久化链路中若会话被删除，异常以数据库异常形态出现，第一版按 `internal_error` 处理，不做精确归因。
 
 示例：
 
 ```json
 {"type":"error","code":"model_error","message":"模型调用失败，请稍后重试。","retryable":true}
+{"type":"error","code":"conversation_not_found","message":"会话不存在或已删除","retryable":false}
+{"type":"error","code":"persistence_error","message":"回答无法保存，可能需要管理员检查系统存储或服务状态","retryable":false}
 ```
 
 ## 服务层编排
@@ -246,7 +252,7 @@ API 测试：
 - 验证每行都是完整 JSON。
 - 验证 `received.persisted` 为 `true`。
 - 验证流开始前的 `404 / 422 / 503`；当前已补 `422` 集成测试。`503` 既覆盖索引未就绪，也覆盖 `MissingEmbeddingDependencyError` / `MissingVectorStoreDependencyError` 这类检索依赖缺失路径，以及普通初始化异常路径。
-- 验证流开始后的 `error.code` 至少覆盖 `model_error`、`internal_error`。
+- 验证流开始后的 `error.code` 至少覆盖 `model_error`、`internal_error`、`conversation_not_found`，以及 `persistence_error` 的瞬时/固有两档。
 
 前端测试：
 

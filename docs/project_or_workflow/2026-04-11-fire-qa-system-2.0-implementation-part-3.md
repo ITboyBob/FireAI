@@ -1,5 +1,7 @@
 # 消防问答系统 2.0 实施计划（分卷三）
 
+> 状态：历史实施记录。本文中的 `error.code` 验收清单为历史口径，不作为后续 feature 的执行参考；现行契约以 [消防问答系统PRD](../architecture_or_strategy/消防问答系统PRD.md) 与 [NDJSON 状态流设计](../architecture_or_strategy/2026-04-23-fire-qa-ndjson-status-stream-design.md) 为准。
+
 > 本文为实施计划分卷三；分卷导航见[实施计划总览](./2026-04-11-fire-qa-system-2.0-implementation.md)。
 
 ## 流式状态专项阶段（尚未实现）
