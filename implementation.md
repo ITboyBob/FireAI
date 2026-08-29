@@ -1,7 +1,7 @@
 # 实施计划：会话错误分支三需求（404 读取区分 / 流中会话竞态删除 / persistence_error 两档）
 
 - 文档性质：本 feature 的工程执行计划，步骤粒度为「一次可独立验证的最小变更」。
-- 执行约束：所有安装与代码执行使用 `conda run -n fire ...`；不新增依赖；TDD（先写测试再实现）；本 feature 不涉及 DeepEval，`DEEPEVAL_DISABLE_DOTENV` 不适用（计划内不含 DeepEval 相关测试）；前端行为验收使用 Playwright E2E（环境三件套已按《工程技术标准》就绪：playwright、Chromium、pytest-playwright）。
+- 执行约束：所有安装与代码执行使用 `conda run -n fire ...`；不新增依赖；TDD（先写测试再实现）；全量回归会间接 import DeepEval，必须以 `DEEPEVAL_DISABLE_DOTENV=1` 执行（AGENTS.md 强制规则 2；第二批步骤 14 已实证：不设该变量时仓库 `.env` 会污染 `test_settings_build_default_paths`）；前端行为验收使用 Playwright E2E（环境三件套已按《工程技术标准》就绪：playwright、Chromium、pytest-playwright）。
 
 ## 一、背景与范围
 
@@ -395,3 +395,7 @@ conda run -n fire python -m pytest tests -q
 - PRD 与计划冲突时以 PRD 为准；已登记的口径差异见「二、文档口径差异与裁决记录」。
 - 已确认的环境事实：Playwright 三件套已安装可用（用户已授权；playwright、Chromium、pytest-playwright 均按《工程技术标准》就绪），前端行为验收由 Playwright E2E 承担。
 - 裁决清单（均已裁决）：①一次性 `/messages` 接口**不补** `PersistenceError` HTTP 映射（该接口无前端流量，用户端细粒度文案动机仅由 stream 承担；未来若重新获得真实调用方再裁决）；②`conversation_not_found` 前端状态行定稿「会话已失效，已返回首页。」（不承诺输入保留）；③`received` 前竞态场景由 E2E mock 确定性构造（`page.route` 伪造 stream 事件序列，见步骤 5），后端事件契约仍由步骤 1 API 集成测试锁定。
+- **产品裁决候选（两批代码审查沉淀，待产品拍板，不阻塞本 feature）**：
+  1. 直接访问/刷新失效会话 URL 时，视图回首页但地址栏被 `bootstrap()` 的 `updateUrl` 写回失效路径（`bootstrap` 在 `openConversation` 失败后无条件覆盖回首页 URL）——是否要求 404 后地址栏也回 `/`；
+  2. 预检 HTTP 404（流开始前会话已删）目前走通用兜底（留在失效页、状态行提示重试），与流中 `conversation_not_found` 的四动作处理不一致——是否让 `error?.status === 404` 也触发回首页分支；
+  3. error 事件各分支服务端无日志留痕（固有档引导"管理员检查系统存储"但管理员无诊断线索）——建议后续批次为各 except 分支补 `logger.exception`。

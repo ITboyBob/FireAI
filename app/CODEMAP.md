@@ -33,7 +33,7 @@ FastAPI 后端「消防问答系统 2.0」：会话管理、证据检索（SQLit
 | api/ | HTTP 路由层 | core, schemas, services, （间接 static/templates 由 main 挂载） | 定义 /api/chat、/api/conversations、健康检查三组路由及依赖注入工厂 |
 | core/ | 配置中心 | pydantic-settings | 集中定义 Settings（数据目录、索引目录、会话库路径、LLM 与嵌入模型参数）并提供 get_settings 单例 |
 | schemas/ | Pydantic 契约 | pydantic | 聊天请求/响应与会话列表/详情/流式事件的 DTO 定义，作为 api↔services 的数据契约 |
-| services/ | 领域服务实现 | core（部分）、schemas | 会话存储、检索融合、答案生成、语料构建、增量导入、法规摄取门禁等全部业务逻辑（38 个文件） |
+| services/ | 领域服务实现 | core（部分）、schemas | 会话存储、检索融合、答案生成、语料构建、增量导入、法规摄取门禁等全部业务逻辑（38 个文件）；conversation_repository 提供 PersistenceError 与 to_persistence_error 分型（仅 locked 类 OperationalError 瞬时，其余 sqlite3.Error 与 RuntimeError 固有），turn_service 仅对 received 后 4 个写调用与快照守卫经 _persist 包装 |
 | static/ | 前端静态资产 | api/（经 fetch 调用 REST 接口） | app.js 实现双视图（首页/会话线程）SPA 与流式消息渲染；app.css 全部样式 |
 | templates/ | 页面模板 | static/（注入带版本号的资源 URL） | index.html：单一 Jinja2 外壳模板，承载首页与会话两种视图骨架 |
 
@@ -55,6 +55,7 @@ FastAPI 后端「消防问答系统 2.0」：会话管理、证据检索（SQLit
 | Retriever | services/retriever.py | L:17 |
 | SentenceTransformerEmbedder | services/embedder.py | L:46 |
 | ConversationRepository | services/conversation_repository.py | L:71 |
+| PersistenceError / to_persistence_error | services/conversation_repository.py | L:71 / L:83 |
 
 ## Files
 
@@ -68,7 +69,7 @@ FastAPI 后端「消防问答系统 2.0」：会话管理、证据检索（SQLit
 | File | Domain | Deps | Function |
 | --- | --- | --- | --- |
 | chat.py | 问答路由 | ← core/settings, schemas/chat, services/{answer_service, chat_client, embedder, retriever, vector_index, vector_store}；→ conversations.py 复用其依赖工厂 | POST /api/chat 单轮问答；提供 get_retriever/get_chat_client 依赖工厂（含索引文件就绪检查 KEYWORD_DB_FILENAME="retrieval.db"、嵌入依赖缺失 503）；独立问答与消费本文件依赖工厂的唯一入口 |
-| conversations.py | 会话路由 | ← api/chat（get_chat_client/get_retriever）、core/settings、schemas/conversation、services/{context_manager, conversation_presenter, conversation_repository, conversation_service, conversation_summary, conversation_turn_service, knowledge_version, turn_classifier, chat_client} | 会话 CRUD、重命名、软删除；POST …/messages 同步问答；POST …/messages/stream 经 StreamingResponse 输出 NDJSON 状态事件；knowledge_version 注入回答快照 |
+| conversations.py | 会话路由 | ← api/chat（get_chat_client/get_retriever）、core/settings、schemas/conversation、services/{context_manager, conversation_presenter, conversation_repository, conversation_service, conversation_summary, conversation_turn_service, knowledge_version, turn_classifier, chat_client} | 会话 CRUD、重命名、软删除；POST …/messages 同步问答；POST …/messages/stream 经 StreamingResponse 输出 NDJSON 状态事件，错误事件四 code（model_error / internal_error / conversation_not_found / persistence_error）按 received 是否已发出分派（conversation_not_found 仅限 received 前；persistence_error 按 transient 分瞬时/固有两档）；knowledge_version 注入回答快照 |
 | health.py | 健康检查 | — | GET /api/health 返回 {"status": "ok"} |
 
 ### Files: core/

@@ -1,12 +1,18 @@
-from collections.abc import Iterator, Mapping
+from collections.abc import Callable, Iterator, Mapping
 from dataclasses import replace
 import re
-from typing import Any
+from typing import Any, TypeVar
 
 from app.schemas.conversation import ConversationStreamEvent, SendConversationMessageResponse
 from app.services.answer_service import build_answer, is_model_failure_uncertainty
 from app.services.chat_client import ChatCompletionError
-from app.services.conversation_repository import ConversationDetail, ConversationRepository, StoredAnswerSnapshot
+from app.services.conversation_repository import (
+    ConversationDetail,
+    ConversationRepository,
+    PersistenceError,
+    StoredAnswerSnapshot,
+    to_persistence_error,
+)
 from app.services.conversation_service import ConversationService
 from app.services.query_normalizer import NormalizedQuery, normalize_query
 
@@ -16,6 +22,13 @@ RECEIVED_EVENT_MESSAGE = "已收到问题。"
 RETRIEVING_EVENT_MESSAGE = "正在检索最新法规证据。"
 GENERATING_EVENT_MESSAGE = "正在生成结构化回答。"
 ORGANIZING_EVIDENCE_EVENT_MESSAGE = "正在整理法律依据和条文原文。"
+
+_PersistT = TypeVar("_PersistT")
+
+
+def _ensure_snapshot_persisted_for_turn(snapshot: StoredAnswerSnapshot, *, turn_id: str) -> None:
+    if snapshot.turn_id != turn_id:
+        raise RuntimeError("snapshot was not persisted for the created turn")
 
 
 class ConversationTurnService:
@@ -78,27 +91,33 @@ class ConversationTurnService:
             previous_snapshot=previous_snapshot,
             is_followup=classification.is_followup,
         )
-        assistant_message = self.repository.append_message(
-            conversation_id,
-            role="assistant",
-            content=assistant_payload.answer,
+        assistant_message = self._persist(
+            lambda: self.repository.append_message(
+                conversation_id,
+                role="assistant",
+                content=assistant_payload.answer,
+            )
         )
         knowledge_version = self.knowledge_version_resolver.resolve()
-        turn = self.repository.create_turn(
-            conversation_id=conversation_id,
-            user_message_id=user_message.id,
-            assistant_message_id=assistant_message.id,
-            is_followup=classification.is_followup,
-            rewritten_query=normalized.rewritten_query,
-            history_summary_used=context.history_summary,
-            knowledge_version=knowledge_version,
-            correction_notice=assistant_payload.correction_notice,
+        turn = self._persist(
+            lambda: self.repository.create_turn(
+                conversation_id=conversation_id,
+                user_message_id=user_message.id,
+                assistant_message_id=assistant_message.id,
+                is_followup=classification.is_followup,
+                rewritten_query=normalized.rewritten_query,
+                history_summary_used=context.history_summary,
+                knowledge_version=knowledge_version,
+                correction_notice=assistant_payload.correction_notice,
+            )
         )
-        snapshot = self.repository.save_answer_snapshot(
-            turn_id=turn.id,
-            answer=assistant_payload.answer,
-            legal_basis=assistant_payload.legal_basis,
-            clause_texts=assistant_payload.clause_texts,
+        snapshot = self._persist(
+            lambda: self.repository.save_answer_snapshot(
+                turn_id=turn.id,
+                answer=assistant_payload.answer,
+                legal_basis=assistant_payload.legal_basis,
+                clause_texts=assistant_payload.clause_texts,
+            )
         )
         current_history_summary = self._build_history_summary(
             [
@@ -110,7 +129,7 @@ class ConversationTurnService:
                 ),
             ]
         )
-        self.repository.save_history_summary(conversation_id, current_history_summary)
+        self._persist(lambda: self.repository.save_history_summary(conversation_id, current_history_summary))
 
         payload = self.presenter.build(
             answer=answer,
@@ -120,9 +139,8 @@ class ConversationTurnService:
             created_at=assistant_message.created_at,
         )
 
-        if snapshot.turn_id != turn.id:
-            raise RuntimeError("snapshot was not persisted for the created turn")
-            
+        self._persist(lambda: _ensure_snapshot_persisted_for_turn(snapshot, turn_id=turn.id))
+
         yield ConversationStreamEvent(type="completed", assistant=payload)
 
     def handle_user_message(self, conversation_id: str, message: str) -> SendConversationMessageResponse:
@@ -133,6 +151,13 @@ class ConversationTurnService:
         if not assistant:
             raise RuntimeError("stream did not complete")
         return SendConversationMessageResponse(assistant=assistant)
+
+    def _persist(self, fn: Callable[[], _PersistT]) -> _PersistT:
+        """仅包装 received 之后的持久化写调用：异常经 to_persistence_error 分型后归一抛出。"""
+        try:
+            return fn()
+        except Exception as exc:
+            raise to_persistence_error(exc) from exc
 
     def _build_history_summary(self, previous_turns: list[dict[str, Any]]) -> str:
         if len(previous_turns) < self.summary_trigger_turns:

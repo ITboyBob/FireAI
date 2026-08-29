@@ -1,8 +1,14 @@
 from pathlib import Path
+import sqlite3
 
 import pytest
 
-from app.services.conversation_repository import ConversationNotFoundError, ConversationRepository
+from app.services.conversation_repository import (
+    ConversationNotFoundError,
+    ConversationRepository,
+    PersistenceError,
+    to_persistence_error,
+)
 
 
 def test_repository_round_trips_conversation_and_snapshot(tmp_path: Path):
@@ -84,3 +90,32 @@ def test_repository_rejects_turns_that_reference_messages_from_other_conversatio
             knowledge_version="kb:test",
             correction_notice="",
         )
+
+
+def test_to_persistence_error_marks_locked_operational_error_as_transient():
+    converted = to_persistence_error(sqlite3.OperationalError("database is locked"))
+
+    assert isinstance(converted, PersistenceError)
+    assert converted.transient is True
+
+
+def test_to_persistence_error_marks_other_sqlite_errors_as_permanent():
+    converted = to_persistence_error(sqlite3.IntegrityError("FOREIGN KEY constraint failed"))
+
+    assert isinstance(converted, PersistenceError)
+    assert converted.transient is False
+
+
+def test_to_persistence_error_marks_runtime_error_as_permanent():
+    converted = to_persistence_error(RuntimeError("snapshot was not persisted for the created turn"))
+
+    assert isinstance(converted, PersistenceError)
+    assert converted.transient is False
+
+
+def test_to_persistence_error_passes_through_unrelated_exceptions():
+    value_error = ValueError("unrelated failure")
+    not_found_error = ConversationNotFoundError("conv-1")
+
+    assert to_persistence_error(value_error) is value_error
+    assert to_persistence_error(not_found_error) is not_found_error

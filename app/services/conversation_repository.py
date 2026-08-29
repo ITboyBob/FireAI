@@ -68,6 +68,28 @@ class ConversationNotFoundError(ValueError):
     """Raised when a conversation does not exist or has been soft-deleted."""
 
 
+class PersistenceError(Exception):
+    """Raised when a post-received persistence write fails.
+
+    ``transient`` marks locked-style SQLite failures that may succeed on retry;
+    all other persistence failures are permanent for the current turn.
+    """
+
+    def __init__(self, *, transient: bool):
+        super().__init__("persistence write failed")
+        self.transient = transient
+
+
+def to_persistence_error(exc: Exception) -> Exception:
+    """分型规则（《工程技术标准》口径）：仅 locked 类 ``sqlite3.OperationalError`` 瞬时；
+    其余 ``sqlite3.Error`` 与 ``RuntimeError``（快照守卫）归固有档；其他异常原样返回。"""
+    if isinstance(exc, sqlite3.OperationalError) and "locked" in str(exc).lower():
+        return PersistenceError(transient=True)
+    if isinstance(exc, (sqlite3.Error, RuntimeError)):
+        return PersistenceError(transient=False)
+    return exc
+
+
 class ConversationRepository:
     def __init__(self, db_path: Path):
         self.db_path = db_path

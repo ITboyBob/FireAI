@@ -1,8 +1,11 @@
+from dataclasses import replace
+import sqlite3
+
 import pytest
 
 from app.services.context_manager import ContextManager
 from app.services.conversation_presenter import ConversationPresenter
-from app.services.conversation_repository import ConversationRepository
+from app.services.conversation_repository import ConversationRepository, PersistenceError
 from app.services.conversation_service import ConversationService
 from app.services.conversation_summary import ConversationSummaryManager
 from app.services.conversation_turn_service import ConversationTurnService
@@ -247,3 +250,76 @@ def test_handle_user_message_stream_yields_expected_event_sequence(tmp_path):
     # Verify that the one-shot method still works via the stream implementation
     response = service.handle_user_message(conversation.id, "它第二条怎么说？")
     assert response.assistant.answer == "国家实行消防安全责任制。"
+
+
+def test_handle_user_message_stream_wraps_locked_create_turn_as_transient_persistence_error(tmp_path, monkeypatch):
+    repo = ConversationRepository(tmp_path / "conversations.db")
+    service = _build_service(repo)
+    conversation = service.conversation_service.create_conversation()
+
+    def _raise_locked(*args, **kwargs):
+        del args, kwargs
+        raise sqlite3.OperationalError("database is locked")
+
+    monkeypatch.setattr(repo, "create_turn", _raise_locked)
+
+    events = []
+    with pytest.raises(PersistenceError) as exc_info:
+        for event in service.handle_user_message_stream(conversation.id, "消防法关于消防安全责任制怎么规定？"):
+            events.append(event)
+
+    # create_turn 位于 organizing_evidence 事件之后：锁定「received 已发出后」的失败才被分型包装。
+    assert [event.type for event in events] == [
+        "received",
+        "retrieving",
+        "generating",
+        "organizing_evidence",
+    ]
+    assert exc_info.value.transient is True
+
+
+def test_handle_user_message_stream_wraps_snapshot_guard_as_permanent_persistence_error(tmp_path, monkeypatch):
+    repo = ConversationRepository(tmp_path / "conversations.db")
+    service = _build_service(repo)
+    conversation = service.conversation_service.create_conversation()
+
+    real_save_answer_snapshot = repo.save_answer_snapshot
+
+    def _save_mismatched_snapshot(*args, **kwargs):
+        snapshot = real_save_answer_snapshot(*args, **kwargs)
+        return replace(snapshot, turn_id="turn-mismatch")
+
+    monkeypatch.setattr(repo, "save_answer_snapshot", _save_mismatched_snapshot)
+
+    events = []
+    with pytest.raises(PersistenceError) as exc_info:
+        for event in service.handle_user_message_stream(conversation.id, "消防法关于消防安全责任制怎么规定？"):
+            events.append(event)
+
+    assert [event.type for event in events] == [
+        "received",
+        "retrieving",
+        "generating",
+        "organizing_evidence",
+    ]
+    assert exc_info.value.transient is False
+
+
+def test_handle_user_message_stream_propagates_pre_received_sqlite_error_unchanged(tmp_path, monkeypatch):
+    repo = ConversationRepository(tmp_path / "conversations.db")
+    service = _build_service(repo)
+    conversation = service.conversation_service.create_conversation()
+
+    def _raise_sqlite_error(*args, **kwargs):
+        del args, kwargs
+        raise sqlite3.OperationalError("disk I/O error")
+
+    monkeypatch.setattr(repo, "append_message", _raise_sqlite_error)
+
+    events = []
+    with pytest.raises(sqlite3.OperationalError, match="disk I/O error") as exc_info:
+        for event in service.handle_user_message_stream(conversation.id, "消防法关于消防安全责任制怎么规定？"):
+            events.append(event)
+
+    assert events == []
+    assert not isinstance(exc_info.value, PersistenceError)

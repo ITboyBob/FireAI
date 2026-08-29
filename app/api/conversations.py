@@ -19,7 +19,7 @@ from app.schemas.conversation import (
 )
 from app.services.context_manager import ContextManager
 from app.services.conversation_presenter import ConversationPresenter
-from app.services.conversation_repository import ConversationNotFoundError, ConversationRepository
+from app.services.conversation_repository import ConversationNotFoundError, ConversationRepository, PersistenceError
 from app.services.conversation_service import ConversationService
 from app.services.conversation_summary import ConversationSummaryManager
 from app.services.conversation_turn_service import ConversationTurnService
@@ -211,6 +211,22 @@ async def send_message_stream(
                     type="error",
                     code="conversation_not_found",
                     message=MISSING_CONVERSATION_DETAIL,
+                    retryable=False,
+                )
+            yield error_event.model_dump_json(exclude_none=True) + "\n"
+        except PersistenceError as exc:
+            if exc.transient:
+                error_event = ConversationStreamEvent(
+                    type="error",
+                    code="persistence_error",
+                    message="服务内部异常，请稍后重试。",
+                    retryable=True,
+                )
+            else:
+                error_event = ConversationStreamEvent(
+                    type="error",
+                    code="persistence_error",
+                    message="回答无法保存，可能需要管理员检查系统存储或服务状态",
                     retryable=False,
                 )
             yield error_event.model_dump_json(exclude_none=True) + "\n"

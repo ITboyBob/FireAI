@@ -646,6 +646,15 @@ async function sendMessage(message, source) {
       setStatus("会话已失效，已返回首页。");
       return;
     }
+    if (error?.code === "persistence_error" && error.retryable === false) {
+      const messageText = error instanceof Error
+        ? error.message
+        : "回答无法保存，可能需要管理员检查系统存储或服务状态";
+      showError(messageText);
+      replacePendingAssistantWithError(messageText);
+      setStatus("重试也无法恢复本轮回答。");
+      return;
+    }
     const messageText = error instanceof Error ? error.message : "请求失败。";
     showError(messageText);
     replacePendingAssistantWithError(messageText);

@@ -1,4 +1,4 @@
-"""第一批 E2E：前端 404 读取文案区分与流中会话竞态删除分支。
+"""会话错误分支 E2E：第一批（404 读取文案区分、流中会话竞态删除分支）与第二批（persistence_error 固有档状态行）。
 
 页面由 FastAPI 模板 + 静态资源提供，因此用线程方式启动存活 uvicorn（随机空闲端口）；
 全部 `/api/conversations*` API 响应用 `page.route` mock（NDJSON 行尾含换行），
@@ -223,3 +223,81 @@ def test_stream_internal_error_after_received_stays_on_thread(live_server_url, p
     expect(error_panel).to_have_text("服务内部异常，请稍后重试。")
     expect(page).to_have_url(f"{live_server_url}/conversations/conv-1")
     expect(page.get_by_test_id("thread-composer-input")).to_be_visible()
+
+
+def test_stream_permanent_persistence_error_shows_unrecoverable_status(live_server_url, page):
+    _install_conversation_api_mock(
+        page,
+        list_payload=[_conversation("conv-1", "历史会话")],
+        created_payload=_conversation("conv-1", "历史会话"),
+        detail_status=200,
+        detail_payload={
+            "conversation": _conversation("conv-1", "历史会话"),
+            "messages": [],
+            "history_summary": "",
+        },
+        stream_lines=[
+            json.dumps(
+                {"type": "received", "message": "已收到问题。", "persisted": True},
+                ensure_ascii=False,
+            ),
+            json.dumps(
+                {
+                    "type": "error",
+                    "code": "persistence_error",
+                    "message": "回答无法保存，可能需要管理员检查系统存储或服务状态",
+                    "retryable": False,
+                },
+                ensure_ascii=False,
+            ),
+        ],
+    )
+
+    page.goto(f"{live_server_url}/conversations/conv-1")
+    page.get_by_test_id("thread-composer-input").fill("追问内容")
+    page.get_by_test_id("thread-send-button").click()
+
+    error_panel = page.locator("#error-panel")
+    expect(error_panel).to_have_text("回答无法保存，可能需要管理员检查系统存储或服务状态")
+    status_text = page.get_by_test_id("request-status").first
+    expect(status_text).to_have_text("重试也无法恢复本轮回答。")
+    assert "重试将产生新的提问" not in status_text.inner_text()
+
+
+def test_stream_transient_persistence_error_keeps_retryable_status(live_server_url, page):
+    _install_conversation_api_mock(
+        page,
+        list_payload=[_conversation("conv-1", "历史会话")],
+        created_payload=_conversation("conv-1", "历史会话"),
+        detail_status=200,
+        detail_payload={
+            "conversation": _conversation("conv-1", "历史会话"),
+            "messages": [],
+            "history_summary": "",
+        },
+        stream_lines=[
+            json.dumps(
+                {"type": "received", "message": "已收到问题。", "persisted": True},
+                ensure_ascii=False,
+            ),
+            json.dumps(
+                {
+                    "type": "error",
+                    "code": "persistence_error",
+                    "message": "服务内部异常，请稍后重试。",
+                    "retryable": True,
+                },
+                ensure_ascii=False,
+            ),
+        ],
+    )
+
+    page.goto(f"{live_server_url}/conversations/conv-1")
+    page.get_by_test_id("thread-composer-input").fill("追问内容")
+    page.get_by_test_id("thread-send-button").click()
+
+    error_panel = page.locator("#error-panel")
+    expect(error_panel).to_have_text("服务内部异常，请稍后重试。")
+    expect(page.get_by_test_id("request-status").first).to_have_text(
+        "请求失败，请检查错误信息后重试。可能已生成新的用户消息，重试将产生新的提问。"
+    )

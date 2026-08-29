@@ -13,7 +13,7 @@ from app.api.conversations import (
 from app.core.settings import Settings, get_settings
 from app.main import create_app
 from app.services.chat_client import ChatCompletionError
-from app.services.conversation_repository import ConversationNotFoundError
+from app.services.conversation_repository import ConversationNotFoundError, PersistenceError
 from app.services.embedder import MissingEmbeddingDependencyError
 from app.services.vector_index import VECTOR_MAP_FILENAME
 from app.services.vector_store import FAISS_INDEX_FILENAME, MissingVectorStoreDependencyError
@@ -137,6 +137,48 @@ class RaceDeleteAfterReceivedTurnService:
         assert message == "消防法第二条怎么说？"
         yield ConversationStreamEvent(type="received", message="已收到问题。", persisted=True)
         raise ConversationNotFoundError(conversation_id)
+
+
+class PersistenceTransientTurnService:
+    def handle_user_message(self, conversation_id: str, message: str):
+        assert conversation_id == "conv-1"
+        assert message == "消防法第二条怎么说？"
+        raise PersistenceError(transient=True)
+
+    def handle_user_message_stream(self, conversation_id: str, message: str):
+        from app.schemas.conversation import ConversationStreamEvent
+        assert conversation_id == "conv-1"
+        assert message == "消防法第二条怎么说？"
+        yield ConversationStreamEvent(type="received", message="已收到问题。", persisted=True)
+        raise PersistenceError(transient=True)
+
+
+class PersistencePermanentTurnService:
+    def handle_user_message(self, conversation_id: str, message: str):
+        assert conversation_id == "conv-1"
+        assert message == "消防法第二条怎么说？"
+        raise PersistenceError(transient=False)
+
+    def handle_user_message_stream(self, conversation_id: str, message: str):
+        from app.schemas.conversation import ConversationStreamEvent
+        assert conversation_id == "conv-1"
+        assert message == "消防法第二条怎么说？"
+        yield ConversationStreamEvent(type="received", message="已收到问题。", persisted=True)
+        raise PersistenceError(transient=False)
+
+
+class FailingInternalTurnService:
+    def handle_user_message(self, conversation_id: str, message: str):
+        assert conversation_id == "conv-1"
+        assert message == "消防法第二条怎么说？"
+        raise RuntimeError("db down")
+
+    def handle_user_message_stream(self, conversation_id: str, message: str):
+        from app.schemas.conversation import ConversationStreamEvent
+        assert conversation_id == "conv-1"
+        assert message == "消防法第二条怎么说？"
+        raise RuntimeError("db down")
+        yield None  # pragma: no cover - 使本函数成为生成器，与真实服务迭代语义同构
 
 
 class RealFlowRetriever:
@@ -395,6 +437,90 @@ def test_send_message_stream_returns_internal_error_after_received_race_delete()
     error_event = json.loads(lines[1])
     assert error_event["type"] == "error"
     assert error_event["code"] == "internal_error"
+    assert error_event["message"] == "服务内部异常，请稍后重试。"
+    assert error_event["retryable"] is True
+
+
+def test_send_message_stream_returns_transient_persistence_error_event():
+    app = create_app()
+    app.dependency_overrides[get_conversation_service] = lambda: FakeConversationService()
+    app.dependency_overrides[get_conversation_turn_service_factory] = (
+        lambda: _build_turn_service_factory(PersistenceTransientTurnService())
+    )
+    client = TestClient(app)
+
+    with client.stream(
+        "POST",
+        "/api/conversations/conv-1/messages/stream",
+        json={"message": "消防法第二条怎么说？"},
+    ) as response:
+        assert response.status_code == 200
+        lines = list(response.iter_lines())
+
+    import json
+    assert len(lines) == 2
+    received = json.loads(lines[0])
+    assert received["type"] == "received"
+    assert received["persisted"] is True
+
+    error_event = json.loads(lines[1])
+    assert error_event["type"] == "error"
+    assert error_event["code"] == "persistence_error"
+    assert error_event["message"] == "服务内部异常，请稍后重试。"
+    assert error_event["retryable"] is True
+
+
+def test_send_message_stream_returns_permanent_persistence_error_event():
+    app = create_app()
+    app.dependency_overrides[get_conversation_service] = lambda: FakeConversationService()
+    app.dependency_overrides[get_conversation_turn_service_factory] = (
+        lambda: _build_turn_service_factory(PersistencePermanentTurnService())
+    )
+    client = TestClient(app)
+
+    with client.stream(
+        "POST",
+        "/api/conversations/conv-1/messages/stream",
+        json={"message": "消防法第二条怎么说？"},
+    ) as response:
+        assert response.status_code == 200
+        lines = list(response.iter_lines())
+
+    import json
+    assert len(lines) == 2
+    received = json.loads(lines[0])
+    assert received["type"] == "received"
+    assert received["persisted"] is True
+
+    error_event = json.loads(lines[1])
+    assert error_event["type"] == "error"
+    assert error_event["code"] == "persistence_error"
+    assert error_event["message"] == "回答无法保存，可能需要管理员检查系统存储或服务状态"
+    assert error_event["retryable"] is False
+
+
+def test_send_message_stream_returns_internal_error_for_generic_runtime_error():
+    app = create_app()
+    app.dependency_overrides[get_conversation_service] = lambda: FakeConversationService()
+    app.dependency_overrides[get_conversation_turn_service_factory] = (
+        lambda: _build_turn_service_factory(FailingInternalTurnService())
+    )
+    client = TestClient(app)
+
+    with client.stream(
+        "POST",
+        "/api/conversations/conv-1/messages/stream",
+        json={"message": "消防法第二条怎么说？"},
+    ) as response:
+        assert response.status_code == 200
+        lines = list(response.iter_lines())
+
+    import json
+    assert len(lines) == 1
+    error_event = json.loads(lines[0])
+    assert error_event["type"] == "error"
+    assert error_event["code"] == "internal_error"
+    assert error_event["message"] == "服务内部异常，请稍后重试。"
     assert error_event["retryable"] is True
 
 
