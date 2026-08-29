@@ -183,8 +183,11 @@ async def send_message_stream(
     service = await service_factory()
 
     def event_generator():
+        received_sent = False
         try:
             for event in service.handle_user_message_stream(conversation_id, payload.message):
+                if event.type == "received":
+                    received_sent = True
                 yield event.model_dump_json(exclude_none=True) + "\n"
         except ChatCompletionError as exc:
             error_event = ConversationStreamEvent(
@@ -193,6 +196,23 @@ async def send_message_stream(
                 message=str(exc),
                 retryable=True,
             )
+            yield error_event.model_dump_json(exclude_none=True) + "\n"
+        except ConversationNotFoundError:
+            if received_sent:
+                # 「已知限制」：received 发出后的会话删除第一版不做精确归因，按 internal_error 处理。
+                error_event = ConversationStreamEvent(
+                    type="error",
+                    code="internal_error",
+                    message="服务内部异常，请稍后重试。",
+                    retryable=True,
+                )
+            else:
+                error_event = ConversationStreamEvent(
+                    type="error",
+                    code="conversation_not_found",
+                    message=MISSING_CONVERSATION_DETAIL,
+                    retryable=False,
+                )
             yield error_event.model_dump_json(exclude_none=True) + "\n"
         except Exception:
             error_event = ConversationStreamEvent(

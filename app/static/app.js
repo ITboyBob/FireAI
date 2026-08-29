@@ -134,7 +134,9 @@ async function requestJson(url, options = {}) {
     : { detail: await response.text() };
 
   if (!response.ok) {
-    throw new Error(payload.detail || `请求失败，状态码 ${response.status}`);
+    const error = new Error(payload.detail || `请求失败，状态码 ${response.status}`);
+    error.status = response.status;
+    throw error;
   }
   return payload;
 }
@@ -466,7 +468,11 @@ async function openConversation(conversationId, { push = true } = {}) {
     setStatus("已恢复历史会话。");
   } catch (error) {
     const messageText = error instanceof Error ? error.message : "读取会话失败。";
-    showError(messageText);
+    if (error?.status === 404) {
+      showError("会话不存在或已删除");
+    } else {
+      showError(messageText);
+    }
     state.activeConversationId = null;
     state.activeDetail = null;
     setView("home");
@@ -628,6 +634,18 @@ async function sendMessage(message, source) {
 
     await fetchStreamMessage(conversationId, message, source);
   } catch (error) {
+    if (error?.code === "conversation_not_found") {
+      showError(error.message);
+      state.activeConversationId = null;
+      state.activeDetail = null;
+      setView("home");
+      updateUrl(null, { replace: true });
+      renderConversationList();
+      renderThread();
+      await loadConversationList();
+      setStatus("会话已失效，已返回首页。");
+      return;
+    }
     const messageText = error instanceof Error ? error.message : "请求失败。";
     showError(messageText);
     replacePendingAssistantWithError(messageText);
@@ -653,7 +671,9 @@ async function fetchStreamMessage(conversationId, message, source) {
       const payload = await response.json();
       detail = payload.detail || detail;
     } catch (e) {}
-    throw new Error(`请求失败，${detail}`);
+    const error = new Error(`请求失败，${detail}`);
+    error.status = response.status;
+    throw error;
   }
 
   const reader = response.body.getReader();
@@ -703,7 +723,10 @@ async function fetchStreamMessage(conversationId, message, source) {
 
 function handleStreamEvent(event) {
   if (event.type === "error") {
-    throw new Error(event.message || `流式失败，错误代码：${event.code || "unknown"}`);
+    const error = new Error(event.message || `流式失败，错误代码：${event.code || "unknown"}`);
+    error.code = event.code || "internal_error";
+    error.retryable = Boolean(event.retryable);
+    throw error;
   }
   if (event.message) {
     setStatus(event.message);

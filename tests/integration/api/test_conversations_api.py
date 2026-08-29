@@ -13,6 +13,7 @@ from app.api.conversations import (
 from app.core.settings import Settings, get_settings
 from app.main import create_app
 from app.services.chat_client import ChatCompletionError
+from app.services.conversation_repository import ConversationNotFoundError
 from app.services.embedder import MissingEmbeddingDependencyError
 from app.services.vector_index import VECTOR_MAP_FILENAME
 from app.services.vector_store import FAISS_INDEX_FILENAME, MissingVectorStoreDependencyError
@@ -109,6 +110,33 @@ class FailingConversationTurnService:
         assert message == "消防法第二条怎么说？"
         yield ConversationStreamEvent(type="received", message="已收到问题。", persisted=True)
         raise ChatCompletionError("模型调用失败：Your API Token has expired.")
+
+
+class RaceDeleteBeforeReceivedTurnService:
+    def handle_user_message(self, conversation_id: str, message: str):
+        assert conversation_id == "conv-1"
+        assert message == "消防法第二条怎么说？"
+        raise ConversationNotFoundError(conversation_id)
+
+    def handle_user_message_stream(self, conversation_id: str, message: str):
+        assert conversation_id == "conv-1"
+        assert message == "消防法第二条怎么说？"
+        raise ConversationNotFoundError(conversation_id)
+        yield None  # pragma: no cover - 使本函数成为生成器，与真实服务迭代语义同构
+
+
+class RaceDeleteAfterReceivedTurnService:
+    def handle_user_message(self, conversation_id: str, message: str):
+        assert conversation_id == "conv-1"
+        assert message == "消防法第二条怎么说？"
+        raise ConversationNotFoundError(conversation_id)
+
+    def handle_user_message_stream(self, conversation_id: str, message: str):
+        from app.schemas.conversation import ConversationStreamEvent
+        assert conversation_id == "conv-1"
+        assert message == "消防法第二条怎么说？"
+        yield ConversationStreamEvent(type="received", message="已收到问题。", persisted=True)
+        raise ConversationNotFoundError(conversation_id)
 
 
 class RealFlowRetriever:
@@ -315,6 +343,59 @@ def test_send_message_stream_returns_error_event_on_failure():
     assert error_event["code"] == "model_error"
     assert error_event["retryable"] is True
     assert "模型调用失败" in error_event["message"]
+
+
+def test_send_message_stream_returns_conversation_not_found_before_received():
+    app = create_app()
+    app.dependency_overrides[get_conversation_service] = lambda: FakeConversationService()
+    app.dependency_overrides[get_conversation_turn_service_factory] = (
+        lambda: _build_turn_service_factory(RaceDeleteBeforeReceivedTurnService())
+    )
+    client = TestClient(app)
+
+    with client.stream(
+        "POST",
+        "/api/conversations/conv-1/messages/stream",
+        json={"message": "消防法第二条怎么说？"},
+    ) as response:
+        assert response.status_code == 200
+        lines = list(response.iter_lines())
+
+    import json
+    assert len(lines) == 1
+    error_event = json.loads(lines[0])
+    assert error_event["type"] == "error"
+    assert error_event["code"] == "conversation_not_found"
+    assert error_event["message"] == "会话不存在或已删除"
+    assert error_event["retryable"] is False
+
+
+def test_send_message_stream_returns_internal_error_after_received_race_delete():
+    app = create_app()
+    app.dependency_overrides[get_conversation_service] = lambda: FakeConversationService()
+    app.dependency_overrides[get_conversation_turn_service_factory] = (
+        lambda: _build_turn_service_factory(RaceDeleteAfterReceivedTurnService())
+    )
+    client = TestClient(app)
+
+    with client.stream(
+        "POST",
+        "/api/conversations/conv-1/messages/stream",
+        json={"message": "消防法第二条怎么说？"},
+    ) as response:
+        assert response.status_code == 200
+        lines = list(response.iter_lines())
+
+    import json
+    assert len(lines) == 2
+    received = json.loads(lines[0])
+    assert received["type"] == "received"
+    assert received["persisted"] is True
+
+    error_event = json.loads(lines[1])
+    assert error_event["type"] == "error"
+    assert error_event["code"] == "internal_error"
+    assert error_event["retryable"] is True
 
 
 def test_send_message_stream_returns_404_if_conversation_not_found():
