@@ -130,7 +130,8 @@ def test_open_deleted_conversation_shows_not_found_copy(live_server_url, page):
     error_panel = page.locator("#error-panel")
     expect(error_panel).to_be_visible()
     expect(error_panel).to_have_text("会话不存在或已删除")
-    # 「回到首页」断言视图层（bootstrap 既有 updateUrl 会把地址栏留在原路径，属既有行为，不在本批改动面）。
+    # 产品裁决已落地：404 读取失败后地址栏必须回 `/`（bootstrap 不再把地址栏覆盖回失效会话路径）。
+    expect(page).to_have_url(f"{live_server_url}/")
     expect(page.get_by_test_id("home-composer-input")).to_be_visible()
 
 
@@ -150,6 +151,8 @@ def test_open_conversation_with_server_error_keeps_generic_copy(live_server_url,
     expect(error_panel).to_be_visible()
     expect(error_panel).to_have_text("数据库连接失败")
     assert "不存在或已删除" not in error_panel.inner_text()
+    # 产品裁决已落地：500 读取失败后地址栏同样必须回 `/`。
+    expect(page).to_have_url(f"{live_server_url}/")
     expect(page.get_by_test_id("home-composer-input")).to_be_visible()
 
 

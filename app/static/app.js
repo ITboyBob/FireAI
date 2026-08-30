@@ -913,7 +913,11 @@ async function bootstrap() {
     const routeConversationId = getRouteConversationId() || initialConversationId || null;
     if (routeConversationId) {
       await openConversation(routeConversationId, { push: false });
-      updateUrl(routeConversationId, { replace: true });
+      // 仅在会话实际打开成功时才写回会话 URL；openConversation 失败已回首页，
+      // 不得把地址栏覆盖回失效会话路径（产品裁决：404 后地址栏回 `/`）。
+      if (state.view === "thread") {
+        updateUrl(routeConversationId, { replace: true });
+      }
       return;
     }
     state.activeConversationId = null;
