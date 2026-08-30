@@ -5,6 +5,9 @@ import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
+# docs/system_meta/ 治理文件（文档索引.md、文档读取规则.md）已随仓库文档体系演进移除，
+# 本测试的索引/读取规则断言已相应撤销（2026-08-30）。
+
 W_S1_DOCS = [
     "docs/project_or_workflow/2026-06-29-w-s1-end-to-end-ingestion-implementation.md",
     "docs/project_or_workflow/2026-06-29-w-s1-end-to-end-ingestion-implementation-part-1.md",
@@ -15,8 +18,6 @@ W_S1_DOCS = [
 
 SYNCED_DOCS = [
     "README.md",
-    "docs/system_meta/文档索引.md",
-    "docs/system_meta/文档读取规则.md",
     "docs/architecture_or_strategy/工程技术标准.md",
     *W_S1_DOCS,
 ]
@@ -46,26 +47,6 @@ def test_synced_doc_relative_links_exist(relative_path: str) -> None:
         assert target.exists(), (
             f"{relative_path} 中的链接 '{match.group(0)}' 指向不存在文件: {target}"
         )
-
-
-def test_index_registers_w_s1_plan_docs() -> None:
-    """文档索引已登记 W-S1 总览与四个分卷。"""
-    text = (PROJECT_ROOT / "docs/system_meta/文档索引.md").read_text(encoding="utf-8")
-    for name in [
-        "2026-06-29-w-s1-end-to-end-ingestion-implementation.md",
-        "2026-06-29-w-s1-end-to-end-ingestion-implementation-part-1.md",
-        "2026-06-29-w-s1-end-to-end-ingestion-implementation-part-2.md",
-        "2026-06-29-w-s1-end-to-end-ingestion-implementation-part-3.md",
-        "2026-06-29-w-s1-end-to-end-ingestion-implementation-part-4.md",
-    ]:
-        assert name in text, f"文档索引未登记 {name}"
-
-
-def test_reading_rules_declares_w_s1_guidance() -> None:
-    """文档读取规则已声明 W-S1 任务的读取顺序。"""
-    text = (PROJECT_ROOT / "docs/system_meta/文档读取规则.md").read_text(encoding="utf-8")
-    assert "W-S1 端到端摄取实施" in text
-    assert "能力路线图" in text
 
 
 def test_engineering_standard_requires_confirmed_and_qualified() -> None:

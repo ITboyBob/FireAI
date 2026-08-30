@@ -49,7 +49,7 @@ tests/ 是消防法律 RAG 系统的全量测试层：unit 覆盖 api/core/docs/
 
 | File | Domain | Function |
 |---|---|---|
-| test_ws1_plan_docs.py | 文档规范 | 校验 W-S1 计划同步文档行数上限、相对链接有效、索引登记、阅读规则声明与 README 统一 CLI 列举 |
+| test_ws1_plan_docs.py | 文档规范 | 校验 W-S1 计划同步文档行数上限、相对链接有效、工程技术标准关键词与 README 统一 CLI 列举 |
 
 ### unit/services
 
