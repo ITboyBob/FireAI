@@ -35,7 +35,7 @@ generated_at: 2026-08-27
 
 ## Files
 
-### architecture_or_strategy（13 篇）
+### architecture_or_strategy（14 篇）
 
 | File 或系列 | Domain | 内容一句话 |
 | --- | --- | --- |
@@ -43,6 +43,7 @@ generated_at: 2026-08-27
 | `2026-04-11-fire-qa-system-2.0-prd.md` | 产品需求 | 消防问答系统 2.0 的唯一产品标准 PRD，定义定位、能力边界与验收口径。 |
 | `2026-04-23-fire-qa-ndjson-status-stream-design.md` | 交互设计 | 后端 NDJSON 状态流、前端基于可信 payload 逐字呈现的问答体验设计。 |
 | 法规摄取设计系列（7 篇）：`2026-06-28-multi-format-legal-corpus-ingestion-design.md`、`2026-06-28-legal-source-classification-and-extraction-design.md`、`2026-06-28-legal-content-boundary-and-intermediate-model-design.md`、`2026-06-28-legal-ingestion-quality-gates-and-batch-state-design.md`、`2026-06-29-unified-legal-ingestion-entry-adr.md`、`2026-06-29-legal-ingestion-overall-architecture.md`、`2026-07-04-s3-trailing-exclusion-boundary-design.md` | 法规摄取设计 | 总体架构 + ADR + 多格式摄取总设计与分类提取、正文边界、质量门禁三份专项分卷及 S3 尾部排除细化设计。 |
+| `2026-09-02-pt-s2-pt-s3-pdf-acceptance-criteria.md` | 法规摄取设计 | PT-S2/PT-S3 文本型 PDF 提取技术选型的验收标准清单（A 共同基础 / B S2 专属 / C S3 专属 / D 工程约束四组，淘汰与评分两级），Linear BOB-59 产出。 |
 | 新评测系统设计卷册（3 篇）：`2026-07-23-evaluation-optimization-loop-architecture-design.md`（分卷一）、`2026-07-27-ragas-response-reference-rubric-judge-design.md`（分卷三）、`2026-08-27-evaluation-system-specification-dependency-review.md`（BOB-56 审查） | 新评测系统设计 | evaluation-only 新评测系统的运行/报告架构、仅适用于 Golden Set 的七项 Metric 契约，以及三类 JSONL + manifest 的数据组织和格式—方法—指标依赖审查；数据生成素材位于仓库根 `eval_set/`，总卷位于仓库根 `新评测系统设计总卷.md`。 |
 
 ### project_or_workflow（22 篇）

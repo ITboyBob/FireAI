@@ -99,6 +99,25 @@ conda run -n fire python -m pip install -e ".[dev]"
 - `CHAT_MODEL`
 - `EMBEDDING_MODEL_NAME`
 
+## 使用 Symphony 执行 Linear 工单
+
+仓库级 [WORKFLOW.md](WORKFLOW.md) 将 Symphony 限定到 Linear“消防AI”项目。只有同时满足以下条件的工单才会进入自动化执行队列：
+
+- 状态为 `Todo` 或 `In Progress`；
+- 带有团队级 `symphony` 标签。
+
+当前采用本机分支交付：每个工作区从 `/Users/itboybob/Project/fire` 的已提交 `main` 克隆，产出发布到本机 `symphony/<工单标识>` 分支，不向 GitHub push。源仓库中的未提交修改不会进入 Symphony 工作区。
+
+在 Linear 的 Settings → Security & access → Personal API keys 创建个人密钥后，从交互式终端启动：
+
+```bash
+scripts/run_symphony.sh
+```
+
+**命令执行意图：** 在 conda `fire` 与隔离工作区约束下启动 Symphony，轮询带 `symphony` 标签的 Linear 工单，并在本机 `4400` 端口启用观测面板。
+
+**预期输出：** 终端显示 Symphony 状态面板与 `http://127.0.0.1:4400/`；未设置 `LINEAR_API_KEY` 时脚本会静默提示输入，密钥不会写入仓库文件。按 `Ctrl-C` 可停止服务。
+
 ## 运行和使用
 
 1. 准备本机 `.env` 配置。
