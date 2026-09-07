@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.0.0",
+  "config_version": "0.1.0",
+  "status": "Draft",
+  "source": {
+    "paper": "https://arxiv.org/html/2412.12300v3",
+    "repository": "https://github.com/SalesforceAIResearch/Unanswerability_RAGE",
+    "repository_commit": "40cd6512ec7c39a0fdf6ffc1b570459af1cfcf97",
+    "prompt_file": "src/taxonomy/prompts_taxonomy.py"
+  },
+  "types": {
+    "Underspecified": {
+      "display_name": "模糊提问/信息不足型",
+      "definition": "模糊提问或信息不足型问题，是缺少作出适当回答所必需的关键信息，因而无法得到明确、准确回答的问题。",
+      "generation_conditions": "根据输入的法规事实文本生成一个问题，并有意省略回答该问题所必需的关键信息；被省略的信息必须能够从输入中定位，且缺失后确实无法确定唯一、准确的回答。生成时应同时给出简短理由，明确指出缺失了什么关键信息以及为何因此无法回答。"
+    },
+    "Nonsensical": {
+      "display_name": "无意义型",
+      "definition": "无意义型问题，是因错别字、语言障碍、表述不清或逻辑不合理而变得不连贯、难以理解，或者无法得到准确回答的问题。",
+      "generation_conditions": "根据输入的法规事实文本生成一个无意义或难以理解的问题，并说明该问题为何无法回答；问题中的实质性短语、对象和概念必须来自输入，不得引入输入之外的实体或主题。"
+    },
+    "False-presupposition": {
+      "display_name": "错误预设型",
+      "definition": "错误预设型问题，是包含错误的潜在假设或信念的问题；只有当该预设与输入的法规事实文本发生明确冲突时，才构成有效的错误预设，仅仅未被输入支持、提及或确认的预设不属于本类型。",
+      "generation_conditions": "根据输入的法规事实文本生成一个包含错误预设的问题；该错误预设必须能够被输入中的明确事实直接反驳，而不能只是输入没有提供相关信息。生成时应同时给出简短理由，指出问题中的具体预设及其与输入事实的冲突。"
+    },
+    "Modality-limited": {
+      "display_name": "模态受限型",
+      "definition": "模态受限型问题，是要求使用当前系统不支持的输入、输出或工具能力的问题；参考系统只支持文本生成，不支持音频、图像、实时更新、监控及其他外部工具能力。",
+      "generation_conditions": "先根据输入的法规事实文本形成一个仅凭文本即可回答的原始问题，再将其转换为必须依赖系统不支持的模态或工具能力才能完成的问题；转换后应保持原始问题的核心主题，并说明所要求的具体能力为何超出仅支持文本生成的系统边界。"
+    }
+  }
+}
