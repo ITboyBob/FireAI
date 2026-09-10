@@ -66,5 +66,5 @@ stats:
 | AGENTS.md | 代理导航 | 当前目标/强制规则；文末附 CODEMAP Navigation Protocol 导航协议块 |
 | pyproject.toml | 包配置 | fire-law-rag 依赖声明、pytest testpaths 配置 |
 | .env.example | 配置模板 | CHAT_*、EMBEDDING_MODEL_NAME、WS_RAG_* 等环境变量样例 |
-| 新评测系统设计总卷.md | 架构设计文档 | 新评测系统 evaluation-only 总卷；导航 BOB-56 审查、`eval_set/`、分卷一和分卷三，明确七项 Metric 仅评测 Golden Set，并标明当前受 BOB-55 阻塞 |
+| 新评测系统设计总卷.md | 架构设计文档 | 新评测系统 evaluation-only 总卷；导航 BOB-56 审查、`eval_set/`、分卷一和分卷三，明确七项 Metric 仅评测 Golden Set，并标明当前受 BOB-55 阻塞；BOB-74 后另含两项 Adversarial 新增 Metric（红线违规率、风险识别能力），由分卷三 §7 登记 |
 | 评测维度.md | 架构设计文档 | 评测维度备忘 |

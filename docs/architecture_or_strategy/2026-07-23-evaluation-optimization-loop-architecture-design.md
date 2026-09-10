@@ -26,7 +26,7 @@
 
 本文不定义评测数据集或 `metrics.json` 的字段，不复述 Metric 公式、rubric、结果字段、聚合数学或单项错误字段。
 
-本文以下内容是 BOB-55/BOB-56 决策通过后的候选运行契约。正式数据 schema 尚未冻结；已确认正式文件组织采用三类 JSONL + manifest，且现有七项 Metric 仅适用于 Golden Set。Adversarial / Edge 的额外 Metric 仍待定义，D1 尚未关闭；在[BOB-56 审查第 8 节](./2026-08-27-evaluation-system-specification-dependency-review.md#8-已确认与待决策事项)的未决事项关闭前，不得据本文进入实现或声称架构已经整体收敛。
+本文以下内容是 BOB-55/BOB-56 决策通过后的候选运行契约。正式数据 schema 尚未冻结；已确认正式文件组织采用三类 JSONL + manifest，且现有七项 Metric 仅适用于 Golden Set。Adversarial Case 的两项新增 Metric（红线违规率、风险识别能力）已由 BOB-74 在[分卷三 §7](./2026-07-27-ragas-response-reference-rubric-judge-design.md#7-adversarial-case-新增-metric-登记bob-74)登记语义边界，其稳定 ID、Judge 输入、判分细则、聚合契约与通过阈值确定后方可接入调度与聚合；Edge 的 Metric 仍未定义。在[BOB-56 审查第 8 节](./2026-08-27-evaluation-system-specification-dependency-review.md#8-已确认与待决策事项)的未决事项关闭前，不得据本文进入实现或声称架构已经整体收敛。
 
 ## 1. 架构结论
 
@@ -387,7 +387,7 @@ preflight 失败不创建正式 run，也不创建 `run_status.json`。不支持
 | 正式输入 preflight | 候选设计；正式数据 schema 未冻结，尚未实现 |
 | 被测 RAG 适配与逐 case 观测 | 观测边界已定义；整体方法仍受 BOB-56 门禁，尚未实现 |
 | Golden Set 七项 Metric 调度与聚合接入 | 候选设计；尚未实现 |
-| Adversarial / Edge 额外 Metric 接入 | 未定义；D1 决定 Adversarial 首期目标，尚未实现 |
+| Adversarial / Edge 额外 Metric 接入 | Adversarial 两项（红线违规率、风险识别能力）语义边界已由 BOB-74 登记于分卷三 §7；判分细则与聚合契约待定后接入，Edge 未定义；尚未实现 |
 | `completed` / `incomplete` / `failed` run 状态 | 候选设计；尚未实现 |
 | JSON 与 Markdown 从同一对象直接写出 | 候选设计；最终结果 schema 待上游决策后收口，尚未实现 |
 | 真实模型与新评测系统端到端 baseline | 尚未验证 |
