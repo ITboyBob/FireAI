@@ -42,7 +42,7 @@ Ragas `RubricsScoreWithReference` 是七项 Metric 之一，与其他六项共�
 6. `deepeval_answer_relevancy`
 7. `ragas_rubrics_score_with_reference`
 
-每项配置必须保存：
+每项配置必须保存。各字段按执行环节承担不同角色：身份=`metric_id`；输入=`inputs`；计算=`implementation`、`parameters`、`rubrics`；结果边界=`score_contract`；诊断=`details_schema`；汇总=`aggregation`。各字段独立保存并共同参与配置 hash，不合并为单一配置块。
 
 | 字段 | 内容 |
 | --- | --- |
@@ -51,7 +51,7 @@ Ragas `RubricsScoreWithReference` 是七项 Metric 之一，与其他六项共�
 | `inputs` | 实际读取的业务输入 |
 | `parameters` | `k=5`、固定依赖版本与 Judge 参数 |
 | `score_contract` | raw/normalized 范围、空输入和错误规则 |
-| `details_contract` | `details` 的固定结构、内容来源与空值边界 |
+| `details_schema` | 统一 `MetricResult` 中 `details` 诊断字段的固定结构、内容来源与空值边界 |
 | `aggregation` | 单 case 内计算与跨 case 聚合方式 |
 | `rubrics` | 仅 Ragas 项保存完整五档英文 rubric |
 
@@ -142,7 +142,7 @@ Ragas `RubricsScoreWithReference` 是七项 Metric 之一，与其他六项共�
 - 使用 `RubricsScoreWithReference`，它等价于 `DomainSpecificRubrics(with_reference=True)`。
 - 采用 [Ragas `0.4.3` 官方源码](https://github.com/vibrantlabsai/ragas/blob/v0.4.3/src/ragas/metrics/collections/domain_specific_rubrics/util.py)中的默认五档 reference-based rubric 语义：从“完全错误、无关或不符合参考答案”逐档提升到“完全准确、完整符合参考答案且清晰、充分、详细”。
 - Ragas `0.4.3` 的完整五档英文 rubric 必须原样写入 `metrics.json` 的本 Metric `rubrics`，并参与配置 hash；不得只保存中文摘要或依赖上游运行时默认。
-- `metrics.json` 顶层固定 `schema_version=1.0.0` 与 `metrics`；本项与其他 Metric 一样保存 `metric_id`、`implementation`、`inputs`、`parameters`、`score_contract`、`details_contract`、`aggregation`。
+- `metrics.json` 顶层固定 `schema_version=1.0.0` 与 `metrics`；本项与其他 Metric 一样保存 `metric_id`、`implementation`、`inputs`、`parameters`、`score_contract`、`details_schema`、`aggregation`。
 - 不导入或直接实例化 `DomainSpecificRubrics`；Fire 使用公开便利类 `RubricsScoreWithReference` 表达已确认的 reference-based 模式。
 
 | Key | 完整英文文本 | Source |
@@ -204,7 +204,7 @@ Ragas `RubricsScoreWithReference` 是七项 Metric 之一，与其他六项共�
 | --- | --- | --- |
 | 稳定 metric_id | `metric_id` | 按 §3 命名规范分配两项稳定 ID（红线违规率、风险识别能力各一项），并登记 Metric 类型（gate / capability） |
 | Judge 输入契约 | `inputs` | 确定红线判定与三项期待行为判定各读取哪些输入（至少包含 Query 与 `answer_text`；是否引入其他观测或参考内容待定） |
-| 判分细则 | `implementation`、`parameters`、`score_contract` | 红线行为的机械判定边界；三项期待行为逐项的满足判定规则；`details_contract`（判定理由结构）；归一化或原始分值域与空输入/错误规则 |
+| 判分细则 | `implementation`、`parameters`、`score_contract` | 红线行为的机械判定边界；三项期待行为逐项的满足判定规则；`details_schema`（判定理由结构）；归一化或原始分值域与空输入/错误规则 |
 | 聚合方式 | `aggregation` | 风险识别能力的跨 case 聚合算法；红线违规率的守门报告口径（比例值与触发守门的条件） |
 | 通过阈值 | `parameters` | 守门 Metric 与能力 Metric 各自的通过/失败阈值 |
 | 配置 hash 接入 | — | 两项配置冻结后纳入 `metrics.json` canonical JSON 的 SHA-256 配置 hash |
