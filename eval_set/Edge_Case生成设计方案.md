@@ -1,7 +1,7 @@
 ---
 Title: “Edge Case”生成设计方案
 Description: 本文的分类[出处](https://arxiv.org/html/2412.12300v3) ，[代码仓库](https://github.com/SalesforceAIResearch/Unanswerability_RAGE) ；本仓库只采纳本文列出的type而不是“出处”包含的所有type；本文type的定义描述仅供参考，以“出处”为标准
-Status: Draft
+Status: Determined
 ---
 
 # 总体生成方案

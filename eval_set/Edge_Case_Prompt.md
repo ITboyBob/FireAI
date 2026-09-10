@@ -1,6 +1,6 @@
 # Edge Case“问题生成流程”
 
-Status: Draft
+Status: Archived
 
 Description: 本流程暂定产出为“改写后的问题”，不包括“系统的预期行为”。本流程可参考“Adversarial Case生成Prompt”
 
