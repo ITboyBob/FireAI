@@ -29,6 +29,18 @@ data/.staging/
 .cache/
 hf_cache/
 
+# Agent navigation and workflow local indexes (not tracked)
+CODEMAP.md
+WORKFLOW.md
+
+# Raw legal corpus materials (not tracked)
+法律文本/
+新法规文件/
+
+# Local tool caches
+.deepeval/
+.humanize/
+
 # Test and editor noise
 .pytest_cache/
 .DS_Store
